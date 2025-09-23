@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -23,6 +23,38 @@ namespace KVM_ERP
                 name: "CategoryMaster",
                 url: "CategoryMaster/{action}/{id}",
                 defaults: new { controller = "CategoryMaster", action = "Index", id = UrlParameter.Optional },
+                namespaces: new[] { "KVM_ERP.Controllers.Masters" }
+            );
+
+            // Explicit route for EmployeeMaster under Masters namespace
+            routes.MapRoute(
+                name: "EmployeeMaster",
+                url: "EmployeeMaster/{action}/{id}",
+                defaults: new { controller = "EmployeeMaster", action = "Index", id = UrlParameter.Optional },
+                namespaces: new[] { "KVM_ERP.Controllers.Masters" }
+            );
+
+            // Explicit route for DepartmentMaster under Masters namespace
+            routes.MapRoute(
+                name: "DepartmentMaster",
+                url: "DepartmentMaster/{action}/{id}",
+                defaults: new { controller = "DepartmentMaster", action = "Index", id = UrlParameter.Optional },
+                namespaces: new[] { "KVM_ERP.Controllers.Masters" }
+            );
+
+            // Explicit route for DesginationMaster under Masters namespace
+            routes.MapRoute(
+                name: "DesginationMaster",
+                url: "DesginationMaster/{action}/{id}",
+                defaults: new { controller = "DesginationMaster", action = "Index", id = UrlParameter.Optional },
+                namespaces: new[] { "KVM_ERP.Controllers.Masters" }
+            );
+
+            // Explicit route for LocationMaster under Masters namespace
+            routes.MapRoute(
+                name: "LocationMaster",
+                url: "LocationMaster/{action}/{id}",
+                defaults: new { controller = "LocationMaster", action = "Index", id = UrlParameter.Optional },
                 namespaces: new[] { "KVM_ERP.Controllers.Masters" }
             );
 

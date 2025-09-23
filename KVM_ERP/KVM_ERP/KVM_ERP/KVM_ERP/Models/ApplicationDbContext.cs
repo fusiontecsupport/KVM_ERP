@@ -1,4 +1,4 @@
-﻿using ClubMembership.Data;
+using ClubMembership.Data;
 using ClubMembership.Models;
 using KVM_ERP.Models;
 // Add this using directive if AnnouncementMaster is in another namespace
@@ -17,12 +17,9 @@ namespace KVM_ERP.Models
         public DbSet<StateMaster> StateMasters { get; set; }
         public DbSet<BloodGroupMaster> BloodGroupMasters { get; set; }
         public DbSet<RegionMaster> RegionMasters { get; set; }
-        public DbSet<MemberShipMaster> MemberShipMasters { get; set; }
-        public DbSet<MemberShipFamilyDetail> MemberShipFamilyDetails { get; set; }
-        public DbSet<MemberShipODetail> MemberShipODetails { get; set; }
-        public DbSet<MemberShipPaymentDetail> MemberShipPaymentDetails { get; set; }
-        public DbSet<MemberShipTypeMaster> MemberShipTypeMasters { get; set; }
-
+        public DbSet<DesignationMaster> DesignationMasters { get; set; }
+        public DbSet<DepartmentMaster> DepartmentMasters { get; set; }
+        public DbSet<LocationMaster> LocationMasters { get; set; }
 
         new public virtual IDbSet<ApplicationRole> Roles { get; set; }
         public virtual IDbSet<Group> Groups { get; set; }
@@ -36,14 +33,10 @@ namespace KVM_ERP.Models
         public virtual IDbSet<AccountGroupMaster> accountgroupmasters { get; set; }
         public virtual IDbSet<AccountHeadMaster> accountheadmasters { get; set; }
         public virtual IDbSet<DisplayOrderMaster> displayordermasters { get; set; }
-        public DbSet<EmployeeMaster> employeemasters { get; set; }
+        public DbSet<EmployeeMaster> EmployeeMasters { get; set; }
         public DbSet<EmployeeLinkMaster> employeelinkmasters { get; set; }
-        public DbSet<AnnouncementMaster> announcementmasters { get; set; }
-        public DbSet<EventMaster> eventmasters { get; set; }
-        public DbSet<GalleryMaster> gallerymasters { get; set; }
-        public DbSet<EventInterest> eventinterests { get; set; }
-        public DbSet<MinutesOfMeeting> minutesofmeetings { get; set; }
-        public DbSet<GovernmentProof> GovernmentProofs { get; set; }
+        // GovernmentProof module removed
+        // public DbSet<GovernmentProof> GovernmentProofs { get; set; }
         public ApplicationDbContext()
          : base("Club_DefaultConnection")
         {

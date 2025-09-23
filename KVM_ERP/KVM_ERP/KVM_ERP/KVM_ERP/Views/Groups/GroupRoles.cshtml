@@ -1,4 +1,4 @@
-@model ClubMembership.Models.AccountViewModels.SelectGroupRolesViewModel
+@model KVM_ERP.Models.AccountViewModels.SelectGroupRolesViewModel
 @{
     ViewBag.Title = "Group Role Permissions";
     var masterRoles = Model.Roles.Where(r => !r.RoleName.Contains("Print") && !r.RoleName.Contains("Transaction")).ToList();

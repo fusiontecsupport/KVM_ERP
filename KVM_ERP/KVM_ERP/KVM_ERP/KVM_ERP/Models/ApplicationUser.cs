@@ -25,7 +25,8 @@ namespace KVM_ERP.Models
         public string Email { get; set; }
 
         [Required]
-        [StringLength(15)]
+        [StringLength(10, MinimumLength = 10, ErrorMessage = "Mobile number must be exactly 10 digits")]
+        [RegularExpression(@"^[0-9]{10}$", ErrorMessage = "Mobile number must be exactly 10 digits")]
         [Display(Name = "Mobile Number")]
         public string MobileNo { get; set; }
 

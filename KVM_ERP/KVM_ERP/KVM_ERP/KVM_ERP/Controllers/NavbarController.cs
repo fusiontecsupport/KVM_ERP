@@ -14,22 +14,11 @@ namespace KVM_ERP.Controllers
         // GET: Navbar
         public ActionResult Navbar(string controller, string action)
         {
-            // Decide first to avoid hitting session-dependent menu code for user sidebar
+            // Always render navbar; the partial will tailor items by user/session/roles
             var isAuthenticated = Request.IsAuthenticated;
-            var isAdmin = isAuthenticated && (
-                User.IsInRole("Admin") ||
-                (Session != null && Session["Group"] != null && Session["Group"].ToString() == "Admin")
-            );
-
-            if (isAuthenticated && !isAdmin)
-            {
-                // Non-admin authenticated users: render sidebar, no need to build menu model
-                return PartialView("_sidebar", Enumerable.Empty<MenuNavbar>());
-            }
-
-            // Admins and unauthenticated: render existing navbar
             var data = new MenuNavData();
-            var navbar = data.itemsPerUser(controller, action, User.Identity.Name);
+            var userName = isAuthenticated ? User.Identity.Name : string.Empty;
+            var navbar = data.itemsPerUser(controller, action, userName);
             return PartialView("_navbar", navbar);
         }
     }

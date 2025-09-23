@@ -1,190 +1,477 @@
-﻿@using ClubMembership.Models;
-@model ClubMembership.Models.LocationMaster
+@using KVM_ERP.Models;
+@model KVM_ERP.Models.LocationMaster
 @{
-    ViewBag.Title = "Form";
+    ViewBag.Title = "Location Master Form";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 <style>
-    .spacer5 {
-        height: 5px !important;
-    }
-
     .req {
-        color: red;
+        color: #e74c3c;
+        font-size: 13px;
+        font-weight: 700;
+        margin-left: 4px;
+    }
+    
+    .form-container {
+        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 50%, #e9ecef 100%);
+        border-radius: 20px;
+        box-shadow: 
+            0 20px 40px rgba(0,0,0,0.1),
+            0 8px 16px rgba(0,0,0,0.05),
+            inset 0 1px 0 rgba(255,255,255,0.8);
+        padding: 45px;
+        margin: 25px 0;
+        border: 1px solid rgba(255,255,255,0.2);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .form-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #007bff, #28a745, #ffc107, #dc3545);
+        border-radius: 20px 20px 0 0;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+        color: white;
+        padding: 25px 35px;
+        border-radius: 16px 16px 0 0;
+        margin: -45px -45px 35px -45px;
+        box-shadow: 
+            0 8px 25px rgba(44,62,80,0.3),
+            inset 0 1px 0 rgba(255,255,255,0.1);
+        position: relative;
+    }
+    
+    .form-header::after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 4px;
+        background: linear-gradient(90deg, #3498db, #2ecc71);
+        border-radius: 2px;
+    }
+    
+    .form-header h3 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .form-header .fa {
+        font-size: 30px;
+        color: #3498db;
+    }
+    
+    .form-section {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 25px;
+        border: 2px solid #e9ecef;
+        box-shadow: 
+            0 8px 20px rgba(0,0,0,0.08),
+            inset 0 1px 0 rgba(255,255,255,0.9);
+        position: relative;
+    }
+    
+    .section-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 3px solid #3498db;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: relative;
+    }
+    
+    .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: -3px;
+        left: 0;
+        width: 50px;
+        height: 3px;
+        background: #2ecc71;
+        border-radius: 2px;
+    }
+    
+    .form-group {
+        margin-bottom: 30px;
+        position: relative;
+    }
+    
+    .control-label {
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 10px;
         font-size: 15px;
+        display: block;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .form-control {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 12px 16px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background-color: #ffffff;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.15);
+        outline: none;
+        background-color: #f8f9ff;
+    }
+    
+    .form-control:hover {
+        border-color: #6c757d;
+    }
+    
+    .form-control.is-invalid {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.2rem rgba(220,53,69,0.15);
+    }
+    
+    .text-danger {
+        color: #dc3545;
+        font-size: 12px;
+        margin-top: 5px;
+        display: block;
+        font-weight: 500;
+    }
+    
+    .btn-group {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        align-items: center;
+        padding-top: 20px;
+        border-top: 2px solid #e9ecef;
+        margin-top: 30px;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        font-weight: 600;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        min-width: 120px;
+        justify-content: center;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+    }
+    
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,123,255,0.4);
+    }
+    
+    .btn-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(108,117,125,0.3);
+    }
+    
+    .btn-secondary:hover {
+        background: linear-gradient(135deg, #495057 0%, #343a40 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(108,117,125,0.4);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .status-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 6px 12px;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border: 2px solid;
+        min-width: 80px;
+        justify-content: center;
+    }
+    
+    .status-enabled {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        color: #155724;
+        border-color: #28a745;
+    }
+    
+    .status-disabled {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        color: #721c24;
+        border-color: #dc3545;
+    }
+    
+    @@media (max-width: 768px) {
+        .form-container {
+            padding: 20px;
+            margin: 10px 0;
+        }
+        
+        .form-header {
+            padding: 15px 20px;
+            margin: -20px -20px 20px -20px;
+        }
+        
+        .form-header h3 {
+            font-size: 20px;
+        }
+        
+        .btn-group {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .btn {
+            width: 100%;
+        }
     }
 </style>
 
 <div class="col-lg-12">
     <div class="panel panel-primary">
+        <div class="form-container">
+            <div class="form-header">
+                <h3><i class="fa fa-map-marker"></i> Location Master</h3>
+            </div>
 
-        <div class="panel-heading">
-            <h3 class="panel-title"><i class="fa fa-bar-chart-o fa-fw"></i>  Location Master  <div class="clearfix"> </div></h3>
-        </div>
-
-        @Html.Raw(ViewBag.msg)
-        <div class="row">
-            <div class="col-md-12">
-                <div class="panel-body">
-                    <form action="@Url.Content("~/LocationMaster/savedata")" method="post" accept-charset="utf-8" id="loactionmasterform" data-ng-controller="myController" name="loactionmasterform" onsubmit="return ValidateMyform(this,event);>
-                        @Html.ValidationSummary(true)
-                        <div class="row">
-                            <div class="col-md-12">
-                                <div class="col-md-4 hidden">
-                                    <div class="form-group">
-                                        <label>Primary  </label>
-                                        @Html.TextBoxFor(model => Model.LOCTID, new { @class = "form-control  LOCTID", @id = "LOCTID" })
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-12">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>Code<span class="req"> *</span> </label>
-                                        @Html.TextBoxFor(model => Model.LOCTCODE, new { @class = "form-control LOCTCODE caps", @id = "LOCTCODE", required = "required", MaxLength = "15" })
-                                        @Html.ValidationMessageFor(mode => Model.LOCTCODE)
-                                        <input type="text" value="@Model.LOCTCODE" name="i_LOCTCODE" hidden>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-12">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>Description <span class="req"> *</span> </label>
-                                        @Html.TextBoxFor(model => Model.LOCTDESC, new { @class = "form-control  LOCTDESC", @id = "LOCTDESC", required = "required" })
-                                        @Html.ValidationMessageFor(mode => Model.LOCTDESC)
-                                        <input type="text" value="@Model.LOCTDESC" name="i_LOCTDESC" hidden>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-12">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>State <span class="req"> *</span> </label>
-                                        @Html.DropDownList("STATEID", null, "Please select State", new { @class = "form-control  STATEID", @data_val = "true", @data_val_required = "Field is required", @id = "STATEID" })
-                                        @Html.ValidationMessageFor(mode => Model.STATEID)
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-12 hidden">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>CUSRID </label>
-                                        @Html.TextBoxFor(model => Model.CUSRID, new { @class = "form-control CUSRID", @id = "CUSRID" })
-                                        @Html.ValidationMessageFor(model => model.CUSRID)
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>LMUSRID </label>
-                                        @Html.TextBoxFor(model => Model.LMUSRID, new { @class = "form-control  LMUSRID", @id = "LMUSRID" })
-                                        @Html.ValidationMessageFor(model => model.LMUSRID)
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-12">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>Status </label>
-                                        @Html.DropDownList("DISPSTATUS", null, new { @class = "form-control DISPSTATUS", @id = "DISPSTATUS" })
-                                    </div>
-                                </div>
-                            </div>
-                            @*<div class="col-md-12">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>Branch </label>
-                                        @Html.DropDownList("BRNCHID", null, new { @class = "form-control BRNCHID", @id = "BRNCHID" })
-                                    </div>
-                                </div>
-                            </div>*@
-                            <div class="col-md-12 box-footer">
-                                <input type="button" name="back" value="Go Back" class="btn btn-primary btn-sm  pull-left" onclick="JavaScript:history.back()" />
-                                @*<input type="submit" name="continue" value="Save & Add" class="btn btn-success btn-sm pull-right " />*@
-
-                                <input type="submit" name="save" value="Save" class="btn btn-primary btn-sm pull-right  " />
-
+            @Html.Raw(ViewBag.msg)
+            
+            <form action="@Url.Content("~/LocationMaster/savedata")" method="post" accept-charset="utf-8" id="locationForm" name="locationForm">
+                @Html.HiddenFor(model => model.LOCTID)
+                
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fa fa-info-circle"></i> Basic Information
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="control-label">
+                                    Code <span class="req">*</span>
+                                </label>
+                                @Html.TextBoxFor(model => model.LOCTCODE, new { 
+                                    @class = "form-control", 
+                                    @placeholder = "Enter location code", 
+                                    @id = "i_LOCTCODE", 
+                                    @maxlength = "15",
+                                    @autocomplete = "off"
+                                })
+                                @Html.ValidationMessageFor(model => model.LOCTCODE, "", new { @class = "text-danger" })
                             </div>
                         </div>
-                    </form>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="control-label">
+                                    Description <span class="req">*</span>
+                                </label>
+                                @Html.TextBoxFor(model => model.LOCTDESC, new { 
+                                    @class = "form-control", 
+                                    @placeholder = "Enter location description", 
+                                    @id = "i_LOCTDESC",
+                                    @autocomplete = "off"
+                                })
+                                @Html.ValidationMessageFor(model => model.LOCTDESC, "", new { @class = "text-danger" })
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="control-label">
+                                    State <span class="req">*</span>
+                                </label>
+                                @Html.DropDownListFor(model => model.STATEID, ViewBag.STATEID as List<SelectListItem>, "Please select State", new { 
+                                    @class = "form-control",
+                                    @id = "stateDropdown"
+                                })
+                                @Html.ValidationMessageFor(model => model.STATEID, "", new { @class = "text-danger" })
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="control-label">Status</label>
+                                <div class="status-wrapper">
+                                    @Html.DropDownListFor(model => model.DISPSTATUS, ViewBag.DISPSTATUS as List<SelectListItem>, new { 
+                                        @class = "form-control",
+                                        @id = "statusDropdown"
+                                    })
+                                    <span id="statusIndicator" class="status-badge"></span>
+                                </div>
+                                @Html.ValidationMessageFor(model => model.DISPSTATUS, "", new { @class = "text-danger" })
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+                
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary" id="saveBtn">
+                        <i class="fa fa-save"></i> Save
+                    </button>
+                    <a href="@Url.Action("Index", "LocationMaster")" class="btn btn-secondary">
+                        <i class="fa fa-times"></i> Cancel
+                    </a>
+                </div>
+            </form>
         </div>
-
-
     </div>
 </div>
+
 @section Scripts {
-
-    @Scripts.Render("~/bundles/jqueryval")
-    <script src="~/Scripts/jquery.validate_tab.js"></script>
     <script>
-        $('.msg').delay(1200).fadeOut(1000);
-        $("#LOCTDESC").keyup(function () {//...capitalize each
-
-            $(this).val($(this).val().toUpperCase());
-        });
-
-        function ValidateMyform(form, event) {
-            flag = true;
-            i = 0;
-            //$("#btnsave").attr("disabled", "disabled");
-            var frmflag = $(form).attr('data-flag');
-            //alert(frmflag);
-            var form = document.getElementById('loactionmasterform');
-            var inputs = form.getElementsByTagName('input');
-            var forms = document.getElementsByClassName('needs-validation');
-
-            if (form.checkValidity() === false) {
-                event.preventDefault();
-                event.stopPropagation();
-                flag = false;
-            }
-            else {
-                form.classList.add('was-validated'); flag = true;
-            }
-
-            if (flag) {
-                if (frmflag == 0) {
-                    event.preventDefault(); //to prevent submitting
-
-                    Swal.fire({
-                        title: "Are you sure?",
-                        text: "Are you sure to Submit the Information !",
-                        type: "warning",
-                        confirmButtonText: "Yes",
-                        showCancelButton: true,
-                        cancelButtonColor: "#d43f3a",
-                        cancelButtonText: "No",
-                        showCloseButton: true,
-                        position: "Center",
-                    }).then((result) => {
-                        if (result.value) {
-                            flag = true;
-                            var ActionName = "SaveData";
-                            var controllername = "LocationMaster";
-                            var pagetitle = "@ViewBag.Title";
-                            var formData = $(loactionmasterform).serialize();
-                            submitFormData(ActionName, controllername, pagetitle, formData,"Index");
-                            $("#btnsave").removeAttr("disabled", "disabled");
-                        }
-                        else if (result.isDenied) {
-                            Swal.fire('Changes are not saved', '', 'info')
-                            flag = false;
-                            $("#btnsave").removeAttr("disabled", "disabled");
-                            return false;
-                        }
-
-                    });
+        $(document).ready(function () {
+            // Debug: Let's see what model values we have
+            console.log('Model LOCTID:', '@Model.LOCTID');
+            console.log('Model DISPSTATUS:', '@Model.DISPSTATUS');
+            console.log('Initial dropdown value:', $('#statusDropdown').val());
+            
+            // Focus on first input
+            $('#i_LOCTCODE').focus();
+            
+            // Update status indicator
+            function updateStatusIndicator() {
+                var status = $('#statusDropdown').val();
+                var indicator = $('#statusIndicator');
+                
+                // Debug: Let's see what value we get
+                console.log('Status dropdown value:', status);
+                
+                if (status == '0') {
+                    indicator.removeClass('status-disabled').addClass('status-enabled');
+                    indicator.html('<i class="fa fa-check-circle"></i> Enabled');
+                } else {
+                    indicator.removeClass('status-enabled').addClass('status-disabled');
+                    indicator.html('<i class="fa fa-times-circle"></i> Disabled');
                 }
             }
-            else {
-                return false;
-            }
-        }
-
+            
+            // Initialize status indicator
+            updateStatusIndicator();
+            
+            // Update indicator when dropdown changes
+            $('#statusDropdown').on('change', updateStatusIndicator);
+            
+            // Enhanced form validation
+            $('#locationForm').on('submit', function(e) {
+                var isValid = true;
+                var code = $('#i_LOCTCODE').val().trim();
+                var desc = $('#i_LOCTDESC').val().trim();
+                var state = $('#stateDropdown').val();
+                
+                // Reset previous validation states
+                $('.form-control').removeClass('is-invalid');
+                
+                if (!code) {
+                    $('#i_LOCTCODE').addClass('is-invalid');
+                    isValid = false;
+                }
+                
+                if (!desc) {
+                    $('#i_LOCTDESC').addClass('is-invalid');
+                    isValid = false;
+                }
+                
+                if (!state || state == '') {
+                    $('#stateDropdown').addClass('is-invalid');
+                    isValid = false;
+                }
+                
+                if (!isValid) {
+                    e.preventDefault();
+                    // Scroll to first invalid field
+                    $('.is-invalid').first().focus();
+                    return false;
+                }
+                
+                // Show loading state
+                var clickedBtn = $(document.activeElement);
+                if (clickedBtn.is('button[type="submit"]')) {
+                    clickedBtn.prop('disabled', true);
+                    var originalText = clickedBtn.html();
+                    clickedBtn.html('<i class="fa fa-spinner fa-spin"></i> Saving...');
+                    
+                    // Re-enable after 3 seconds (fallback)
+                    setTimeout(function() {
+                        clickedBtn.prop('disabled', false);
+                        clickedBtn.html(originalText);
+                    }, 3000);
+                }
+            });
+            
+            // Real-time validation feedback
+            $('#i_LOCTCODE, #i_LOCTDESC, #stateDropdown').on('input blur change', function() {
+                var $this = $(this);
+                if ($this.val() && $this.val().trim()) {
+                    $this.removeClass('is-invalid');
+                }
+            });
+            
+            // Auto-format code to uppercase
+            $('#i_LOCTCODE').on('input', function() {
+                this.value = this.value.toUpperCase();
+            });
+            
+            // Auto-format description to title case
+            $('#i_LOCTDESC').on('blur', function() {
+                var value = this.value.trim();
+                if (value) {
+                    this.value = value.toLowerCase().replace(/\b\w/g, function(l) {
+                        return l.toUpperCase();
+                    });
+                }
+            });
+        });
     </script>
-
 }
 
 

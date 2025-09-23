@@ -155,29 +155,6 @@
     .hide {
         display: none;
     }
-
-    /* Style for the register link */
-    .register-link {
-        text-align: center;
-        margin: 20px 0;
-        padding: 0 30px;
-    }
-
-    .register-link p {
-        color: #666;
-        font-size: 14px;
-        margin: 0;
-    }
-
-    .register-link a {
-        color: var(--active-color);
-        text-decoration: none;
-        font-weight: 500;
-    }
-
-    .register-link a:hover {
-        text-decoration: underline;
-    }
 </style>
 
 <div class="login-card">
@@ -207,8 +184,8 @@
         </script>
     }
     <div class="login-header">
-        <img src="~/Content/images/logo-small.png" class="logo" alt="Sree Narayana Guru Samidhi Logo">
-        <div class="company-name">Sree Narayana Guru Samidhi</div>
+        <img src="~/Content/images/logo-small.png" class="logo" alt="KV Marine Logo">
+        <div class="company-name">KV Marine</div>
     </div>
     <div class="login-body">
         @using (Html.BeginForm("Login", "Account", FormMethod.Post, new { role = "form" }))
@@ -244,16 +221,6 @@
 
             <button type="submit" class="btn-login">Log in</button>
         }
-    </div>
-    <!-- Moved registration link outside the form but inside the card -->
-    <div class="login-footer" style="text-align: center; margin-top: 20px; padding: 15px 30px; border-top: 1px solid #eee;">
-        <p style="color: #666; font-size: 14px; margin-bottom: 0;">
-            Don't have an account?
-            <a href="@Url.Action("Index", "Register")"
-               style="color: #3498db; text-decoration: none;">
-                Register here
-            </a>
-        </p>
     </div>
 </div>
 

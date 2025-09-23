@@ -1,4 +1,5 @@
-@model IEnumerable<KVM_ERP.Models.MenuNavbar>
+@{ /* Sidebar removed for minimal app */ }
+<!-- Sidebar has been removed. Use the top navbar instead. -->
 
 <style>
     :root {
@@ -113,99 +114,5 @@
     }
 </style>
 
-@if (Request.IsAuthenticated)
-{
-    var username = User.Identity.Name;
-    var memberIdDisplay = "";
-    var notifCount = 0;
-    try
-    {
-        ClubMembership.Models.ApplicationDbContext db2 = new ClubMembership.Models.ApplicationDbContext();
-        var m = db2.MemberShipMasters.FirstOrDefault(x => x.UIserID == username);
-        memberIdDisplay = (m != null && !string.IsNullOrEmpty(m.MemberDNo)) ? m.MemberDNo : "";
-
-        // Compute today's notifications: events user marked interested that occur today
-        var uid = Microsoft.AspNet.Identity.IdentityExtensions.GetUserId(User.Identity);
-        var today = DateTime.Today;
-        var tomorrow = today.AddDays(1);
-        var interestedEventIds = db2.eventinterests
-            .Where(ei => ei.UserId == uid && ei.State == 1)
-            .Select(ei => ei.EventId)
-            .ToList();
-        notifCount = db2.eventmasters
-            .Count(em => interestedEventIds.Contains(em.EventId)
-                        && em.Status == 0
-                        && em.EventTime >= today
-                        && em.EventTime < tomorrow);
-    }
-    catch { memberIdDisplay = ""; }
-    <aside class="ig-sidebar">
-        <div class="ig-brand">
-            <img src="~/Content/images/logo-small.png" alt="Logo" />
-        </div>
-
-        <nav class="ig-nav">
-            <a class="ig-item" href="@Url.Action("Index","Home")">
-                <i class="fa fa-home"></i>
-                <span>Home</span>
-            </a>
-            <a class="ig-item" href="@Url.Action("UserDashboard","Home")">
-                <i class="fa fa-dashboard"></i>
-                <span>Dashboard</span>
-            </a>
-            <a class="ig-item" href="@Url.Action("Announcements","Content")">
-                <i class="fa fa-bullhorn"></i>
-                <span>Announcements</span>
-            </a>
-            <a class="ig-item" href="@Url.Action("Events","Content")">
-                <i class="fa fa-calendar"></i>
-                <span>Events</span>
-            </a>
-            <a class="ig-item" href="@Url.Action("Gallery","Content")">
-                <i class="fa fa-images"></i>
-                <span>Gallery</span>
-            </a>
-            <a class="ig-item" href="@Url.Action("UserView","MinutesOfMeeting")">
-                <i class="fa fa-book"></i>
-                <span>Minutes of Meeting</span>
-            </a>
-            <a class="ig-item" href="@Url.Action("Notifications","Home")">
-                <i class="fa fa-bell"></i>
-                <span>
-                    Notifications
-                    @if (notifCount > 0)
-                    {
-                        <span style="background:#dc3545;color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:6px;">@notifCount</span>
-                    }
-                </span>
-            </a>
-            <a class="ig-item" href="@Url.Action("Create","ProfileMaster")">
-                <i class="fa fa-user"></i>
-                <span>Profile Updation</span>
-            </a>
-        </nav>
-
-        <div class="ig-bottom">
-            <div class="ig-muted">Signed in as</div>
-            <div class="ig-item" style="cursor:default;">
-                <i class="fa fa-user-circle"></i>
-                <span>
-                    @if (!string.IsNullOrEmpty(memberIdDisplay))
-                    {
-                        <div class="ig-muted" style="padding:0; margin-bottom:2px;">@memberIdDisplay</div>
-                    }
-                    <div>@username</div>
-                </span>
-            </div>
-
-            @using (Html.BeginForm("LogOff", "Account", FormMethod.Post, new { id = "logoutFormSidebar", @class = "form-css" }))
-            {
-                @Html.AntiForgeryToken()
-                <a class="ig-item" href="javascript:document.getElementById('logoutFormSidebar').submit()">
-                    <i class="fa fa-sign-out"></i>
-                    <span>Log Out</span>
-                </a>
-            }
-        </div>
-    </aside>
-}
+<aside class="ig-sidebar">
+</aside>

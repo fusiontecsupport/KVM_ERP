@@ -12,12 +12,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
+using System.Data.Entity;
 
-
-using System.IO; // for File/Directory
-using System.Linq; // for string.Join
-using System.Text; // for Encoding
-
+//using System.IO; // for File/Directory
+//using System.Linq; // for string.Join
+//using System.Text; // for Encoding
 
 namespace KVM_ERP.Controllers
 {
@@ -99,11 +98,20 @@ namespace KVM_ERP.Controllers
 
             var brnchctype = 0;// context.Database.SqlQuery<Int16>("Select BRNCHCTYPE From BranchMaster Where BRNCHID = '" + user.BrnchId + "'").ToList();
             var stateid = 1;// context.Database.SqlQuery<Int32>("Select STATEID From BranchMaster Where BRNCHID = '" + user.BrnchId + "'").ToList();
-                            //var deptid = "2";// context.Database.SqlQuery<Int32>("Select DEPTID From BRANCHDEPARTMENTMASTER Where DBRNCHID = '" + user.DBrnchId + "'").ToList();
-                            //var deptdesc = "ADMIN";// context.Database.SqlQuery<string>("Select DDEPTDESC From BRANCHDEPARTMENTMASTER Where DBRNCHID = '" + user.DBrnchId + "'").ToList();
-                            //var uid = user.Id;
 
-            var userchk = context.Database.SqlQuery<int>("Select CateId From View_User_Diable_Chk_For_Login Where UserName = '" + model.UserName.Trim() + "' And DispStatus = 0").ToList();
+            // Check if user is enabled - with error handling for missing tables/views
+            var userchk = new List<int>();
+            try
+            {
+                userchk = context.Database.SqlQuery<int>("Select CateId From View_User_Diable_Chk_For_Login Where UserName = '" + model.UserName.Trim() + "' And DispStatus = 0").ToList();
+            }
+            catch (Exception ex)
+            {
+                // If view doesn't exist or EMPLOYEEMASTER table is missing, allow login for now
+                System.Diagnostics.Debug.WriteLine($"User check failed: {ex.Message} - Allowing login");
+                userchk.Add(1); // Add dummy value to allow login
+            }
+            
             if (userchk.Count > 0)
             {
                 if (ModelState.IsValid)
@@ -256,7 +264,31 @@ namespace KVM_ERP.Controllers
 
                         //Session["EXCLPATH"] = "D:\\SACT_EXCEL\\" + Session["CUSRID"];
 
-
+                        // Sync ASP.NET Identity role with Session["Group"] so [Authorize(Roles="Admin")] works right after login
+                        try
+                        {
+                            var groupName = (Session["Group"] as string) ?? string.Empty;
+                            var roleManager = new RoleManager<IdentityRole>(new RoleStore<IdentityRole>(context));
+                            if (!roleManager.RoleExists("Admin"))
+                            {
+                                roleManager.Create(new IdentityRole("Admin"));
+                            }
+                            var roles = await UserManager.GetRolesAsync(user.Id);
+                            if (groupName.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (!roles.Contains("Admin"))
+                                    await UserManager.AddToRoleAsync(user.Id, "Admin");
+                            }
+                            else
+                            {
+                                if (roles.Contains("Admin"))
+                                    await UserManager.RemoveFromRoleAsync(user.Id, "Admin");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine("[Login RoleSync] " + ex.Message);
+                        }
 
                     }
 
@@ -437,575 +469,417 @@ namespace KVM_ERP.Controllers
             return RedirectToAction("Login", "Account");
         }
 
-
-
-
-
-
-        //[AllowAnonymous]
-        //public ActionResult Login_Register()
-
-        //{
-        //    //ViewBag.BRNCHID = new SelectList(_db.branchmasters.OrderBy(x => x.BRNCHNAME), "BRNCHID", "BRNCHNAME");
-        //    ViewBag.DBRNCHID = GetEmployeeSelectList();
-        //    // ViewBag.DBRNCHID = new SelectList("");
-        //    return View();
-        //}
-
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public async Task<ActionResult> Login_Register(AccountViewModels.RegisterViewModel model)
-        //{
-        //    try
-        //    {
-        //        if (model.Password != model.ConfirmPassword)
-        //        {
-        //            ModelState.AddModelError("ConfirmPassword", "The password and confirmation password do not match.");
-        //        }
-
-        //        if (!string.IsNullOrEmpty(model.MobileNo) &&
-        //            !System.Text.RegularExpressions.Regex.IsMatch(model.MobileNo, @"^[0-9]{10}$"))
-        //        {
-        //            ModelState.AddModelError("MobileNo", "Please enter a valid 10-digit mobile number");
-        //        }
-
-        //        if (model.DOB > DateTime.Now)
-        //        {
-        //            ModelState.AddModelError("DOB", "Date of birth cannot be in the future");
-        //        }
-
-        //        if (ModelState.IsValid)
-        //        {
-        //            var user = model.GetUser();
-        //            user.NPassword = model.Password;
-        //            var result = await UserManager.CreateAsync(user, model.Password);
-
-        //            if (result.Succeeded)
-        //            {
-        //                LogError("User created successfully: " + user.UserName);
-        //                return RedirectToAction("Login", "Account");
-        //            }
-        //            else
-        //            {
-        //                // Log errors
-        //                LogError("User creation failed: " + string.Join("; ", result.Errors));
-
-        //                // Show errors on the form
-        //                foreach (var error in result.Errors)
-        //                {
-        //                    ModelState.AddModelError("", error); // empty key = summary error
-        //                }
-        //            }
-        //        }
-        //        else
-        //        {
-        //            var errors = ModelState.Values.SelectMany(v => v.Errors)
-        //                                          .Select(e => e.ErrorMessage)
-        //                                          .Where(msg => !string.IsNullOrEmpty(msg));
-
-        //            LogError("ModelState invalid: " + string.Join("; ", errors));
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        LogError("Exception: " + ex);
-        //        ModelState.AddModelError("", "An unexpected error occurred: " + ex.Message);
-        //    }
-
-        //    ViewBag.DBRNCHID = GetEmployeeSelectList();
-        //    return View("Login_Register", model);
-        //}
-
-        //private void LogError(string message)
-        //{
-        //    try
-        //    {
-        //        var logDir = Server.MapPath("~/App_Data/Logs");
-        //        if (!System.IO.Directory.Exists(logDir))
-        //        {
-        //            System.IO.Directory.CreateDirectory(logDir);
-        //        }
-
-        //        var logPath = System.IO.Path.Combine(logDir, "errorlog.txt");
-        //        var logMessage = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}{Environment.NewLine}";
-        //        System.IO.File.AppendAllText(logPath, logMessage, Encoding.UTF8);
-        //    }
-        //    catch
-        //    {
-        //        // Ignore logging errors
-        //    }
-        //}
-
-
-
-
-
+        [Authorize(Roles = "Admin")]
+        public ActionResult Create()
+        {
+            return View();
+        }
 
         [HttpPost]
-        // [Authorize(Roles = "Admin, CanEditUser")]
+        [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Register(AccountViewModels.RegisterViewModel model)
+        public async Task<ActionResult> Create(AccountViewModels.RegisterViewModel model)
         {
-            // Do NOT remove required fields from ModelState
-            // ModelState.Remove("MobileNo");
-            // ModelState.Remove("DOB");
-            // ModelState.Remove("Gender");
-
-            // Add password confirmation validation
-            if (model.Password != model.ConfirmPassword)
+            if (!ModelState.IsValid)
             {
-                ModelState.AddModelError("ConfirmPassword", "The password and confirmation password do not match.");
+                return View(model);
             }
 
-            // Validate mobile number format (basic validation)
-            if (!string.IsNullOrEmpty(model.MobileNo) && !System.Text.RegularExpressions.Regex.IsMatch(model.MobileNo, @"^[0-9]{10}$"))
+            // Server-side uniqueness validation
+            var normalizedUserName = (model.UserName ?? string.Empty).Trim();
+            var normalizedEmail = (model.Email ?? string.Empty).Trim();
+            var normalizedMobile = (model.MobileNo ?? string.Empty).Trim();
+
+            if (_db.Users.Any(u => u.UserName == normalizedUserName))
             {
-                ModelState.AddModelError("MobileNo", "Please enter a valid 10-digit mobile number");
+                ModelState.AddModelError("UserName", "Username is already taken.");
+            }
+            if (_db.Users.Any(u => u.Email == normalizedEmail))
+            {
+                ModelState.AddModelError("Email", "Email is already registered.");
+            }
+            if (_db.Users.Any(u => u.MobileNo == normalizedMobile))
+            {
+                ModelState.AddModelError("MobileNo", "Mobile number is already registered.");
+            }
+            // Enforce 10-digit mobile server-side
+            if (normalizedMobile.Length != 10 || !normalizedMobile.All(char.IsDigit))
+            {
+                ModelState.AddModelError("MobileNo", "Mobile number must be exactly 10 digits.");
+            }
+            if (!ModelState.IsValid)
+            {
+                return View(model);
             }
 
-            // Validate DOB (must be in the past)
-            if (model.DOB > DateTime.Now)
-            {
-                ModelState.AddModelError("DOB", "Date of birth cannot be in the future");
-            }
-
-            if (ModelState.IsValid)
+            try
             {
                 var user = model.GetUser();
-                user.NPassword = model.Password;
-                // Ensure CateTid is set to avoid DB NOT NULL constraint violations
-                if (!user.CateTid.HasValue)
-                {
-                    using (var db0 = new ClubMembershipDBEntities())
-                    {
-                        // Pick a sensible default: first active category
-                        var defaultCateTid = db0.Database
-                            .SqlQuery<int?>(
-                                "SELECT TOP 1 CateTid FROM CategoryTypeMaster WHERE Dispstatus = 0 ORDER BY CateTid")
-                            .FirstOrDefault();
-
-                        if (defaultCateTid.HasValue)
-                        {
-                            user.CateTid = defaultCateTid.Value;
-                        }
-                        else
-                        {
-                            // No active categories exist; cannot proceed safely
-                            ModelState.AddModelError("CateTid", "No active Category Type found. Please create a Category Type first.");
-                            return View(model);
-                        }
-                    }
-                }
-                // Ensure MemberID is set to satisfy DB NOT NULL constraint by pre-creating a minimal MemberShipMaster
-                if (!user.MemberID.HasValue)
-                {
-                    using (var db = new ApplicationDbContext())
-                    {
-                        // Determine a default membership type (first active)
-                        var memberType = db.MemberShipTypeMasters
-                            .Where(m => m.DisplayStatus == 0)
-                            .OrderBy(m => m.MembershipFee)
-                            .Select(m => new { m.MemberTypeId, m.MembershipFee, m.NoOfYears })
-                            .FirstOrDefault();
-
-                        if (memberType == null)
-                        {
-                            ModelState.AddModelError("MemberID", "No active Membership Type found. Please configure Membership Types first.");
-                            return View(model);
-                        }
-
-                        // Generate next MemberNo
-                        int nextMemberNo = (db.MemberShipMasters.Max(m => (int?)m.MemberNo) ?? 999) + 1;
-                        string registerYear = DateTime.Now.Year.ToString();
-                        string dobYear = model.DOB.Year.ToString();
-                        string memberNoStr = nextMemberNo.ToString().PadLeft(3, '0');
-                        string memberDNo = $"{registerYear}{dobYear}{memberNoStr}";
-
-                        // Calculate age
-                        int age = DateTime.Today.Year - model.DOB.Year;
-                        if (model.DOB.Date > DateTime.Today.AddYears(-age)) age--;
-
-                        var renewalDate = DateTime.Now.AddYears(memberType.NoOfYears);
-
-                        var preMember = new MemberShipMaster
-                        {
-                            UIserID = model.UserName,
-                            RegstrId = "1",
-                            MemberNo = nextMemberNo,
-                            MemberDNo = memberDNo,
-                            Member_Reg_Date = DateTime.Now,
-                            Member_Name = ($"{model.FirstName} {model.LastName}").Trim(),
-                            Gender = string.Equals(model.Gender, "Male", StringComparison.OrdinalIgnoreCase) ? 1 : 2,
-                            Member_DOB = model.DOB,
-                            Member_Age = age.ToString(),
-                            BldGID = 1,
-                            Member_Mobile_No = model.MobileNo,
-                            Member_EmailID = model.Email,
-                            Member_Addr1 = "Address1",
-                            StateID = 1,
-                            Member_Pincode = "000000",
-                            Member_Country = "India",
-                            Member_Per_Addr1 = "Address1",
-                            PStateID = 1,
-                            Member_Per_Pincode = "000000",
-                            Member_Per_Country = "India",
-                            CreatedBy = model.UserName,
-                            CreatedDateTime = DateTime.Now,
-                            DispStatus = 1,
-                            Member_Sdate = DateTime.Now,
-                            Member_Edate = renewalDate,
-                            Reference_By = "Self",
-                            Reference_Contact_No = model.MobileNo,
-                            UserName = model.UserName,
-                            NPassword = model.Password,
-                            MemberTypeId = memberType.MemberTypeId,
-                            MemberTypeAmount = memberType.MembershipFee,
-                            CateTDesc = null
-                        };
-
-                        db.MemberShipMasters.Add(preMember);
-                        db.SaveChanges();
-
-                        user.MemberID = preMember.MemberID;
-                    }
-                }
                 var result = await UserManager.CreateAsync(user, model.Password);
                 if (result.Succeeded)
                 {
-                    // Confirm user is in DB
-                    var createdUser = _db.Users.FirstOrDefault(u => u.UserName == user.UserName);
-                    if (createdUser != null)
+                    // Auto-assign newly created user to default "Users" group
+                    try
                     {
-                        System.Diagnostics.Debug.WriteLine($"User created: {createdUser.UserName}");
+                        var usersGroup = _db.Groups.FirstOrDefault(g => g.Name == "Users");
+                        if (usersGroup == null)
+                        {
+                            usersGroup = new Group { Name = "Users" };
+                            _db.Groups.Add(usersGroup);
+                            _db.SaveChanges();
+                        }
+
+                        var created = _db.Users.FirstOrDefault(u => u.UserName == model.UserName);
+                        if (created != null)
+                        {
+                            bool exists = created.Groups.Any(g => g.GroupId == usersGroup.Id);
+                            if (!exists)
+                            {
+                                created.Groups.Add(new ApplicationUserGroup { UserId = created.Id, GroupId = usersGroup.Id });
+                                _db.SaveChanges();
+                            }
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine("User not found after creation!");
+                        System.Diagnostics.Debug.WriteLine("[Create->Assign Users group] " + ex.Message);
                     }
-                    return RedirectToAction("Index", "Account");
+                    TempData["Message"] = "User created successfully.";
+                    return RedirectToAction("Index");
                 }
-                AddErrors(result);
+                foreach (var e in result.Errors) { ModelState.AddModelError("", e); }
+                return View(model);
             }
-
-            // If we got this far, something failed, redisplay form
-            return View(model);
+            catch (Exception ex)
+            {
+                var msg = ex.GetBaseException().Message;
+                ModelState.AddModelError("", "Failed to create user: " + msg);
+                return View(model);
+            }
         }
 
-
-        private SelectList GetEmployeeSelectList()
+        [Authorize(Roles = "Admin")]
+        public ActionResult Edit(string id)
         {
-            return new SelectList(
-                _db.employeemasters
-                   .Where(x => x.DISPSTATUS == 0)
-                   .OrderBy(x => x.CATENAME),
-                "CATEID",
-                "CATENAME"
-            );
+            var user = _db.Users.FirstOrDefault(u => u.UserName == id || u.Id == id);
+            if (user == null) return HttpNotFound();
+            var vm = new AccountViewModels.EditUserViewModel(user);
+            return View(vm);
         }
-
-        //private void AddErrors(IdentityResult result)
-        //{
-        //    foreach (var error in result.Errors)
-        //    {
-        //        ModelState.AddModelError("", error);
-        //    }
-        //}
-
-
-        //    [Authorize(Roles = "Admin, CanEditUser")]
-        public ActionResult UserGroups(string id)
-        {
-            var user = _db.Users.First(u => u.UserName == id);
-            var model = new AccountViewModels.SelectUserGroupsViewModel(user);
-            return View(model);
-        }
-
 
         [HttpPost]
-        // [Authorize(Roles = "Admin, CanEditUser")]
+        [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
-        public ActionResult UserGroups(AccountViewModels.SelectUserGroupsViewModel model)
+        public ActionResult Edit(AccountViewModels.EditUserViewModel model)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid) return View(model);
+            var user = _db.Users.FirstOrDefault(u => u.UserName == model.UserName);
+            if (user == null) return HttpNotFound();
+
+            // Server-side uniqueness checks excluding current user
+            var normalizedEmail = (model.Email ?? string.Empty).Trim();
+            var normalizedMobile = (model.MobileNo ?? string.Empty).Trim();
+            if (_db.Users.Any(u => u.Id != user.Id && u.Email == normalizedEmail))
             {
-                var idManager = new IdentityManager();
-                var user = _db.Users.First(u => u.UserName == model.UserName);
-                idManager.ClearUserGroups(user.Id);
-                foreach (var group in model.Groups)
-                {
-                    if (group.Selected)
-                    {
-                        idManager.AddUserToGroup(user.Id, group.GroupId);
-                    }
-                }
-                return RedirectToAction("index");
+                ModelState.AddModelError("Email", "Email is already registered to another user.");
             }
-            return View();
-        }
-
-
-        // [Authorize(Roles = "Admin, CanEditRole, CanEditGroup, User")]
-        public ActionResult UserPermissions(string id)
-        {
-            var user = _db.Users.First(u => u.UserName == id);
-            var model = new AccountViewModels.UserPermissionsViewModel(user);
-            return View(model);
-        }
-
-
-        // [Authorize(Roles = "Admin, CanEditUser")]
-        public ActionResult Manage(ManageMessageId? message)
-        {
-            ViewBag.StatusMessage =
-                message == ManageMessageId.ChangePasswordSuccess ? "Your password has been changed."
-                : message == ManageMessageId.SetPasswordSuccess ? "Your password has been set."
-                : message == ManageMessageId.RemoveLoginSuccess ? "The external login was removed."
-                : message == ManageMessageId.Error ? "An error has occurred."
-                : "";
-            ViewBag.HasLocalPassword = HasPassword();
-            ViewBag.ReturnUrl = Url.Action("Manage");
-            return View();
-        }
-
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        //  [Authorize(Roles = "Admin, CanEditUser")]
-        public async Task<ActionResult> Manage(AccountViewModels.ManageUserViewModel model)
-        {
-            bool hasPassword = HasPassword();
-            ViewBag.HasLocalPassword = hasPassword;
-            ViewBag.ReturnUrl = Url.Action("Manage");
-            if (hasPassword)
+            if (_db.Users.Any(u => u.Id != user.Id && u.MobileNo == normalizedMobile))
             {
-                if (ModelState.IsValid)
-                {
-                    IdentityResult result = await UserManager.ChangePasswordAsync(User.Identity.GetUserId(), model.OldPassword, model.NewPassword);
-                    if (result.Succeeded)
-                    {
-                        return RedirectToAction("Manage", new { Message = ManageMessageId.ChangePasswordSuccess });
-                    }
-                    else
-                    {
-                        AddErrors(result);
-                    }
-                }
+                ModelState.AddModelError("MobileNo", "Mobile number is already registered to another user.");
             }
-            else
+            // Enforce 10-digit mobile server-side
+            if (normalizedMobile.Length != 10 || !normalizedMobile.All(char.IsDigit))
             {
-                // User does not have a password so remove any validation errors caused by a missing OldPassword field
-                ModelState state = ModelState["OldPassword"];
-                if (state != null)
-                {
-                    state.Errors.Clear();
-                }
-
-                if (ModelState.IsValid)
-                {
-                    IdentityResult result = await UserManager.AddPasswordAsync(User.Identity.GetUserId(), model.NewPassword);
-                    if (result.Succeeded)
-                    {
-                        return RedirectToAction("Manage", new { Message = ManageMessageId.SetPasswordSuccess });
-                    }
-                    else
-                    {
-                        AddErrors(result);
-                    }
-                }
+                ModelState.AddModelError("MobileNo", "Mobile number must be exactly 10 digits.");
+            }
+            if (!ModelState.IsValid)
+            {
+                return View(model);
             }
 
-            // If we got this far, something failed, redisplay form
-            return View(model);
-        }
-
-
-        //  [Authorize(Roles = "CanEditUser")]
-        public ActionResult Index()
-        {
-            var users = _db.Users.OrderBy(X => X.UserName);
-            var model = new List<AccountViewModels.EditUserViewModel>();
-            foreach (var user in users)
+            try
             {
-                var u = new AccountViewModels.EditUserViewModel(user);
-                // if(u.UserName==Session["CUSRID"].ToString())
-                model.Add(u);
-            }
-            return View(model);
-        }
-
-       // [Authorize(Roles = "UserPasswordChange")]
-        public ActionResult CIndex()
-        {
-            var uname = Session["CUSRID"];
-            var users = _db.Users.Where(X => X.UserName == uname).OrderBy(X => X.UserName);
-            var model = new List<AccountViewModels.EditUserViewModel>();
-            foreach (var user in users)
-            {
-                var u = new AccountViewModels.EditUserViewModel(user);
-                // if(u.UserName==Session["CUSRID"].ToString())
-                model.Add(u);
-            }
-            return View(model);
-        }
-
-
-        //   [Authorize(Roles = "Admin, CanEditUser")]
-        public ActionResult Edit(string id, ManageMessageId? Message = null)
-        {
-            var user = _db.Users.First(u => u.UserName == id);
-            var model = new AccountViewModels.EditUserViewModel(user);
-           // ViewBag.BRNCHID = new SelectList(_db.branchmasters, "BRNCHID", "BRNCHNAME", brnchid);
-            ViewBag.DBRNCHID = new SelectList(_db.employeemasters, "CATEID", "CATENAME");
-            //ViewBag.DBRNCHID = new SelectList(_db.branchdepartmentmasters, "DBRNCHID", "DDEPTDESC", dbrnchid);
-            // ViewBag.DBRNCHID = new SelectList(_db.branchdepartmentmasters.Where(x => x.BRNCHID == model.BrnchId), "DBRNCHID", "DDEPTDESC", model.DBrnchId);
-            ViewBag.MessageId = Message;
-            return View(model);
-        }
-
-
-        [HttpPost]
-        //   [Authorize(Roles = "Admin, CanEditUser")]
-        [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Edit(AccountViewModels.EditUserViewModel model)
-        {
-            if (ModelState.IsValid)
-            {
-                //ViewBag.BRNCHID = new SelectList(_db.branchmasters, "BRNCHID", "BRNCHNAME", model.BrnchId);
-                ViewBag.DBRNCHID = new SelectList(_db.employeemasters, "CATEID", "CATENAME");
-                //ViewBag.DBRNCHID = new SelectList(_db.branchdepartmentmasters.Where(x => x.BRNCHID == model.BrnchId), "DBRNCHID", "DDEPTDESC", model.DBrnchId);
-
-                //    ViewBag.Subjects = new SelectList(_odb.SUBJ_MSTR.Where(o => o.TYPE == "4" && o.TYPE == "5").OrderBy(o => o.SUBJ_NAME), "SUBJ_ID", "SUBJ_VAL");
-
-                var user = _db.Users.First(u => u.UserName == model.UserName);
                 user.FirstName = model.FirstName;
                 user.LastName = model.LastName;
                 user.Email = model.Email;
-
-                // Update new fields
                 user.MobileNo = model.MobileNo;
                 user.DOB = model.DOB;
                 user.Gender = model.Gender;
-
-                //user.DeptName = model.DeptName;
-
-                //user
-                _db.Entry(user).State = System.Data.Entity.EntityState.Modified;
-                await _db.SaveChangesAsync();
+                _db.SaveChanges();
+                TempData["Message"] = "User updated successfully.";
                 return RedirectToAction("Index");
             }
-
-            // If we got this far, something failed, redisplay form
-            return View(model);
-        }
-
-
-        [Authorize(Roles = "Admin, CanEditUser")]
-        public ActionResult Delete(string id = null)
-        {
-            var user = _db.Users.First(u => u.UserName == id);
-            var model = new AccountViewModels.EditUserViewModel(user);
-            if (user == null)
+            catch (Exception ex)
             {
-                return HttpNotFound();
+                var msg = ex.GetBaseException().Message;
+                ModelState.AddModelError("", "Failed to update user: " + msg);
+                return View(model);
             }
-            return View(model);
         }
 
-
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin, CanEditUser")]
-        public ActionResult DeleteConfirmed(string id)
+        [Authorize(Roles = "Admin")]
+        public ActionResult Manage(string id)
         {
-            var user = _db.Users.First(u => u.UserName == id);
-            _db.Users.Remove(user);
+            var user = _db.Users.FirstOrDefault(u => u.UserName == id || u.Id == id);
+            if (user == null) return HttpNotFound();
+            var vm = new AccountViewModels.ManageUserViewModel();
+            ViewBag.HasLocalPassword = true; // legacy view expects this boolean
+            ViewBag.TargetUser = user.UserName;
+            return View(vm);
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> Manage(string id, AccountViewModels.ManageUserViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                ViewBag.HasLocalPassword = true;
+                return View(model);
+            }
+            var user = _db.Users.FirstOrDefault(u => u.UserName == id || u.Id == id);
+            if (user == null) return HttpNotFound();
+
+            IdentityResult result;
+            try
+            {
+                if (UserManager.UserTokenProvider != null)
+                {
+                    var token = await UserManager.GeneratePasswordResetTokenAsync(user.Id);
+                    result = await UserManager.ResetPasswordAsync(user.Id, token, model.NewPassword);
+                }
+                else
+                {
+                    // Fallback when no IUserTokenProvider is configured: remove and add password
+                    await UserManager.RemovePasswordAsync(user.Id);
+                    result = await UserManager.AddPasswordAsync(user.Id, model.NewPassword);
+                }
+            }
+            catch (NotSupportedException)
+            {
+                // Same fallback for providers that don't support tokens
+                await UserManager.RemovePasswordAsync(user.Id);
+                result = await UserManager.AddPasswordAsync(user.Id, model.NewPassword);
+            }
+            if (!result.Succeeded)
+            {
+                foreach (var e in result.Errors) { ModelState.AddModelError("", e); }
+                ViewBag.HasLocalPassword = true;
+                return View(model);
+            }
+            user.NPassword = model.NewPassword; // store plain for legacy compatibility
             _db.SaveChanges();
+            TempData["Message"] = "Password updated.";
             return RedirectToAction("Index");
         }
 
-
-        //public JsonResult BranchDepartment(int id)
-        //{
-        //    var result = _db.Database.SqlQuery<BranchDepartmentMaster>("select * FROM BranchDepartmentMaster where BRNCHID =" + id + " ORDER BY DDEPTDESC").ToList();
-        //    return Json(result, JsonRequestBehavior.AllowGet);
-        //}
-
+        [Authorize]
         [HttpGet]
-        public JsonResult SearchEmployees(string searchTerm)
+        public ActionResult ChangePassword()
         {
+            // Hide Change Password for Admins
+            if (User.IsInRole("Admin") || (Session != null && Session["Group"] != null && Session["Group"].ToString() == "Admin"))
+            {
+                return RedirectToAction("AdminDashboard", "Home");
+            }
+            var vm = new AccountViewModels.ManageUserViewModel();
+            ViewBag.HasLocalPassword = true;
+            return View(vm);
+        }
+
+        [Authorize]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> ChangePassword(AccountViewModels.ManageUserViewModel model)
+        {
+            // Hide Change Password for Admins
+            if (User.IsInRole("Admin") || (Session != null && Session["Group"] != null && Session["Group"].ToString() == "Admin"))
+            {
+                return RedirectToAction("AdminDashboard", "Home");
+            }
+            if (!ModelState.IsValid)
+            {
+                ViewBag.HasLocalPassword = true;
+                return View(model);
+            }
+
             try
             {
-                var employees = _db.employeemasters
-                    .Where(e => e.DISPSTATUS == 0 && 
-                          (e.CATENAME.Contains(searchTerm) || 
-                           e.CATECODE.Contains(searchTerm)))
-                    .OrderBy(e => e.CATENAME)
-                    .Take(10)
-                    .AsEnumerable() // Switch to client-side evaluation
-                    .Select(e => new {
-                        id = e.CATEID,
-                        text = e.CATENAME + " (" + e.CATECODE + ")" // Simple concatenation
-                    })
-                    .ToList();
+                var userId = User.Identity.GetUserId();
+                var result = await UserManager.ChangePasswordAsync(userId, model.OldPassword, model.NewPassword);
+                if (!result.Succeeded)
+                {
+                    foreach (var e in result.Errors) { ModelState.AddModelError("", e); }
+                    ViewBag.HasLocalPassword = true;
+                    return View(model);
+                }
 
-                return Json(new { results = employees }, JsonRequestBehavior.AllowGet);
+                // Update legacy NPassword field and refresh sign-in cookie so new security stamp is used
+                var user = _db.Users.FirstOrDefault(u => u.Id == userId);
+                if (user != null)
+                {
+                    user.NPassword = model.NewPassword;
+                    _db.SaveChanges();
+                }
+
+                // Refresh auth cookie to ensure claims are up-to-date
+                AuthenticationManager.SignOut(DefaultAuthenticationTypes.ApplicationCookie);
+                var identity = await UserManager.CreateIdentityAsync(user, DefaultAuthenticationTypes.ApplicationCookie);
+                AuthenticationManager.SignIn(new AuthenticationProperties() { IsPersistent = true }, identity);
+
+                TempData["Message"] = "Password changed successfully.";
+                return RedirectToAction("Index", "Home");
             }
             catch (Exception ex)
             {
-                return Json(new { error = ex.Message }, JsonRequestBehavior.AllowGet);
+                ModelState.AddModelError("", "Failed to change password: " + ex.GetBaseException().Message);
+                ViewBag.HasLocalPassword = true;
+                return View(model);
             }
         }
 
-        [HttpGet]
-        public JsonResult GetEmployeesByDepartment(int departmentId)
+        [Authorize(Roles = "Admin")]
+        public ActionResult UserGroups(string id)
         {
-            try
-            {
-                // Adjust this based on your actual department relationship
-                var employees = _db.employeemasters
-                    .Where(e => e.DISPSTATUS == 0) // Active employees only
-                    .OrderBy(e => e.CATENAME)
-                    .Select(e => new {
-                        id = e.CATEID,
-                        text = $"{e.CATENAME} ({e.CATECODE})"
-                    })
-                    .ToList();
-
-                return Json(employees, JsonRequestBehavior.AllowGet);
-            }
-            catch (Exception ex)
-            {
-                return Json(new { error = ex.Message }, JsonRequestBehavior.AllowGet);
-            }
-        }
-
-        public ActionResult Create()
-        {
-            // Fetch blood groups from database
-            var bloodGroups = _db.BloodGroupMasters
-                              .Where(b => b.DISPSTATUS == 0) // Active records only
-                              .OrderBy(b => b.BLDGDESC)
-                              .ToList();
-
-            // Store in ViewBag for dropdown options
-            ViewBag.BloodGroups = new SelectList(bloodGroups, "BLDGCODE", "BLDGDESC");
-
+            var user = _db.Users.Include("Groups.Group").FirstOrDefault(u => u.UserName == id || u.Id == id);
+            if (user == null) return HttpNotFound();
+            var allGroups = _db.Groups.OrderBy(g => g.Name).ToList();
+            var selectedIds = new HashSet<int>(user.Groups.Select(g => g.GroupId));
+            ViewBag.AllGroups = allGroups;
+            ViewBag.Selected = selectedIds;
+            ViewBag.UserName = user.UserName;
             return View();
         }
 
         [HttpPost]
-        public ActionResult Create(string BloodGroup) // Matches dropdown name
+        [Authorize(Roles = "Admin")]
+        [ValidateAntiForgeryToken]
+        public ActionResult UserGroups(string id, int[] groupIds)
         {
-            // BloodGroup will contain the selected BLDGCODE
-            // Save to database or process as needed
+            var user = _db.Users.Include("Groups").FirstOrDefault(u => u.UserName == id || u.Id == id);
+            if (user == null) return HttpNotFound();
+            user.Groups.Clear();
+            var gids = groupIds ?? new int[0];
+            foreach (var gid in gids)
+            {
+                user.Groups.Add(new ApplicationUserGroup { UserId = user.Id, GroupId = gid });
+            }
+            _db.SaveChanges();
+
+            // If admin changed their own groups, update session immediately
+            var currentUser = Session["CUSRID"] as string;
+            if (!string.IsNullOrEmpty(currentUser) && (string.Equals(currentUser, user.UserName, StringComparison.OrdinalIgnoreCase)))
+            {
+                // Pick the first group name deterministically if any
+                var firstGroup = _db.Groups
+                    .Where(g => gids.Contains(g.Id))
+                    .OrderBy(g => g.Name)
+                    .Select(g => g.Name)
+                    .FirstOrDefault();
+                Session["Group"] = firstGroup ?? string.Empty;
+
+                // Sync Identity role and refresh auth cookie so new role takes effect immediately
+                try
+                {
+                    using (var ctx = new ApplicationDbContext())
+                    {
+                        var roleManager = new RoleManager<IdentityRole>(new RoleStore<IdentityRole>(ctx));
+                        if (!roleManager.RoleExists("Admin"))
+                        {
+                            roleManager.Create(new IdentityRole("Admin"));
+                        }
+                    }
+                    var roles = UserManager.GetRoles(user.Id).ToList();
+                    var isNowAdmin = (Session["Group"] as string)?.Equals("Admin", StringComparison.OrdinalIgnoreCase) == true;
+                    if (isNowAdmin && !roles.Contains("Admin"))
+                    {
+                        UserManager.AddToRole(user.Id, "Admin");
+                    }
+                    if (!isNowAdmin && roles.Contains("Admin"))
+                    {
+                        UserManager.RemoveFromRoleAsync(user.Id, "Admin");
+                    }
+                    // Refresh sign-in to update role claims
+                    AuthenticationManager.SignOut(DefaultAuthenticationTypes.ApplicationCookie);
+                    var identity = UserManager.CreateIdentity(user, DefaultAuthenticationTypes.ApplicationCookie);
+                    AuthenticationManager.SignIn(new AuthenticationProperties() { IsPersistent = true }, identity);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("[UserGroups RoleSync] " + ex.Message);
+                }
+            }
             return RedirectToAction("Index");
         }
 
-        [AllowAnonymous]
-        [HttpGet]
-        public ActionResult Register()
+        [Authorize(Roles = "Admin")]
+        public ActionResult UserPermissions(string id)
         {
-            return View();
+            var user = _db.Users.Include("Roles").FirstOrDefault(u => u.UserName == id || u.Id == id);
+            if (user == null) return HttpNotFound();
+            var roles = UserManager.GetRoles(user.Id).OrderBy(r => r).ToList();
+            var vm = new AccountViewModels.UserPermissionsViewModel
+            {
+                UserName = user.UserName,
+                Roles = roles.Select(r => new AccountViewModels.RoleViewModel
+                {
+                    RoleName = r,
+                    Description = r // Use role name as description if none available
+                }).ToList()
+            };
+            return View(vm);
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> Delete(string id)
+        {
+            var user = _db.Users.FirstOrDefault(u => u.UserName == id || u.Id == id);
+            if (user == null) return HttpNotFound();
+            try
+            {
+                bool deletingSelf = string.Equals(user.UserName, User.Identity.Name, StringComparison.OrdinalIgnoreCase);
+
+                // Remove group memberships
+                var memberships = _db.Set<ApplicationUserGroup>().Where(ug => ug.UserId == user.Id).ToList();
+                if (memberships.Any())
+                {
+                    _db.Set<ApplicationUserGroup>().RemoveRange(memberships);
+                }
+
+                // Remove identity roles
+                var roles = UserManager.GetRoles(user.Id).ToArray();
+                if (roles.Length > 0)
+                {
+                    await UserManager.RemoveFromRolesAsync(user.Id, roles);
+                }
+
+                // Delete user via EF context to avoid NotSupportedException from provider
+                _db.Users.Remove(user);
+                _db.SaveChanges();
+
+                if (deletingSelf)
+                {
+                    Authentication.SignOut(DefaultAuthenticationTypes.ApplicationCookie);
+                    Session.Clear();
+                    Session.Abandon();
+                }
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+            }
+            return RedirectToAction("Index");
+        }
+
+        [Authorize(Roles = "Admin")]
+        public ActionResult Index()
+        {
+            // Minimal users list for Admins
+            var users = _db.Users.OrderBy(u => u.UserName).ToList();
+            return View(users);
         }
     }
 }

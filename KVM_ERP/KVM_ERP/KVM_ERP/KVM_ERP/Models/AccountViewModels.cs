@@ -127,7 +127,10 @@ namespace KVM_ERP.Models
                     MobileNo = this.MobileNo,   // New field
                     DOB = this.DOB,              // New field
                     Gender = this.Gender,        // New field
-                    GovernmentProofPath = this.GovernmentProofPath
+                    GovernmentProofPath = this.GovernmentProofPath,
+                    // Provide safe defaults to satisfy non-null DB columns (if present)
+                    CateTid = 0,
+                    MemberID = 0
                 };
                 return user;
             }
@@ -177,11 +180,13 @@ namespace KVM_ERP.Models
             public string LastName { get; set; }
 
             [Required]
+            [EmailAddress(ErrorMessage = "Invalid Email Address")]
             public string Email { get; set; }
 
             [Required]
             [Display(Name = "Mobile Number")]
-            [StringLength(15, MinimumLength = 10, ErrorMessage = "Mobile number must be 10-15 digits")]
+            [StringLength(10, MinimumLength = 10, ErrorMessage = "Mobile number must be exactly 10 digits")]
+            [RegularExpression(@"^[0-9]{10}$", ErrorMessage = "Mobile number must be exactly 10 digits")] 
             public string MobileNo { get; set; }
 
             [Required]

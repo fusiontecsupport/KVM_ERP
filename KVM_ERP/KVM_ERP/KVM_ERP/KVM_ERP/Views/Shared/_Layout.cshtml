@@ -8,7 +8,7 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>SNGS</title>
+    <title>KVM</title>
 
     <link href="~/Content/bootstrap.min.css" rel="stylesheet" />
     <link href="~/Content/jquery.datetimepicker.css" rel="stylesheet" />
@@ -34,10 +34,6 @@
     @Styles.Render("~/Content/css")
     @RenderSection("Styles", required: false)
     @*@RenderSection("Scripts", required: false)*@
-
-
-    
-
 
     <style>
         #save {
@@ -177,7 +173,7 @@
 
 </head>
 
-<body>
+<body class="@( (Request.IsAuthenticated && (User.IsInRole("Admin") || (Session != null && Session["Group"] != null && Session["Group"].ToString() == "Admin"))) ? "admin-theme" : "user-theme")">
 
     <div id="BaseUrl" data-baseurl="@Context.Request.Url.GetLeftPart(UriPartial.Authority)" data-virtualpath="/sngs"></div>
     <div id="1wrapper">
@@ -246,17 +242,43 @@
                 $(document).on('ajaxComplete', runFix);
             }
 
-            // MutationObserver to catch dynamic updates
+            // Run more frequently for the first few seconds to catch any late-loading content
+            var runCount = 0;
+            var quickInterval = setInterval(function() {
+                fixImageUrls();
+                runCount++;
+                if (runCount >= 10) { // Run 10 times quickly (every 100ms)
+                    clearInterval(quickInterval);
+                }
+            }, 100);
+            
+            // Also run periodically for dynamically added content
+            setInterval(fixImageUrls, 2000);
+            
+            // Use MutationObserver to catch dynamically added images
             if (typeof MutationObserver !== 'undefined') {
-                var obs = new MutationObserver(function (mutations) {
-                    var shouldRun = mutations.some(function (m) { return m.addedNodes && m.addedNodes.length; });
-                    if (shouldRun) {
-                        // batch updates
-                        clearTimeout(runFix._t);
-                        runFix._t = setTimeout(runFix, 50);
+                var observer = new MutationObserver(function(mutations) {
+                    var shouldFix = false;
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'childList') {
+                            mutation.addedNodes.forEach(function(node) {
+                                if (node.nodeType === 1) { // Element node
+                                    if (node.tagName === 'IMG' || node.querySelector && node.querySelector('img')) {
+                                        shouldFix = true;
+                                    }
+                                }
+                            });
+                        }
+                    });
+                    if (shouldFix) {
+                        setTimeout(fixImageUrls, 50);
                     }
                 });
-                obs.observe(document.body, { childList: true, subtree: true });
+                
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
             }
         })();
     </script>
@@ -277,161 +299,18 @@
     @RenderSection("scripts", required: false)
 
     <script>
-    // Global base URL handler for all images across the application
-    (function() {
-        function fixImageUrls() {
-            var baseElement = document.getElementById('BaseUrl');
-            var base = baseElement && baseElement.dataset ? baseElement.dataset.baseurl || '' : '';
-            var virtualPath = baseElement && baseElement.dataset ? baseElement.dataset.virtualpath || '/sngs' : '/sngs';
-            if (!base) return;
-            
-            var root = base.replace(/\/$/, '');
-            
-            // Try to detect from current URL as fallback
-            var currentPath = window.location.pathname;
-            if (currentPath.indexOf('/sngs/') === 0) {
-                virtualPath = '/sngs';
-            } else if (currentPath.indexOf('/sndp/') === 0) {
-                virtualPath = '/sndp';
+        // Apply subtle theme tweaks for admin vs user
+        (function(){
+            var body = document.body;
+            if (!body) return;
+            if (body.classList.contains('admin-theme')) {
+                // Admin theme tweaks
+                document.documentElement.style.setProperty('--navbar-bg', '#0d6efd');
+            } else {
+                // User theme tweaks
+                document.documentElement.style.setProperty('--navbar-bg', '#212529');
             }
-            
-            // Debug logging
-            console.log('URL Fix Debug:', {
-                currentPath: currentPath,
-                virtualPath: virtualPath,
-                root: root
-            });
-            
-            // Fix all img tags
-            document.querySelectorAll('img[src]').forEach(function(img) {
-                var src = img.getAttribute('src') || '';
-                
-                // Skip data and blob URLs (used by client-side previews)
-                if (/^(data:|blob:)/i.test(src)) {
-                    return;
-                }
-
-                // Handle absolute URLs that might have wrong virtual path
-                if (/^https?:\/\//i.test(src)) {
-                    // Check if it has duplicate virtual path (e.g., sngs/sngs)
-                    if (src.indexOf('/sngs/sngs/') > -1) {
-                        var correctedUrl = src.replace('/sngs/sngs/', '/sngs/');
-                        img.src = correctedUrl;
-                        console.log('Fixed duplicate virtual path:', {
-                            original: src,
-                            corrected: correctedUrl
-                        });
-                    } else if (src.indexOf('/sndp/sndp/') > -1) {
-                        var correctedUrl = src.replace('/sndp/sndp/', '/sndp/');
-                        img.src = correctedUrl;
-                        console.log('Fixed duplicate virtual path:', {
-                            original: src,
-                            corrected: correctedUrl
-                        });
-                    }
-                    return;
-                }
-                
-                // Handle relative URLs
-                if (src.startsWith('~/')) src = src.replace(/^~\//, '');
-                if (src.startsWith('/')) src = src.slice(1);
-                
-                // Construct the full URL with virtual path
-                var fullUrl = root + virtualPath + '/' + src;
-                img.src = fullUrl;
-                
-                // Debug logging
-                console.log('Image URL fixed:', {
-                    original: img.getAttribute('data-original-src') || 'unknown',
-                    new: fullUrl,
-                    root: root,
-                    virtualPath: virtualPath,
-                    src: src
-                });
-            });
-            
-            // Fix background images in CSS
-            var styleSheets = document.styleSheets;
-            for (var i = 0; i < styleSheets.length; i++) {
-                try {
-                    var rules = styleSheets[i].cssRules || styleSheets[i].rules;
-                    if (rules) {
-                        for (var j = 0; j < rules.length; j++) {
-                            var rule = rules[j];
-                            if (rule.style && rule.style.backgroundImage) {
-                                var bgImage = rule.style.backgroundImage;
-                                if (bgImage && !bgImage.match(/^https?:\/\//i) && bgImage.includes('url(')) {
-                                    var urlMatch = bgImage.match(/url\(['"]?([^'"]+)['"]?\)/);
-                                    if (urlMatch) {
-                                        var url = urlMatch[1];
-                                        if (!url.match(/^https?:\/\//i)) {
-                                            if (url.startsWith('~/')) url = url.replace(/^~\//, '');
-                                            if (url.startsWith('/')) url = url.slice(1);
-                                            rule.style.backgroundImage = bgImage.replace(urlMatch[1], root + virtualPath + '/' + url);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } catch (e) {
-                    // Skip cross-origin stylesheets
-                }
-            }
-        }
-        
-        // Run immediately
-        fixImageUrls();
-        
-        // Run on page load
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', fixImageUrls);
-        } else {
-            fixImageUrls();
-        }
-        
-        // Run after AJAX content loads (for dynamic content)
-        $(document).on('ajaxComplete', fixImageUrls);
-        
-        // Run more frequently for the first few seconds to catch any late-loading content
-        var runCount = 0;
-        var quickInterval = setInterval(function() {
-            fixImageUrls();
-            runCount++;
-            if (runCount >= 10) { // Run 10 times quickly (every 100ms)
-                clearInterval(quickInterval);
-            }
-        }, 100);
-        
-        // Also run periodically for dynamically added content
-        setInterval(fixImageUrls, 2000);
-        
-        // Use MutationObserver to catch dynamically added images
-        if (typeof MutationObserver !== 'undefined') {
-            var observer = new MutationObserver(function(mutations) {
-                var shouldFix = false;
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'childList') {
-                        mutation.addedNodes.forEach(function(node) {
-                            if (node.nodeType === 1) { // Element node
-                                if (node.tagName === 'IMG' || node.querySelector && node.querySelector('img')) {
-                                    shouldFix = true;
-                                }
-                            }
-                        });
-                    }
-                });
-                if (shouldFix) {
-                    setTimeout(fixImageUrls, 50);
-                }
-            });
-            
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-        }
-    })();
+        })();
     </script>
 
     <div class="footer bg-warning">

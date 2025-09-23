@@ -1,5 +1,6 @@
 ﻿@using KVM_ERP.Models
 @using Microsoft.AspNet.Identity;
+@model KVM_ERP.Models.AccountViewModels.ManageUserViewModel
 @{
     ViewBag.Title = "Manage Account";
 }
@@ -17,9 +18,9 @@
                         @if (Request.IsAuthenticated)
                         {
                             var backLink = (System.Web.HttpContext.Current.Session["Group"].ToString() == "Manager" ||
-                                         System.Web.HttpContext.Current.Session["Group"].ToString() == "Admin" ||
-                                         System.Web.HttpContext.Current.Session["Group"].ToString() == "Purchaseadmin")
-                                        ? "Index" : "CIndex";
+                                             System.Web.HttpContext.Current.Session["Group"].ToString() == "Admin" ||
+                                             System.Web.HttpContext.Current.Session["Group"].ToString() == "Purchaseadmin")
+                                            ? "Index" : "CIndex";
 
                             <a href="@Url.Action(backLink)" class="btn btn-outline-light btn-sm">
                                 <i class="bi bi-arrow-left me-1"></i>Back
@@ -57,7 +58,7 @@
                         </div>
                     }
 
-                    <!-- Password Card -->
+                    <!-- Password Card (single form) -->
                     <div class="card border-0 shadow-none">
                         <div class="card-header bg-transparent border-bottom px-0 pt-0 pb-3">
                             <h3 class="h6 mb-0">
@@ -65,16 +66,44 @@
                             </h3>
                         </div>
                         <div class="card-body px-0 pb-0">
-                            @if (ViewBag.HasLocalPassword)
+                            @if (System.Web.HttpContext.Current.Session["Group"] != null && System.Web.HttpContext.Current.Session["Group"].ToString() == "Admin")
                             {
-                                @Html.Partial("_ChangePasswordPartial")
+                                using (Html.BeginForm("Manage","Account", new { id = ViewBag.TargetUser }, FormMethod.Post, new { @class = "row g-3" }))
+                                {
+                                    @Html.AntiForgeryToken()
+                                    @Html.HiddenFor(m => m.OldPassword, new { @Value = "AdminOverride" })
+
+                                    <div class="col-md-4">
+                                        @Html.LabelFor(m => m.NewPassword)
+                                        @Html.PasswordFor(m => m.NewPassword, new { @class = "form-control" })
+                                        @Html.ValidationMessageFor(m => m.NewPassword, null, new { @class = "text-danger" })
+                                    </div>
+                                    <div class="col-md-4">
+                                        @Html.LabelFor(m => m.ConfirmPassword)
+                                        @Html.PasswordFor(m => m.ConfirmPassword, new { @class = "form-control" })
+                                        @Html.ValidationMessageFor(m => m.ConfirmPassword, null, new { @class = "text-danger" })
+                                    </div>
+                                    <div class="col-12 mt-2">
+                                        <a href="@Url.Action("Index","Account")" class="btn btn-secondary">Cancel</a>
+                                        <button type="submit" class="btn btn-primary">Update Password</button>
+                                    </div>
+                                }
                             }
                             else
                             {
-                                @Html.Partial("_SetPasswordPartial")
+                                var hasLocalPassword = (ViewBag.HasLocalPassword as bool?) ?? true;
+                                if (hasLocalPassword)
+                                {
+                                    Html.RenderPartial("_ChangePasswordPartial");
+                                }
+                                else
+                                {
+                                    Html.RenderPartial("_SetPasswordPartial");
+                                }
                             }
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>

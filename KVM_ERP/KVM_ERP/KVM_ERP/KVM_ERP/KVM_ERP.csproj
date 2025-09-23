@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\packages\EntityFramework.6.5.1\build\EntityFramework.props" Condition="Exists('..\packages\EntityFramework.6.5.1\build\EntityFramework.props')" />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.Default.props" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.Default.props')" />
@@ -188,7 +188,6 @@
     <Compile Include="App_Start\FilterConfig.cs" />
     <Compile Include="App_Start\RouteConfig.cs" />
     <Compile Include="App_Start\Startup.Auth.cs" />
-    <Compile Include="Controllers\RegisterController.cs" />
     <Compile Include="Controllers\AccountController.cs" />
     <Compile Include="Controllers\GroupsController.cs" />
     <Compile Include="Controllers\ErrorController.cs" />
@@ -198,18 +197,23 @@
     <Compile Include="Controllers\Masters\BloodGroupMasterController.cs" />
     <Compile Include="Controllers\Masters\CommonController.cs" />
     <Compile Include="Controllers\Masters\CompanyMasterController.cs" />
-    <Compile Include="Controllers\Masters\AnnouncementMasterController.cs" />
-    <Compile Include="Controllers\Masters\EventMasterController.cs" />
-    <Compile Include="Controllers\Masters\GalleryMasterController.cs" />
+    <!-- Excluded per cleanup (content modules) -->
+    <!-- <Compile Include="Controllers\Masters\AnnouncementMasterController.cs" /> -->
+    <!-- <Compile Include="Controllers\Masters\EventMasterController.cs" /> -->
+    <!-- <Compile Include="Controllers\Masters\GalleryMasterController.cs" /> -->
     <Compile Include="Controllers\Masters\CategoryMasterController.cs" />
     <Compile Include="Controllers\Masters\StateMasterController.cs" />
-    <Compile Include="Controllers\MembersController.cs" />
-    <Compile Include="Controllers\MinutesOfMeetingController.cs" />
+    <!-- Excluded per cleanup -->
+    <!-- <Compile Include="Controllers\MinutesOfMeetingController.cs" /> -->
+    <!-- <Compile Include="Controllers\ContentController.cs" /> -->
+    <Compile Include="Controllers\Masters\DepartmentMasterController.cs" />
+    <Compile Include="Controllers\Masters\DesginationMasterController.cs" />
+    <Compile Include="Controllers\Masters\LocationMasterController.cs" />
+    <Compile Include="Controllers\Masters\EmployeeMasterController.cs" />
     <Compile Include="Controllers\NavbarController.cs" />
-    <Compile Include="Controllers\ContentController.cs" />
-    <Compile Include="Controllers\ProfileMasterController.cs" />
+    <!-- Excluded per cleanup -->
+    <!-- <Compile Include="Controllers\ProfileMasterController.cs" /> -->
     <Compile Include="Controllers\RolesController.cs" />
-    <Compile Include="Controllers\GovernmentProofController.cs" />
     <Compile Include="Data\AspNetUser.cs">
       <DependentUpon>ClubMembership.tt</DependentUpon>
     </Compile>
@@ -270,15 +274,13 @@
       <DependentUpon>202507291102292_InitialCreate.cs</DependentUpon>
     </Compile>
     <Compile Include="Migrations\Configuration.cs" />
-    <Compile Include="Migrations\202501010000004_AddGovernmentProofTable.cs" />
-    <Compile Include="Migrations\202501010000004_AddGovernmentProofTable.Designer.cs" />
-    <Compile Include="Models\MemberShipTypeMaster.cs" />
-    <Compile Include="Models\MemberShipPaymentDetail.cs" />
-    <Compile Include="Models\MemberProfileViewModel.cs" />
-    <Compile Include="Models\MemberShipODetail.cs" />
-    <Compile Include="Models\MemberShipFamilyDetail.cs" />
-    <Compile Include="Models\MemberShipMaster.cs" />
+    <!-- Excluded per cleanup: GovernmentProof migration removed -->
+    <!-- <Compile Include="Migrations\202501010000004_AddGovernmentProofTable.cs" /> -->
+    <!-- <Compile Include="Migrations\202501010000004_AddGovernmentProofTable.Designer.cs" /> -->
     <Compile Include="Models\BloodGroupMaster.cs" />
+    <Compile Include="Models\DepartmentMaster.cs" />
+    <Compile Include="Models\DesignationMaster.cs" />
+    <Compile Include="Models\LocationMaster.cs" />
     <Compile Include="Models\PaymentTypeTotal.cs" />
     <Compile Include="Models\RenewalInfo.cs" />
     <Compile Include="Models\RenewalPopupViewModel.cs" />
@@ -286,7 +288,8 @@
     <Compile Include="Models\RegionMaster.cs" />
     <Compile Include="Models\RImageMaster.cs" />
     <Compile Include="Models\MenuMaster.cs" />
-    <Compile Include="Models\UserDashboardViewModel.cs" />
+    <!-- Excluded per cleanup -->
+    <!-- <Compile Include="Models\UserDashboardViewModel.cs" /> -->
     <Compile Include="Models\AccountGroupMaster.cs" />
     <Compile Include="Models\AccountHeadMaster.cs" />
     <Compile Include="Models\AccountViewModels.cs" />
@@ -300,12 +303,7 @@
     <Compile Include="Models\CompanyMaster.cs" />
     <Compile Include="Models\DasnBoardList.cs" />
     <Compile Include="Models\DisplayOrderMaster.cs" />
-    <Compile Include="Models\AnnouncementMaster.cs" />
-    <Compile Include="Models\EventMaster.cs" />
-    <Compile Include="Models\GalleryMaster.cs" />
-    <Compile Include="Models\MinutesOfMeeting.cs" />
     <Compile Include="Models\CategoryMaster.cs" />
-    <Compile Include="Models\EventInterest.cs" />
     <Compile Include="Models\EmployeeLinkMaster.cs" />
     <Compile Include="Models\EmployeeList.cs" />
     <Compile Include="Models\EmployeeMaster.cs" />
@@ -316,8 +314,8 @@
     <Compile Include="Models\MenuNavbar.cs" />
     <Compile Include="Models\MenuRoleMaster.cs" />
     <Compile Include="Models\Navbar.cs" />
-    <Compile Include="Models\ContentSearchViewModel.cs" />
-    <Compile Include="Models\UserFeedViewModel.cs" />
+    <!-- Excluded per cleanup -->
+    <!-- <Compile Include="Models\ContentSearchViewModel.cs" /> -->
     <Compile Include="Models\Roles.cs" />
     <Compile Include="Models\SoftDepartmentMaster.cs" />
     <Compile Include="Models\Soft_Table_Delete_Detail.cs" />
@@ -325,7 +323,8 @@
     <Compile Include="Models\TMPRPT_IDS.cs" />
     <Compile Include="Models\User.cs" />
     <Compile Include="Models\VW_ACCOUNTING_YEAR_DETAIL_ASSGN.cs" />
-    <Compile Include="Models\GovernmentProof.cs" />
+    <!-- Excluded per cleanup: GovernmentProof model removed -->
+    <!-- <Compile Include="Models\GovernmentProof.cs" /> -->
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SessionExpire.cs" />
     <Compile Include="Startup.cs" />
@@ -1230,24 +1229,25 @@
     <Content Include="Views\PublicationBillReports\Index.cshtml" />
     <Content Include="Views\Estimate\Index.cshtml" />
     <Content Include="Views\Estimate\Form.cshtml" />
-    <Content Include="Views\AnnouncementMaster\Index.cshtml" />
-    <Content Include="Views\AnnouncementMaster\Form.cshtml" />
-    <Content Include="Views\EventMaster\Index.cshtml" />
-    <Content Include="Views\EventMaster\Form.cshtml" />
-    <Content Include="Views\GalleryMaster\Index.cshtml" />
-    <Content Include="Views\GalleryMaster\Form.cshtml" />
-    <Content Include="Views\StateMaster\Form.cshtml" />
-    <Content Include="Views\BloodGroupMaster\Form.cshtml" />
-    <Content Include="Views\BloodGroupMaster\Index.cshtml" />
-    <Content Include="Views\Register\Login_Register.cshtml" />
-    <Content Include="Views\Account\Create.cshtml" />
-    <Content Include="Views\ProfileMaster\Index.cshtml" />
-    <Content Include="Views\Members\Index.cshtml" />
-    <Content Include="Views\Members\Edit.cshtml" />
-    <Content Include="Views\Members\Create.cshtml" />
-    <Content Include="Views\Members\Delete.cshtml" />
-    <Content Include="Views\ProfileMaster\_MemberForm.cshtml" />
-    <Content Include="Views\ProfileMaster\Create.cshtml" />
+    <!-- Excluded per cleanup -->
+    <!-- <Content Include="Views\AnnouncementMaster\Index.cshtml" /> -->
+    <!-- <Content Include="Views\AnnouncementMaster\Form.cshtml" /> -->
+    <!-- <Content Include="Views\EventMaster\Index.cshtml" /> -->
+    <!-- <Content Include="Views\EventMaster\Form.cshtml" /> -->
+    <!-- <Content Include="Views\GalleryMaster\Index.cshtml" /> -->
+    <!-- <Content Include="Views\GalleryMaster\Form.cshtml" /> -->
+    <!-- <Content Include="Views\StateMaster\Form.cshtml" /> -->
+    <!-- <Content Include="Views\BloodGroupMaster\Form.cshtml" /> -->
+    <!-- <Content Include="Views\BloodGroupMaster\Index.cshtml" /> -->
+    <!-- <Content Include="Views\Register\Login_Register.cshtml" /> -->
+    <!-- <Content Include="Views\Account\Create.cshtml" /> -->
+    <!-- <Content Include="Views\ProfileMaster\Index.cshtml" /> -->
+    <!-- <Content Include="Views\Members\Index.cshtml" /> -->
+    <!-- <Content Include="Views\Members\Edit.cshtml" /> -->
+    <!-- <Content Include="Views\Members\Create.cshtml" /> -->
+    <!-- <Content Include="Views\Members\Delete.cshtml" /> -->
+    <!-- <Content Include="Views\ProfileMaster\_MemberForm.cshtml" /> -->
+    <!-- <Content Include="Views\ProfileMaster\Create.cshtml" /> -->
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />

@@ -1106,5 +1106,32 @@ namespace KVM_ERP.Controllers.Masters
 
 
         //end class
+        // DESIGNATION
+        public JsonResult ValidateDSGNCODE(String DSGNCODE, String i_DSGNCODE)
+        {
+            if (DSGNCODE.Equals(i_DSGNCODE))
+                return Json(true, JsonRequestBehavior.AllowGet);
+            List<String> d = context.Database.SqlQuery<String>("select DSGNCODE from DESIGNATIONMASTER").ToList();
+            if (d.Contains(DSGNCODE))
+                return Json(false, JsonRequestBehavior.AllowGet);
+            else
+                return Json(true, JsonRequestBehavior.AllowGet);
+        }
+
+        public JsonResult ValidateDSGNDESC(String DSGNDESC, String i_DSGNDESC)
+        {
+            DSGNDESC = System.Threading.Thread.CurrentThread.CurrentCulture.TextInfo.ToTitleCase(DSGNDESC.ToLower());
+            i_DSGNDESC = System.Threading.Thread.CurrentThread.CurrentCulture.TextInfo.ToTitleCase(i_DSGNDESC.ToLower());
+
+            if (DSGNDESC.Equals(i_DSGNDESC))
+                return Json(true, JsonRequestBehavior.AllowGet);
+            List<String> d = context.Database.SqlQuery<String>("select DSGNDESC from DESIGNATIONMASTER").ToList();
+            d = d.Select(r => System.Threading.Thread.CurrentThread.CurrentCulture.TextInfo.ToTitleCase(r.ToLower())).ToList();
+            if (d.Contains(DSGNDESC))
+                return Json(false, JsonRequestBehavior.AllowGet);
+            else
+                return Json(true, JsonRequestBehavior.AllowGet);
+        }
+        // DESIGNATION
     }
 }
