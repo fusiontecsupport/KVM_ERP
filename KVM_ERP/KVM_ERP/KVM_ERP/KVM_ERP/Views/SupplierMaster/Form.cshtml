@@ -1,6 +1,6 @@
-@model KVM_ERP.Models.CustomerMaster
+@model KVM_ERP.Models.SupplierMaster
 @{
-    ViewBag.Title = "Customer Master";
+    ViewBag.Title = "Supplier Master";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
@@ -124,15 +124,15 @@
     <div class="form-container">
         <div class="form-header">
             <h1 class="form-title">
-                <i class="fa fa-building"></i>
-                Customer Master
+                <i class="fa fa-truck"></i>
+                Supplier Master
             </h1>
         </div>
 
         <div class="form-body">
             @Html.Raw(ViewBag.msg)
 
-            @using (Html.BeginForm("savedata", "CustomerMaster", FormMethod.Post, new { @class = "form-horizontal", role = "form" }))
+            @using (Html.BeginForm("savedata", "SupplierMaster", FormMethod.Post, new { @class = "form-horizontal", role = "form" }))
             {
                 @Html.AntiForgeryToken()
                 @Html.ValidationSummary(true, "", new { @class = "text-danger" })
@@ -141,19 +141,18 @@
                 <div class="section-title">
                     <i class="fa fa-info-circle"></i> Basic Information
                 </div>
-
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
                             <label class="control-label">@Html.DisplayNameFor(m => m.CATENAME) <span class="req">*</span></label>
-                            @Html.TextBoxFor(m => m.CATENAME, new { @class = "form-control", @placeholder = "Enter customer name" })
+                            @Html.TextBoxFor(m => m.CATENAME, new { @class = "form-control" })
                             @Html.ValidationMessageFor(m => m.CATENAME, "", new { @class = "text-danger" })
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
                             <label class="control-label">@Html.DisplayNameFor(m => m.CATEDNAME) <span class="req">*</span></label>
-                            @Html.TextBoxFor(m => m.CATEDNAME, new { @class = "form-control", @placeholder = "Enter display name" })
+                            @Html.TextBoxFor(m => m.CATEDNAME, new { @class = "form-control" })
                             @Html.ValidationMessageFor(m => m.CATEDNAME, "", new { @class = "text-danger" })
                         </div>
                     </div>
@@ -163,15 +162,14 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label class="control-label">@Html.DisplayNameFor(m => m.CATECODE) <span class="req">*</span></label>
-                            @Html.TextBoxFor(m => m.CATECODE, new { @class = "form-control", @placeholder = "Enter customer code" })
+                            @Html.TextBoxFor(m => m.CATECODE, new { @class = "form-control" })
                             @Html.ValidationMessageFor(m => m.CATECODE, "", new { @class = "text-danger" })
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            @Html.LabelFor(m => m.CATE_CRDTPRD, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATE_CRDTPRD, new { @class = "form-control", @type = "number", @placeholder = "Enter credit note" })
-                            @Html.ValidationMessageFor(m => m.CATE_CRDTPRD, "", new { @class = "text-danger" })
+                            @Html.LabelFor(m => m.CATE_DSGNDESC, new { @class = "control-label" })
+                            @Html.TextBoxFor(m => m.CATE_DSGNDESC, new { @class = "form-control" })
                         </div>
                     </div>
                 </div>
@@ -179,18 +177,17 @@
                 <div class="section-title">
                     <i class="fa fa-map-marker"></i> Address Information
                 </div>
-
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATEADDR1, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATEADDR1, new { @class = "form-control", @placeholder = "Enter address line 1" })
+                            @Html.TextBoxFor(m => m.CATEADDR1, new { @class = "form-control" })
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATEADDR2, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATEADDR2, new { @class = "form-control", @placeholder = "Enter address line 2" })
+                            @Html.TextBoxFor(m => m.CATEADDR2, new { @class = "form-control" })
                         </div>
                     </div>
                 </div>
@@ -199,19 +196,19 @@
                     <div class="col-md-4">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATEADDR3, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATEADDR3, new { @class = "form-control", @placeholder = "Enter address line 3" })
+                            @Html.TextBoxFor(m => m.CATEADDR3, new { @class = "form-control" })
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATEADDR4, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATEADDR4, new { @class = "form-control", @placeholder = "Enter address line 4" })
+                            @Html.TextBoxFor(m => m.CATEADDR4, new { @class = "form-control" })
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATEADDR5, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATEADDR5, new { @class = "form-control", @placeholder = "Enter pincode" })
+                            @Html.TextBoxFor(m => m.CATEADDR5, new { @class = "form-control" })
                         </div>
                     </div>
                 </div>
@@ -236,18 +233,17 @@
                 <div class="section-title">
                     <i class="fa fa-phone"></i> Contact Information
                 </div>
-
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATEPHN1, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATEPHN1, new { @class = "form-control", @placeholder = "Enter landline 1" })
+                            @Html.TextBoxFor(m => m.CATEPHN1, new { @class = "form-control" })
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATEPHN2, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATEPHN2, new { @class = "form-control", @placeholder = "Enter landline 2" })
+                            @Html.TextBoxFor(m => m.CATEPHN2, new { @class = "form-control" })
                         </div>
                     </div>
                 </div>
@@ -256,13 +252,13 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATEPHN3, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATEPHN3, new { @class = "form-control", @placeholder = "Enter mobile 1" })
+                            @Html.TextBoxFor(m => m.CATEPHN3, new { @class = "form-control" })
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATEPHN4, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATEPHN4, new { @class = "form-control", @placeholder = "Enter mobile 2" })
+                            @Html.TextBoxFor(m => m.CATEPHN4, new { @class = "form-control" })
                         </div>
                     </div>
                 </div>
@@ -271,13 +267,13 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATEPNAME, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATEPNAME, new { @class = "form-control", @placeholder = "Enter contact person name" })
+                            @Html.TextBoxFor(m => m.CATEPNAME, new { @class = "form-control" })
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATEMAIL, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATEMAIL, new { @class = "form-control", @type = "email", @placeholder = "Enter email address" })
+                            @Html.TextBoxFor(m => m.CATEMAIL, new { @class = "form-control", @type = "email" })
                             @Html.ValidationMessageFor(m => m.CATEMAIL, "", new { @class = "text-danger" })
                         </div>
                     </div>
@@ -286,24 +282,23 @@
                 <div class="section-title">
                     <i class="fa fa-file-text"></i> License & Tax Information
                 </div>
-
                 <div class="row">
                     <div class="col-md-4">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATE_GST_NO, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATE_GST_NO, new { @class = "form-control", @placeholder = "Enter GST number" })
+                            @Html.TextBoxFor(m => m.CATE_GST_NO, new { @class = "form-control" })
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATE_PAN_NO, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATE_PAN_NO, new { @class = "form-control", @placeholder = "Enter PAN number" })
+                            @Html.TextBoxFor(m => m.CATE_PAN_NO, new { @class = "form-control" })
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATE_TAN_NO, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATE_TAN_NO, new { @class = "form-control", @placeholder = "Enter TAN number" })
+                            @Html.TextBoxFor(m => m.CATE_TAN_NO, new { @class = "form-control" })
                         </div>
                     </div>
                 </div>
@@ -312,13 +307,13 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATE_PEST_LIC_NO, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATE_PEST_LIC_NO, new { @class = "form-control", @placeholder = "Enter pesticide licence number" })
+                            @Html.TextBoxFor(m => m.CATE_PEST_LIC_NO, new { @class = "form-control" })
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATE_SEED_LIC_NO, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATE_SEED_LIC_NO, new { @class = "form-control", @placeholder = "Enter seed licence number" })
+                            @Html.TextBoxFor(m => m.CATE_SEED_LIC_NO, new { @class = "form-control" })
                         </div>
                     </div>
                 </div>
@@ -326,18 +321,17 @@
                 <div class="section-title">
                     <i class="fa fa-bank"></i> Banking Information
                 </div>
-
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATE_BANK_NAME, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATE_BANK_NAME, new { @class = "form-control", @placeholder = "Enter bank name" })
+                            @Html.TextBoxFor(m => m.CATE_BANK_NAME, new { @class = "form-control" })
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATE_BRNCH_NAME, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATE_BRNCH_NAME, new { @class = "form-control", @placeholder = "Enter branch name" })
+                            @Html.TextBoxFor(m => m.CATE_BRNCH_NAME, new { @class = "form-control" })
                         </div>
                     </div>
                 </div>
@@ -346,13 +340,13 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATE_IFSC_CODE, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATE_IFSC_CODE, new { @class = "form-control", @placeholder = "Enter IFSC code" })
+                            @Html.TextBoxFor(m => m.CATE_IFSC_CODE, new { @class = "form-control" })
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATE_ACNO, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATE_ACNO, new { @class = "form-control", @placeholder = "Enter account number" })
+                            @Html.TextBoxFor(m => m.CATE_ACNO, new { @class = "form-control" })
                         </div>
                     </div>
                 </div>
@@ -361,22 +355,13 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATE_IBAN_CODE, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATE_IBAN_CODE, new { @class = "form-control", @placeholder = "Enter IBAN code" })
+                            @Html.TextBoxFor(m => m.CATE_IBAN_CODE, new { @class = "form-control" })
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
                             @Html.LabelFor(m => m.CATE_SWIFT_CODE, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATE_SWIFT_CODE, new { @class = "form-control", @placeholder = "Enter SWIFT code" })
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            @Html.LabelFor(m => m.CATE_DSGNDESC, new { @class = "control-label" })
-                            @Html.TextBoxFor(m => m.CATE_DSGNDESC, new { @class = "form-control", @placeholder = "Enter designation description" })
+                            @Html.TextBoxFor(m => m.CATE_SWIFT_CODE, new { @class = "form-control" })
                         </div>
                     </div>
                 </div>
@@ -384,7 +369,6 @@
                 <div class="section-title">
                     <i class="fa fa-cog"></i> Status Information
                 </div>
-
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
@@ -396,9 +380,9 @@
 
                 <div class="form-group text-center" style="margin-top: 30px;">
                     <button type="submit" class="btn btn-primary">
-                        <i class="fa fa-save"></i> Save Customer
+                        <i class="fa fa-save"></i> Save Supplier
                     </button>
-                    <a href="@Url.Action("Index", "CustomerMaster")" class="btn btn-secondary">
+                    <a href="@Url.Action("Index", "SupplierMaster")" class="btn btn-secondary">
                         <i class="fa fa-arrow-left"></i> Back to List
                     </a>
                 </div>
@@ -411,12 +395,10 @@
     @Scripts.Render("~/bundles/jqueryval")
     <script>
         $(document).ready(function() {
-            // Auto-format customer code to uppercase
             $('#CATECODE').on('input', function() {
                 this.value = this.value.toUpperCase();
             });
             
-            // Auto-format customer name to title case
             $('#CATENAME, #CATEDNAME, #CATEPNAME').on('blur', function() {
                 this.value = this.value.replace(/\w\S*/g, function(txt) {
                     return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();

@@ -210,6 +210,8 @@
     <Compile Include="Controllers\Masters\DesginationMasterController.cs" />
     <Compile Include="Controllers\Masters\LocationMasterController.cs" />
     <Compile Include="Controllers\Masters\EmployeeMasterController.cs" />
+    <Compile Include="Controllers\Masters\CustomerMasterController.cs" />
+    <Compile Include="Controllers\Masters\SupplierMasterController.cs" />
     <Compile Include="Controllers\NavbarController.cs" />
     <!-- Excluded per cleanup -->
     <!-- <Compile Include="Controllers\ProfileMasterController.cs" /> -->
@@ -307,6 +309,8 @@
     <Compile Include="Models\EmployeeLinkMaster.cs" />
     <Compile Include="Models\EmployeeList.cs" />
     <Compile Include="Models\EmployeeMaster.cs" />
+    <Compile Include="Models\CustomerMaster.cs" />
+    <Compile Include="Models\SupplierMaster.cs" />
     <Compile Include="Models\Group.cs" />
     <Compile Include="Models\IdentityManager.cs" />
     <Compile Include="Models\JQueryDataTableParamModel.cs" />

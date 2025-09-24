@@ -1,6 +1,6 @@
-@model IEnumerable<KVM_ERP.Models.CustomerMaster>
+@model IEnumerable<KVM_ERP.Models.SupplierMaster>
 @{
-    ViewBag.Title = "Customer Master";
+    ViewBag.Title = "Supplier Master";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
@@ -147,11 +147,11 @@
         <div class="header-section">
             <div class="d-flex justify-content-between align-items-center">
                 <h1 class="header-title">
-                    <i class="fa fa-building"></i>
-                    Customer Master
+                    <i class="fa fa-truck"></i>
+                    Supplier Master
                 </h1>
-                <a href="@Url.Action("Form", "CustomerMaster")" class="btn add-btn">
-                    <i class="fa fa-plus-circle"></i> Add New Customer
+                <a href="@Url.Action("Form", "SupplierMaster")" class="btn add-btn">
+                    <i class="fa fa-plus-circle"></i> Add New Supplier
                 </a>
             </div>
         </div>
@@ -198,18 +198,18 @@
 
             table=$('#example').DataTable({
                 ajax: {
-                    url: "@Url.Action("GetAjaxData", "CustomerMaster")",
+                    url: "@Url.Action("GetAjaxData", "SupplierMaster")",
                     dataSrc: function (json) {
                         // Handle different data formats
                         if (json && Array.isArray(json.aaData)) return json.aaData;
                         if (json && Array.isArray(json.data)) return json.data;
                         if (Array.isArray(json)) return json;
-                        console.warn('Unexpected data format from CustomerMaster:', json);
+                        console.warn('Unexpected data format from SupplierMaster:', json);
                         return [];
                     },
                     error: function (xhr, status, err) {
-                        console.error('CustomerMaster GetAjaxData error:', status, err, xhr && xhr.responseText);
-                        alert('Failed to load customers. Please check console for details.');
+                        console.error('SupplierMaster GetAjaxData error:', status, err, xhr && xhr.responseText);
+                        alert('Failed to load suppliers. Please check console for details.');
                     }
                 },
                 columns: [
@@ -228,7 +228,7 @@
                     {
                         data: null,
                         render: function (data, type, row) {
-                            return '<a href="@Url.Action("Form", "CustomerMaster")/' + row["CATEID"] + '" class="btn btn-action btn-edit"><i class="fa fa-edit"></i> Edit</a>' +
+                            return '<a href="@Url.Action("Form", "SupplierMaster")/' + row["CATEID"] + '" class="btn btn-action btn-edit"><i class="fa fa-edit"></i> Edit</a>' +
                                    '&nbsp;<a href="#" id="' + row["CATEID"] + '" class="btn btn-action btn-delete editor_remove"><i class="fa fa-trash"></i> Delete</a>';
                         }
                     }
@@ -244,13 +244,13 @@
                 if (r == true) {
                     var idx = $(this).attr('id');
                     base = window.location.origin;
-                    $.post(base + "/CustomerMaster/deletedata",
+                    $.post(base + "/SupplierMaster/deletedata",
                           {
                               id: idx, fld: ""
                           },
                         function (data, status) {
                             if (data == "Deleted Successfully ...")
-                                location.replace(base + "/CustomerMaster/Index");
+                                location.replace(base + "/SupplierMaster/Index");
                             else if (data == "") alert("You are not authorize to Delete..!");
                             else
                                 alert(data);
@@ -262,4 +262,3 @@
         });
     </script>
 }
-

@@ -404,6 +404,18 @@
                                                         <i class="fa fa-users"></i> Employee Master
                                                     </a>
                                                 </li>
+                                                <!-- Static link: Customer Master (always show for Admin) -->
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "CustomerMaster")">
+                                                        <i class="fa fa-building"></i> Customer Master
+                                                    </a>
+                                                </li>
+                                                <!-- Static link: Supplier Master (always show for Admin) -->
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "SupplierMaster")">
+                                                        <i class="fa fa-truck"></i> Supplier Master
+                                                    </a>
+                                                </li>
                                             </ul>
                                         </div>
                                     }

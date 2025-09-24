@@ -20,6 +20,8 @@ namespace KVM_ERP.Models
         public DbSet<DesignationMaster> DesignationMasters { get; set; }
         public DbSet<DepartmentMaster> DepartmentMasters { get; set; }
         public DbSet<LocationMaster> LocationMasters { get; set; }
+        public DbSet<CustomerMaster> CustomerMasters { get; set; }
+        public DbSet<SupplierMaster> SupplierMasters { get; set; }
 
         new public virtual IDbSet<ApplicationRole> Roles { get; set; }
         public virtual IDbSet<Group> Groups { get; set; }
