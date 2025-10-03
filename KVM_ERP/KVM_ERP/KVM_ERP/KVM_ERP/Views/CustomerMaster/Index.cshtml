@@ -147,7 +147,7 @@
         <div class="header-section">
             <div class="d-flex justify-content-between align-items-center">
                 <h1 class="header-title">
-                    <i class="fa fa-building"></i>
+                    <i class="fa-solid fa-person"></i>
                     Customer Master
                 </h1>
                 <a href="@Url.Action("Form", "CustomerMaster")" class="btn add-btn">
@@ -240,20 +240,34 @@
 
             //--------------Delete Record----------------//
             $(document).on("click", "a.editor_remove", function () {
+                var idx = $(this).attr('id');
+                console.log("Customer Delete clicked - ID:", idx);
+                
+                if (!idx || idx === 'undefined') {
+                    alert("Error: Customer ID not found. Please refresh the page and try again.");
+                    return false;
+                }
+                
                 var r = confirm("Are you sure to delete this record ?");
                 if (r == true) {
-                    var idx = $(this).attr('id');
                     base = window.location.origin;
+                    console.log("Sending delete request to:", base + "/CustomerMaster/deletedata", "with ID:", idx);
+                    
                     $.post(base + "/CustomerMaster/deletedata",
                           {
                               id: idx, fld: ""
                           },
                         function (data, status) {
+                            console.log("Delete response:", data, "Status:", status);
                             if (data == "Deleted Successfully ...")
                                 location.replace(base + "/CustomerMaster/Index");
                             else if (data == "") alert("You are not authorize to Delete..!");
                             else
                                 alert(data);
+                        })
+                        .fail(function(xhr, status, error) {
+                            console.error("Delete request failed:", status, error, xhr.responseText);
+                            alert("Delete failed: " + (xhr.responseText || error));
                         });
                 }
                 return false;

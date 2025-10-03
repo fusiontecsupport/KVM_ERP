@@ -22,6 +22,15 @@ namespace KVM_ERP.Models
         public DbSet<LocationMaster> LocationMasters { get; set; }
         public DbSet<CustomerMaster> CustomerMasters { get; set; }
         public DbSet<SupplierMaster> SupplierMasters { get; set; }
+        public DbSet<CurrencyMaster> CurrencyMasters { get; set; }
+        public DbSet<MaterialTypeMaster> MaterialTypeMasters { get; set; }
+        public DbSet<MaterialGroupMaster> MaterialGroupMasters { get; set; }
+        public DbSet<UnitMaster> UnitMasters { get; set; }
+        public DbSet<HSNCodeMaster> HSNCodeMasters { get; set; }
+        public DbSet<CostFactorMaster> CostFactorMasters { get; set; }
+        public DbSet<PackingMaster> PackingMasters { get; set; }
+        public DbSet<PackingTypeMaster> PackingTypeMasters { get; set; }
+        public DbSet<MaterialMaster> MaterialMasters { get; set; }
 
         new public virtual IDbSet<ApplicationRole> Roles { get; set; }
         public virtual IDbSet<Group> Groups { get; set; }
@@ -53,6 +62,29 @@ namespace KVM_ERP.Models
             }
 
             //modelBuilder.Entity<TransactionMaster>().Property(d => d.TRANCRATE).HasPrecision(18, 4);
+            
+            // Configure CurrencyMaster decimal precision
+            modelBuilder.Entity<CurrencyMaster>().Property(d => d.CURNAMT).HasPrecision(18, 2);
+            
+            // Configure HSNCodeMaster decimal precision for all GST fields
+            modelBuilder.Entity<HSNCodeMaster>().Property(h => h.CGSTEXPRN).HasPrecision(18, 2);
+            modelBuilder.Entity<HSNCodeMaster>().Property(h => h.SGSTEXPRN).HasPrecision(18, 2);
+            modelBuilder.Entity<HSNCodeMaster>().Property(h => h.IGSTEXPRN).HasPrecision(18, 2);
+            modelBuilder.Entity<HSNCodeMaster>().Property(h => h.ACGSTEXPRN).HasPrecision(18, 2);
+            modelBuilder.Entity<HSNCodeMaster>().Property(h => h.ASGSTEXPRN).HasPrecision(18, 2);
+            modelBuilder.Entity<HSNCodeMaster>().Property(h => h.AIGSTEXPRN).HasPrecision(18, 2);
+            modelBuilder.Entity<HSNCodeMaster>().Property(h => h.TAXEXPRN).HasPrecision(18, 2);
+            
+            // Configure CostFactorMaster decimal precision for CFEXPR field
+            modelBuilder.Entity<CostFactorMaster>().Property(c => c.CFEXPR).HasPrecision(18, 3);
+            
+            // Configure MaterialMaster decimal precision for all decimal fields
+            modelBuilder.Entity<MaterialMaster>().Property(m => m.ROLNQTY).HasPrecision(18, 3);
+            modelBuilder.Entity<MaterialMaster>().Property(m => m.ROLXQTY).HasPrecision(18, 3);
+            modelBuilder.Entity<MaterialMaster>().Property(m => m.EOQTY).HasPrecision(18, 3);
+            modelBuilder.Entity<MaterialMaster>().Property(m => m.MTRLPRFT).HasPrecision(18, 2);
+            modelBuilder.Entity<MaterialMaster>().Property(m => m.MTRLBQTY).HasPrecision(18, 2);
+            modelBuilder.Entity<MaterialMaster>().Property(m => m.MTRLBRATE).HasPrecision(18, 2);
 
             // Keep this:
             modelBuilder.Entity<IdentityUser>().ToTable("AspNetUsers");

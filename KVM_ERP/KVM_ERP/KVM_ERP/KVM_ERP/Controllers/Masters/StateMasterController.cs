@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -38,7 +38,7 @@ namespace KVM_ERP.Controllers.Masters
                                                 filteredRowsCount);
 
                 //var aaData = data.Select(d => new string[] { d.STATECODE, d.STATEDESC, d.STATETYPE, d.DISPSTATUS, d.STATEID.ToString() }).ToArray();
-                var aaData = data.Select(d => new { STATECODE = d.STATECODE, STATEDESC = d.STATEDESC, STATETYPE = d.STATETYPE.ToString(), DISPSTATUS = d.DISPSTATUS.ToString(), STATEID = d.STATEID.ToString() }).ToArray();
+                var aaData = data.Select(d => new { STATECODE = d.STATECODE, STATEDESC = d.STATEDESC, STATETYPE = d.STATETYPE ?? "0", DISPSTATUS = d.DISPSTATUS.ToString(), STATEID = d.STATEID.ToString() }).ToArray();
                 return Json(new
                 {
                     //sEcho = param.sEcho,
@@ -55,49 +55,66 @@ namespace KVM_ERP.Controllers.Masters
             StateMaster tab = new StateMaster();
             tab.STATEID = 0;
 
-            List<SelectListItem> selectedDISPSTATUS = new List<SelectListItem>();
-            SelectListItem selectedItem = new SelectListItem { Text = "Disabled", Value = "1", Selected = false };
-            selectedDISPSTATUS.Add(selectedItem);
-            selectedItem = new SelectListItem { Text = "Enabled", Value = "0", Selected = true };
-            selectedDISPSTATUS.Add(selectedItem);
-            ViewBag.DISPSTATUS = selectedDISPSTATUS;
+            // Define dropdown lists at method level so they're accessible everywhere
+            var statusList = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "0", Text = "Enabled" },
+                new SelectListItem { Value = "1", Text = "Disabled" }
+            };
 
-            List<SelectListItem> selectedSTATETYPE = new List<SelectListItem>();
-            SelectListItem selectedSType = new SelectListItem { Text = "InterState", Value = "1", Selected = false };
-            selectedSTATETYPE.Add(selectedSType);
-            selectedSType = new SelectListItem { Text = "Local", Value = "0", Selected = true };
-            selectedSTATETYPE.Add(selectedSType);
-            ViewBag.STATETYPE = selectedSTATETYPE;
+            var stateTypeList = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "0", Text = "Local" },
+                new SelectListItem { Value = "1", Text = "InterState" }
+            };
 
             ViewBag.REGNID = new SelectList(context.RegionMasters, "REGNID", "REGNDESC");
 
             // IMP
             if (id == -1)
                 ViewBag.msg = "<div class='msg'>Record Successfully Saved</div>";
-            if (id != 0 && id != -1)  // IMP
+            
+            if (id != null && id > 0)  // Edit mode (same condition as CustomerMaster fix)
             {
                 tab = context.StateMasters.Find(id);
 
-                List<SelectListItem> selectedDISPSTATUS1 = new List<SelectListItem>();
-                if (Convert.ToInt32(tab.DISPSTATUS) == 1)
-                {
-                    SelectListItem selectedItem31 = new SelectListItem { Text = "Disabled", Value = "1", Selected = true };
-                    selectedDISPSTATUS1.Add(selectedItem31);
-                    selectedItem31 = new SelectListItem { Text = "Enabled", Value = "0", Selected = false };
-                    selectedDISPSTATUS1.Add(selectedItem31);
-                    ViewBag.DISPSTATUS = selectedDISPSTATUS1;
-                }
+                // CRITICAL: Clear ModelState for both dropdowns to ensure proper selection in edit mode
+                ModelState.Remove("DISPSTATUS");
+                ModelState.Remove("STATETYPE");
 
-                List<SelectListItem> selectedSTATETYPE1 = new List<SelectListItem>();
-                if (Convert.ToInt32(tab.STATETYPE) == 1)
-                {
-                    SelectListItem selectedSType31 = new SelectListItem { Text = "InterState", Value = "1", Selected = true };
-                    selectedSTATETYPE1.Add(selectedSType31);
-                    selectedSType31 = new SelectListItem { Text = "Local", Value = "0", Selected = false };
-                    selectedSTATETYPE1.Add(selectedSType31);
-                    ViewBag.STATETYPE = selectedSTATETYPE1;
-                }
-
+                // Debug: Show what values are being read from database
+                System.Diagnostics.Debug.WriteLine($"StateMaster Edit - Raw values from DB:");
+                System.Diagnostics.Debug.WriteLine($"  DISPSTATUS: '{tab.DISPSTATUS}' (Type: {tab.DISPSTATUS.GetType()})");
+                System.Diagnostics.Debug.WriteLine($"  STATETYPE: '{tab.STATETYPE}' (Type: {tab.STATETYPE.GetType()})");
+                
+                // Status dropdown selection
+                var selectedStatusValue = tab.DISPSTATUS.ToString();
+                var selectedStateTypeValue = tab.STATETYPE.ToString();
+                
+                // Handle case where STATETYPE might be stored as text instead of numeric
+                if (selectedStateTypeValue == "Local" || selectedStateTypeValue == "local")
+                    selectedStateTypeValue = "0";
+                else if (selectedStateTypeValue == "InterState" || selectedStateTypeValue == "Interstate" || selectedStateTypeValue == "Inter State")
+                    selectedStateTypeValue = "1";
+                else if (string.IsNullOrEmpty(selectedStateTypeValue) || selectedStateTypeValue == "0")
+                    selectedStateTypeValue = "0"; // Default to Local
+                else if (selectedStateTypeValue == "1")
+                    selectedStateTypeValue = "1"; // Keep as Interstate
+                
+                System.Diagnostics.Debug.WriteLine($"  Selected values: DISPSTATUS='{selectedStatusValue}', STATETYPE='{selectedStateTypeValue}' (Original: {tab.STATETYPE})");
+                
+                // Create dropdowns using SelectList for proper selection
+                ViewBag.DISPSTATUS = new SelectList(statusList, "Value", "Text", selectedStatusValue);
+                ViewBag.STATETYPE = new SelectList(stateTypeList, "Value", "Text", selectedStateTypeValue);
+                
+                // Debug: Show what values are being selected
+                System.Diagnostics.Debug.WriteLine($"Dropdowns - DISPSTATUS: {selectedStatusValue}, STATETYPE: {selectedStateTypeValue}");
+            }
+            else  // New record mode
+            {
+                // Set dropdowns with default values
+                ViewBag.DISPSTATUS = new SelectList(statusList, "Value", "Text", "0");
+                ViewBag.STATETYPE = new SelectList(stateTypeList, "Value", "Text", "0");
             }
             return View(tab);
         }//End of Form
@@ -135,20 +152,20 @@ namespace KVM_ERP.Controllers.Masters
         }
 
         //------------------------Delete Record----------//
-        [Authorize(Roles = "StateMasterDelete")]
-        public void Del()
+        [HttpPost]
+        public ActionResult deletedata(int id)
         {
-            String id = Request.Form.Get("id");
-            //    String fld = Request.Form.Get("fld");
-            //    String temp = Delete_fun.delete_check1(fld, id);
-            //    if (temp.Equals("PROCEED"))
-            //    {
-            StateMaster statemasters = context.StateMasters.Find(Convert.ToInt32(id));
-            context.StateMasters.Remove(statemasters);
-            context.SaveChanges();
-            Response.Write("Deleted Successfully ...");
+            try
+            {
+                context.Database.ExecuteSqlCommand("DELETE FROM STATEMASTER WHERE STATEID = {0}", id);
+                return Content("Deleted Successfully ...");
+            }
+            catch (Exception ex)
+            {
+                Response.StatusCode = 500;
+                return Content("Error deleting state: " + ex.Message);
+            }
         }
-
 
     }
 }

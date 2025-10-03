@@ -1,124 +1,246 @@
-﻿@using ClubMembership.Data;
-@model ClubMembership.Models.Company
+@using ClubMembership.Data;
+@model KVM_ERP.Models.Company
 @{
-    ViewBag.Title = "NForm";
+    ViewBag.Title = "Company Master";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<div class="container-fluid py-4">
-    <div class="card shadow-lg">
-        <div class="card-header bg-primary text-white">
-            <div class="d-flex justify-content-between align-items-center">
-                <h3 class="h5 mb-0">
-                    <i class="fas fa-building me-2"></i> Company Master
-                </h3>
-                <div class="clearfix"></div>
-            </div>
+<style>
+    .main-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+    
+    .form-container {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        margin: 20px;
+        overflow: hidden;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 25px 30px;
+        border-radius: 15px 15px 0 0;
+    }
+    
+    .form-title {
+        font-size: 28px;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .form-body {
+        padding: 30px;
+        background: white;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .control-label {
+        font-weight: 600;
+        color: #2d3436;
+        margin-bottom: 8px;
+        display: block;
+    }
+    
+    .req {
+        color: #e74c3c;
+        font-weight: bold;
+    }
+    
+    .form-control {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 12px 15px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background-color: #f8f9fa;
+    }
+    
+    .form-control:focus {
+        border-color: #4facfe;
+        box-shadow: 0 0 0 0.2rem rgba(79, 172, 254, 0.25);
+        background-color: white;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border: none;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(79, 172, 254, 0.6);
+    }
+    
+    .btn-secondary {
+        background: linear-gradient(135deg, #6c757d, #495057);
+        border: none;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        transform: translateY(-2px);
+        color: white;
+    }
+    
+    .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2d3436;
+        margin: 30px 0 20px 0;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .msg {
+        background: linear-gradient(135deg, #00b894, #00cec9);
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-weight: 600;
+    }
+</style>
+
+<div class="main-container">
+    <div class="form-container">
+        <div class="form-header">
+            <h1 class="form-title">
+                <i class="fa fa-building"></i>
+                Company Master
+            </h1>
         </div>
 
-        <div class="card-body">
+        <div class="form-body">
             @Html.Raw(ViewBag.msg)
             <form action="@Url.Content("~/CompanyMaster/nsavedata")" method="post" accept-charset="utf-8" id="companymasterform" data-ng-controller="myController" name="companymasterform">
-                @Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
-
-                <!-- Hidden Primary ID -->
+                @Html.ValidationSummary(true, "", new { @class = "text-danger" })
                 @Html.TextBoxFor(model => Model.masterdata[0].COMPID, new { @class = "form-control COMPID", @id = "COMPID", @hidden = "true" })
 
-                <!-- Main Company Information -->
-                <div class="row mb-4">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-signature me-1"></i> Name
-                        </label>
-                        @Html.TextBoxFor(model => Model.masterdata[0].COMPNAME, new { @class = "form-control COMPNAME", @id = "COMPNAME" })
-                    </div>
+                <div class="section-title">
+                    <i class="fa fa-info-circle"></i> Company Information
+                </div>
 
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-tag me-1"></i> Display Name
-                        </label>
-                        @Html.TextBoxFor(model => Model.masterdata[0].COMPDNAME, new { @class = "form-control COMPDNAME", @id = "COMPDNAME" })
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="control-label">Company Name <span class="req">*</span></label>
+                            @Html.TextBoxFor(model => Model.masterdata[0].COMPNAME, new { @class = "form-control COMPNAME", @id = "COMPNAME", @placeholder = "Enter company name" })
+                        </div>
                     </div>
-
-                    <div class="col-12 mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-map-marker-alt me-1"></i> Address
-                        </label>
-                        @Html.TextAreaFor(model => Model.masterdata[0].COMPADDR, new { @class = "form-control COMPADDR", @id = "COMPADDR", @rows = "3" })
-                    </div>
-
-                    <!-- Contact Information -->
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-phone me-1"></i> Landline
-                        </label>
-                        @Html.TextBoxFor(model => Model.masterdata[0].COMPPHN1, new { @class = "form-control COMPPHN1", @id = "COMPPHN1" })
-                    </div>
-
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-phone-alt me-1"></i> Landline 1
-                        </label>
-                        @Html.TextBoxFor(model => Model.masterdata[0].COMPPHN2, new { @class = "form-control COMPPHN2", @id = "COMPPHN2" })
-                    </div>
-
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-mobile-alt me-1"></i> Mobile
-                        </label>
-                        @Html.TextBoxFor(model => Model.masterdata[0].COMPPHN3, new { @class = "form-control COMPPHN3", @id = "COMPPHN3" })
-                    </div>
-
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-mobile me-1"></i> Mobile 1
-                        </label>
-                        @Html.TextBoxFor(model => Model.masterdata[0].COMPPHN4, new { @class = "form-control COMPPHN4", @id = "COMPPHN4" })
-                    </div>
-
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-envelope me-1"></i> Mail
-                        </label>
-                        @Html.TextBoxFor(model => Model.masterdata[0].COMPMAIL, new { @class = "form-control COMPMAIL", @id = "COMPMAIL" })
-                    </div>
-
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-user-tie me-1"></i> Contact Person
-                        </label>
-                        @Html.TextBoxFor(model => Model.masterdata[0].COMPCPRSN, new { @class = "form-control COMPCPRSN", @id = "COMPCPRSN" })
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="control-label">Display Name</label>
+                            @Html.TextBoxFor(model => Model.masterdata[0].COMPDNAME, new { @class = "form-control COMPDNAME", @id = "COMPDNAME", @placeholder = "Enter display name" })
+                        </div>
                     </div>
                 </div>
 
-                <!-- Tax and Legal Information -->
-                <div class="row mb-4">
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-id-card me-1"></i> PAN No
-                        </label>
-                        @Html.TextBoxFor(model => Model.masterdata[0].COMPPANNO, new { @class = "form-control COMPPANNO", @id = "COMPPANNO" })
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="control-label">Address</label>
+                            @Html.TextAreaFor(model => Model.masterdata[0].COMPADDR, new { @class = "form-control COMPADDR", @id = "COMPADDR", @rows = "3", @placeholder = "Enter company address" })
+                        </div>
                     </div>
+                </div>
 
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-file-invoice me-1"></i> Registation No
-                        </label>
-                        @Html.TextBoxFor(model => Model.masterdata[0].COMPTANNO, new { @class = "form-control COMPTANNO", @id = "COMPTANNO" })
+                <div class="section-title">
+                    <i class="fa fa-phone"></i> Contact Information
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="control-label">Landline 1</label>
+                            @Html.TextBoxFor(model => Model.masterdata[0].COMPPHN1, new { @class = "form-control COMPPHN1", @id = "COMPPHN1", @placeholder = "Enter landline number" })
+                        </div>
                     </div>
-
-                    <div class="col-md-1 mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-code me-1"></i> Code
-                        </label>
-                        @Html.TextBoxFor(model => Model.masterdata[0].COMPCODE, new { @class = "form-control COMPCODE", @id = "COMPCODE" })
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="control-label">Landline 2</label>
+                            @Html.TextBoxFor(model => Model.masterdata[0].COMPPHN2, new { @class = "form-control COMPPHN2", @id = "COMPPHN2", @placeholder = "Enter landline number" })
+                        </div>
                     </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="control-label">Mobile 1</label>
+                            @Html.TextBoxFor(model => Model.masterdata[0].COMPPHN3, new { @class = "form-control COMPPHN3", @id = "COMPPHN3", @placeholder = "Enter mobile number" })
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="control-label">Mobile 2</label>
+                            @Html.TextBoxFor(model => Model.masterdata[0].COMPPHN4, new { @class = "form-control COMPPHN4", @id = "COMPPHN4", @placeholder = "Enter mobile number" })
+                        </div>
+                    </div>
+                </div>
 
-                    <div class="col-md-2 mb-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-toggle-on me-1"></i> Status
-                        </label>
-                        @Html.DropDownList("DISPSTATUS", null, new { @class = "form-select" })
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="control-label">Email</label>
+                            @Html.TextBoxFor(model => Model.masterdata[0].COMPMAIL, new { @class = "form-control COMPMAIL", @id = "COMPMAIL", @placeholder = "Enter email address" })
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="control-label">Contact Person</label>
+                            @Html.TextBoxFor(model => Model.masterdata[0].COMPCPRSN, new { @class = "form-control COMPCPRSN", @id = "COMPCPRSN", @placeholder = "Enter contact person name" })
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-title">
+                    <i class="fa fa-file-text"></i> Legal Information
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="control-label">PAN No</label>
+                            @Html.TextBoxFor(model => Model.masterdata[0].COMPPANNO, new { @class = "form-control COMPPANNO", @id = "COMPPANNO", @placeholder = "Enter PAN number" })
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="control-label">Registration No</label>
+                            @Html.TextBoxFor(model => Model.masterdata[0].COMPTANNO, new { @class = "form-control COMPTANNO", @id = "COMPTANNO", @placeholder = "Enter registration number" })
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="control-label">Company Code</label>
+                            @Html.TextBoxFor(model => Model.masterdata[0].COMPCODE, new { @class = "form-control COMPCODE", @id = "COMPCODE", @placeholder = "Enter company code" })
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="control-label">Status</label>
+                            @Html.DropDownList("DISPSTATUS", null, new { @class = "form-control" })
+                        </div>
                     </div>
                 </div>
 
@@ -153,14 +275,13 @@
                     </div>
                 </div>
 
-                <!-- Form Buttons -->
-                <div class="d-flex justify-content-between mt-4">
-                    <button type="button" class="btn btn-outline-primary" onclick="JavaScript:history.back()">
-                        <i class="fas fa-arrow-left me-1"></i> Go Back
-                    </button>
+                <div class="form-group text-center" style="margin-top: 30px;">
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-1"></i> Submit
+                        <i class="fa fa-save"></i> Save Company
                     </button>
+                    <a href="@Url.Action("Index", "CompanyMaster")" class="btn btn-secondary">
+                        <i class="fa fa-arrow-left"></i> Back to List
+                    </a>
                 </div>
             </form>
         </div>
