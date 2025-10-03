@@ -223,6 +223,7 @@
     <Compile Include="Controllers\PackingTypeMasterController.cs" />
     <Compile Include="Controllers\MaterialMasterController.cs" />
     <Compile Include="Controllers\NavbarController.cs" />
+    <Compile Include="Controllers\RawMaterialIntakeController.cs" />
     <!-- Excluded per cleanup -->
     <!-- <Compile Include="Controllers\ProfileMasterController.cs" /> -->
     <Compile Include="Controllers\RolesController.cs" />
@@ -330,6 +331,8 @@
     <Compile Include="Models\PackingMaster.cs" />
     <Compile Include="Models\PackingTypeMaster.cs" />
     <Compile Include="Models\MaterialMaster.cs" />
+    <Compile Include="Models\TransactionMaster.cs" />
+    <Compile Include="Models\TransactionDetail.cs" />
     <Compile Include="Models\Group.cs" />
     <Compile Include="Models\IdentityManager.cs" />
     <Compile Include="Models\JQueryDataTableParamModel.cs" />

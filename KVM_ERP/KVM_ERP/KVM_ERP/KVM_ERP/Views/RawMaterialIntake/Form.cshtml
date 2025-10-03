@@ -1,0 +1,273 @@
+@model KVM_ERP.Models.TransactionMaster
+@{
+    ViewBag.Title = "Raw Material Intake - Form";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var supplierList = ViewBag.SupplierList as List<SelectListItem> ?? new List<SelectListItem>();
+    var supplierCodeMap = ViewBag.SupplierCodeMap as System.Collections.Generic.Dictionary<string, string> ?? new System.Collections.Generic.Dictionary<string, string>();
+}
+
+<style>
+    .main-container { background: white; min-height: 100vh; padding: 20px 0; }
+    .form-container { background: white; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,.1); margin: 20px; overflow: hidden; border: 1px solid #e9ecef; }
+    .form-header { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 25px 30px; border-radius: 15px 15px 0 0; }
+    .form-title { font-size: 28px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 15px; }
+    .form-body { padding: 30px; background: white; }
+    .form-group { margin-bottom: 18px; }
+    .control-label { font-weight: 600; color: #2d3436; margin-bottom: 8px; display: block; }
+    .form-control { border: 2px solid #e9ecef; border-radius: 8px; padding: 10px 12px; font-size: 14px; background: #f8f9fa; }
+    .form-control:focus { border-color: #4facfe; box-shadow: 0 0 0 0.2rem rgba(79,172,254,.25); background: white; }
+    .btn-primary { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border: none; padding: 12px 30px; border-radius: 25px; font-weight: 600; box-shadow: 0 4px 15px rgba(79,172,254,.4); }
+    .btn-secondary { background: linear-gradient(135deg, #6c757d, #495057); border: none; padding: 12px 30px; border-radius: 25px; font-weight: 600; color: #fff; }
+
+    /* Intake Details header and Add button (match masters/Index add style) */
+    .details-header { margin-top: 20px; display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: linear-gradient(135deg, #fbfbfb, #f5f5f5); border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+    .details-header .section-title { margin: 0; display: flex; align-items: center; gap: 10px; color: #1f2937; }
+    .add-btn { background: linear-gradient(135deg, #ff6b6b, #ee5a24); border: none; padding: 10px 18px; border-radius: 25px; color: #fff; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(238, 90, 36, 0.4); display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+    .add-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(238, 90, 36, 0.6); color: #fff; text-decoration: none; }
+
+    /* Details table aesthetics */
+    .details-table { border-radius: 10px; overflow: hidden; background: #fff; }
+    .details-table thead th { background: #f1f5f9; color: #334155; font-weight: 700; border-bottom: 2px solid #e2e8f0; }
+    .details-table tbody td { vertical-align: middle; }
+    .details-table input, .details-table select { height: 36px; padding: 6px 10px; }
+</style>
+
+<div class="main-container">
+    <div class="form-container">
+        <div class="form-header">
+            <h1 class="form-title">
+                <i class="fa fa-truck-loading"></i>
+                Raw Material Intake
+            </h1>
+        </div>
+        <div class="form-body">
+            @Html.Raw(ViewBag.msg)
+            @using (Html.BeginForm("savedata", "RawMaterialIntake", FormMethod.Post, new { @class = "form-horizontal", role = "form", id = "rawIntakeForm" }))
+            {
+                @Html.AntiForgeryToken()
+                @Html.HiddenFor(m => m.TRANMID)
+
+                <!-- Row 1: No, Date, Supplier Name (search), Supplier Code -->
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="control-label">No</label>
+                            <input type="text" class="form-control" value="@Model.TRANMID" disabled />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="control-label">Date <span class="req">*</span></label>
+                            @Html.TextBoxFor(m => m.TRANDATE, "{0:yyyy-MM-dd}", new { @class = "form-control", type = "date", required = "required" })
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="control-label">Supplier Name <span class="req">*</span></label>
+                            @Html.DropDownList("SupplierId", supplierList, "-- Select Supplier --", new { @class = "form-control select2", id = "supplierDropdown", required = "required", style = "width:100%" })
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="control-label">Supplier Code</label>
+                            @Html.TextBoxFor(m => m.CATECODE, new { @class = "form-control", @id = "supplierCode", @readonly = "readonly" })
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 2: Vehicle No, Status (col-3 layout with spacing) -->
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="control-label">Vechicle No <span class="req">*</span></label>
+                            @Html.TextBoxFor(m => m.VECHNO, new { @class = "form-control", placeholder = "Enter vehicle number", required = "required", maxlength = 50 })
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="control-label">Status</label>
+                            @Html.DropDownListFor(m => m.DISPSTATUS,
+                                new SelectList(new[] {
+                                    new SelectListItem { Text = "Enabled", Value = "0" },
+                                    new SelectListItem { Text = "Disabled", Value = "1" }
+                                }, "Value", "Text", Model.DISPSTATUS.ToString()),
+                                new { @class = "form-control", id = "statusDropdown" })
+                        </div>
+                    </div>
+                    <div class="col-md-3"></div>
+                    <div class="col-md-3"></div>
+                </div>
+
+                <div class="form-group text-center form-actions" style="margin-top: 30px;">
+                    <a href="@Url.Action("Index", "RawMaterialIntake")" class="btn btn-secondary">
+                        <i class="fa fa-arrow-left"></i> Back to List
+                    </a>
+                    <button type="submit" class="btn btn-primary" id="saveBtn">
+                        <i class="fa fa-save"></i> Save
+                    </button>
+                </div>
+                
+                @* Details JSON holder *@
+                <input type="hidden" id="detailRowsJson" name="detailRowsJson" />
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function(){
+            var codeMap = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(supplierCodeMap));
+            var $supplier = $('#supplierDropdown');
+            var $code = $('#supplierCode');
+            var details = @Html.Raw(ViewBag.DetailsJson ?? "[]");
+            var materialGroups = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.MaterialGroups ?? new List<SelectListItem>()));
+
+            function syncCode(){
+                var val = $supplier.val();
+                if (val && codeMap[val] !== undefined) {
+                    $code.val(codeMap[val] || '');
+                } else {
+                    $code.val('');
+                }
+            }
+
+            $supplier.on('change', syncCode);
+            // Enable search on supplier dropdown if select2 is available
+            if ($.fn.select2) {
+                $('#supplierDropdown').select2({ placeholder: '-- Select Supplier --', allowClear: true, width: 'resolve' });
+            }
+            // Initialize on load
+            syncCode();
+
+            // Force status dropdown to reflect model value
+            var modelStatus = '@Model.DISPSTATUS';
+            $('#statusDropdown').val(modelStatus).trigger('change');
+
+            // -------- Details Table UI --------
+            var $detailsHeader = $('<div class="details-header"></div>');
+            var $detailsSection = $('<div class="section-title"><i class="fa fa-list"></i> Intake Details</div>');
+            var $toolbar = $('<div class="mb-2"></div>');
+            var $addBtn = $('<button type="button" class="add-btn" id="addRowBtn"><i class="fa fa-plus"></i> Add</button>');
+            $toolbar.append($addBtn);
+            $detailsHeader.append($detailsSection).append($toolbar);
+
+            var $table = $('<table class="table table-bordered details-table" id="detailsTable"></table>');
+            var $thead = $('<thead><tr>\
+                <th style="width:60px; text-align:center;">S.No</th>\
+                <th style="width:220px;">Product Type</th>\
+                <th style="width:280px;">Product</th>\
+                <th style="width:150px;">No. of Boxes</th>\
+                <th style="width:150px;">Count (Per KG)</th>\
+                <th style="width:80px; text-align:center;">Action</th>\
+            </tr></thead>');
+            var $tbody = $('<tbody></tbody>');
+            $table.append($thead).append($tbody);
+
+            // Insert after the status row container
+            $('.form-body .row').last().after($detailsHeader, $table);
+
+            function buildGroupSelect(selectedId){
+                var $sel = $('<select class="form-control mgroup"></select>');
+                $sel.append('<option value="">-- Select Group --</option>');
+                $.each(materialGroups || [], function(_, g){
+                    var opt = $('<option></option>').val(g.Value).text(g.Text);
+                    if (selectedId && selectedId.toString() === g.Value) opt.prop('selected', true);
+                    $sel.append(opt);
+                });
+                return $sel;
+            }
+
+            function buildProductSelect(){
+                var $sel = $('<select class="form-control product"><option value="">-- Select Product --</option></select>');
+                return $sel;
+            }
+
+            function loadProducts($row, groupId, selectedProductId){
+                var $prod = $row.find('select.product');
+                $prod.empty().append('<option value="">Loading...</option>');
+                if (!groupId) { $prod.html('<option value="">-- Select Product --</option>'); return; }
+                $.getJSON('@Url.Action("GetProducts","RawMaterialIntake")', { groupId: groupId })
+                 .done(function(list){
+                    $prod.empty().append('<option value="">-- Select Product --</option>');
+                    $.each(list, function(_, item){
+                        var opt = $('<option></option>').val(item.id).text(item.text);
+                        if (selectedProductId && selectedProductId.toString() === item.id.toString()) opt.prop('selected', true);
+                        $prod.append(opt);
+                    });
+                 })
+                 .fail(function(){ $prod.html('<option value="">-- Select Product --</option>'); });
+            }
+
+            function addRow(init){
+                var idx = $tbody.children('tr').length + 1;
+                var $tr = $('<tr></tr>');
+                var $sno = $('<td class="text-center align-middle"></td>').text(idx);
+                var $gtd = $('<td></td>');
+                var $ptd = $('<td></td>');
+                var $box = $('<td></td>').append('<input type="number" min="1" class="form-control nbox" placeholder="0" />');
+                var $cnt = $('<td></td>').append('<input type="number" min="1" class="form-control counts" placeholder="0" />');
+                var $act = $('<td class="text-center"></td>');
+                var $del = $('<button type="button" class="btn btn-danger btn-sm removeRow"><i class="fa fa-trash"></i></button>');
+                $act.append($del);
+
+                var $gsel = buildGroupSelect(init && init.MTRLGID);
+                var $psel = buildProductSelect();
+                $gtd.append($gsel);
+                $ptd.append($psel);
+
+                $tr.append($sno, $gtd, $ptd, $box, $cnt, $act);
+                $tbody.append($tr);
+
+                // carry TRANDID for existing rows (0 for new)
+                $tr.data('trandid', (init && init.TRANDID) ? init.TRANDID : 0);
+
+                if (init) {
+                    loadProducts($tr, init.MTRLGID, init.MTRLID);
+                    if (init.MTRLNBOX) $tr.find('input.nbox').val(init.MTRLNBOX);
+                    if (init.MTRLCOUNTS) $tr.find('input.counts').val(init.MTRLCOUNTS);
+                }
+
+                // Wire events
+                $gsel.on('change', function(){
+                    var gid = $(this).val();
+                    loadProducts($tr, gid, null);
+                });
+                return $tr;
+            }
+
+            function renumber(){
+                $tbody.children('tr').each(function(i){
+                    $(this).children('td').first().text(i+1);
+                });
+            }
+
+            $('#addRowBtn').on('click', function(){ addRow(); });
+            $tbody.on('click', '.removeRow', function(){
+                $(this).closest('tr').remove();
+                renumber();
+            });
+
+            // Load existing rows
+            if (Array.isArray(details)) {
+                details.forEach(function(d){ addRow(d); });
+            }
+
+            // Serialize details on submit
+            $('#rawIntakeForm').on('submit', function(){
+                var rows = [];
+                $tbody.children('tr').each(function(){
+                    var gid = parseInt($(this).find('select.mgroup').val()||'0',10);
+                    var pid = parseInt($(this).find('select.product').val()||'0',10);
+                    var nbox = parseInt($(this).find('input.nbox').val()||'0',10);
+                    var cnt = parseInt($(this).find('input.counts').val()||'0',10);
+                    var trandid = parseInt($(this).data('trandid')||'0',10);
+                    if (gid>0 && pid>0 && nbox>0 && cnt>0){
+                        rows.push({ TRANDID: trandid, MTRLGID: gid, MTRLID: pid, MTRLNBOX: nbox, MTRLCOUNTS: cnt });
+                    }
+                });
+                $('#detailRowsJson').val(JSON.stringify(rows));
+            });
+        })();
+    </script>
+}

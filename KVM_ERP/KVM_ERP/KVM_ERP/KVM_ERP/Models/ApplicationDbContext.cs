@@ -31,6 +31,8 @@ namespace KVM_ERP.Models
         public DbSet<PackingMaster> PackingMasters { get; set; }
         public DbSet<PackingTypeMaster> PackingTypeMasters { get; set; }
         public DbSet<MaterialMaster> MaterialMasters { get; set; }
+        public DbSet<TransactionMaster> TransactionMasters { get; set; }
+        public DbSet<TransactionDetail> TransactionDetails { get; set; }
 
         new public virtual IDbSet<ApplicationRole> Roles { get; set; }
         public virtual IDbSet<Group> Groups { get; set; }
