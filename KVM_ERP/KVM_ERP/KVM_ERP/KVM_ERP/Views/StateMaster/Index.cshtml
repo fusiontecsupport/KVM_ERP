@@ -20,7 +20,7 @@
     }
     
     .header-section {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); /* restore sky blue gradient */
         color: white;
         padding: 25px 30px;
         border-radius: 15px 15px 0 0;
@@ -70,14 +70,16 @@
     }
     
     #example thead th {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #7f88e9; /* slight violet-blue */
         color: white;
         font-weight: 600;
         padding: 15px 12px;
         text-align: center;
         border: none;
         font-size: 14px;
+        border-right: 1px solid rgba(255,255,255,0.35); /* divide columns */
     }
+    #example thead th:last-child { border-right: none; }
     
     #example tbody td {
         padding: 12px;
@@ -226,9 +228,14 @@
                         }
                     }
                 ],
+                dom: '<"row mb-3"<"col-md-6"l><"col-md-6"f>>rt<"row mt-3"<"col-md-6"i><"col-md-6"p>>',
                 responsive: true,
                 pageLength: 25,
-                order: [[0, 'asc']]
+                order: [[0, 'asc']],
+                language: {
+                    search: "_INPUT_",
+                    searchPlaceholder: "Search..."
+                }
             });
 
             //--------------Delete Record----------------//
