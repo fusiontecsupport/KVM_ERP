@@ -29,6 +29,14 @@ namespace KVM_ERP.Controllers
                 .Select(s => new { s.CATEID, s.CATENAME, s.CATECODE, s.DISPSTATUS })
                 .ToList();
 
+            // Populate packing masters dropdown for modal
+            var packingMasters = db.PackingMasters
+                .Where(p => p.DISPSTATUS == 0)
+                .OrderBy(p => p.PACKMDESC)
+                .Select(p => new SelectListItem { Text = p.PACKMDESC, Value = p.PACKMID.ToString() })
+                .ToList();
+            ViewBag.PackingMasters = packingMasters;
+
             // We'll build this list after we know if we're editing to set Selected
             List<SelectListItem> supplierListItems;
 
@@ -348,6 +356,243 @@ namespace KVM_ERP.Controllers
             public int MTRLID { get; set; }
             public int MTRLNBOX { get; set; }
             public int MTRLCOUNTS { get; set; }
+        }
+
+        // Get packing type fields based on packing master
+        public JsonResult GetPackingTypeFields(int packingId)
+        {
+            try
+            {
+                var packingMaster = db.PackingMasters.FirstOrDefault(p => p.PACKMID == packingId);
+                if (packingMaster == null)
+                {
+                    return Json(new { success = false, message = "Packing master not found" }, JsonRequestBehavior.AllowGet);
+                }
+
+                // Get actual packing type masters mapped to this packing master
+                var packingTypes = db.PackingTypeMasters
+                    .Where(pt => pt.PACKMID == packingId && pt.DISPSTATUS == 0)
+                    .OrderBy(pt => pt.PACKTMCODE)
+                    .Select(pt => new { 
+                        label = pt.PACKTMDESC, 
+                        code = pt.PACKTMCODE,
+                        id = pt.PACKTMID
+                    })
+                    .ToList();
+
+                if (!packingTypes.Any())
+                {
+                    return Json(new { success = false, message = "No packing types found for this packing master" }, JsonRequestBehavior.AllowGet);
+                }
+
+                var fields = packingTypes.Select(pt => new { 
+                    label = pt.label, 
+                    value = pt.code,
+                    id = pt.id
+                }).ToList();
+
+                return Json(new { success = true, fields = fields }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        // Get existing product calculation
+        public JsonResult GetProductCalculation(int trandid)
+        {
+            try
+            {
+                var calculation = db.TransactionProductCalculations.FirstOrDefault(t => t.TRANDID == trandid);
+                if (calculation != null)
+                {
+                    return Json(new { success = true, calculation = calculation }, JsonRequestBehavior.AllowGet);
+                }
+                return Json(new { success = false, message = "No calculation found" }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        // Save product calculation
+        [HttpPost]
+        public JsonResult SaveProductCalculation(TransactionProductCalculation model)
+        {
+            try
+            {
+                // Get TRANMID from TRANDID
+                var transactionDetail = db.Database.SqlQuery<int>(
+                    "SELECT TRANMID FROM TRANSACTIONDETAIL WHERE TRANDID = @p0", model.TRANDID).FirstOrDefault();
+                
+                if (transactionDetail == 0)
+                {
+                    return Json(new { success = false, message = "Transaction detail not found" });
+                }
+
+                model.TRANMID = transactionDetail;
+
+                // Calculate derived values
+                CalculateProductValues(model);
+
+                // Check if record exists
+                var existing = db.TransactionProductCalculations.FirstOrDefault(t => t.TRANDID == model.TRANDID);
+                
+                if (existing != null)
+                {
+                    // Update existing record
+                    UpdateCalculationRecord(existing, model);
+                    existing.LMUSRID = User?.Identity?.Name ?? "System";
+                    existing.PRCSDATE = DateTime.Now;
+                }
+                else
+                {
+                    // Create new record
+                    model.CUSRID = User?.Identity?.Name ?? "System";
+                    model.LMUSRID = User?.Identity?.Name ?? "System";
+                    model.DISPSTATUS = 0;
+                    model.PRCSDATE = DateTime.Now;
+                    
+                    db.TransactionProductCalculations.Add(model);
+                }
+
+                db.SaveChanges();
+                return Json(new { success = true, message = "Calculation saved successfully" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        private void CalculateProductValues(TransactionProductCalculation model)
+        {
+            // Calculate TOPCK (sum of all PCK fields)
+            model.TOPCK = (model.PCK1 ?? 0) + (model.PCK2 ?? 0) + (model.PCK3 ?? 0) + (model.PCK4 ?? 0) + 
+                         (model.PCK5 ?? 0) + (model.PCK6 ?? 0) + (model.PCK7 ?? 0) + (model.PCK8 ?? 0) + 
+                         (model.PCK9 ?? 0) + (model.PCK10 ?? 0) + (model.PCK11 ?? 0) + (model.PCK12 ?? 0) + 
+                         (model.PCK13 ?? 0) + (model.PCK14 ?? 0) + (model.PCK15 ?? 0) + (model.PCK16 ?? 0) + 
+                         (model.PCK17 ?? 0);
+
+            if (model.TOPCK > 0)
+            {
+                // Calculate PCKLVALUE (multiply each PCK with its corresponding value and sum)
+                model.PCKLVALUE = CalculatePCKLValue(model);
+
+                // Calculate AVGPCKVALUE
+                model.AVGPCKVALUE = model.PCKLVALUE / (decimal)model.TOPCK;
+
+                // Calculate TOTALPNDS
+                model.TOTALPNDS = model.AVGPCKVALUE * (model.PNDSVALUE ?? 0);
+
+                // Calculate TOTALYELDCOUNTS
+                if (model.YELDPERCENT > 0)
+                {
+                    model.TOTALYELDCOUNTS = model.TOTALPNDS * (model.YELDPERCENT / 100);
+                }
+
+                // Calculate PCKKGWGT
+                model.PCKKGWGT = (model.KGWGT ?? 0) * model.TOPCK;
+
+                // Calculate WASTEPWGT
+                model.WASTEPWGT = model.PCKKGWGT + (model.WASTEWGT ?? 0);
+
+                // Calculate FACTORYWGT
+                if (model.YELDPERCENT > 0)
+                {
+                    model.FACTORYWGT = model.WASTEPWGT / (model.YELDPERCENT / 100);
+                }
+            }
+        }
+
+        private int CalculatePCKLValue(TransactionProductCalculation model)
+        {
+            int pcklValue = 0;
+            var pckValues = new[] { model.PCK1, model.PCK2, model.PCK3, model.PCK4, model.PCK5, model.PCK6, 
+                                   model.PCK7, model.PCK8, model.PCK9, model.PCK10, model.PCK11, model.PCK12, 
+                                   model.PCK13, model.PCK14, model.PCK15, model.PCK16, model.PCK17 };
+
+            // Get packing types for this packing master
+            var packingTypes = db.PackingTypeMasters
+                .Where(pt => pt.PACKMID == model.PACKMID && pt.DISPSTATUS == 0)
+                .OrderBy(pt => pt.PACKTMCODE)
+                .ToList();
+
+            if (packingTypes.Any())
+            {
+                for (int i = 0; i < pckValues.Length && i < packingTypes.Count; i++)
+                {
+                    if (pckValues[i].HasValue && pckValues[i] > 0)
+                    {
+                        int multiplier = ExtractMultiplierFromDescription(packingTypes[i].PACKTMDESC);
+                        pcklValue += pckValues[i].Value * multiplier;
+                    }
+                }
+            }
+
+            return pcklValue;
+        }
+
+        private int ExtractMultiplierFromDescription(string description)
+        {
+            if (string.IsNullOrEmpty(description))
+                return 1;
+
+            // Extract number from descriptions like "U - 5", "U - 10", "51-60", "151-200", etc.
+            var numbers = System.Text.RegularExpressions.Regex.Matches(description, @"\d+")
+                .Cast<System.Text.RegularExpressions.Match>()
+                .Select(m => int.Parse(m.Value))
+                .ToArray();
+
+            if (numbers.Length == 1)
+            {
+                // Single number like "U - 5" -> use 5
+                return numbers[0];
+            }
+            else if (numbers.Length == 2)
+            {
+                // Range like "51-60" -> use the last/highest value (60)
+                return numbers[1];
+            }
+
+            // Default fallback
+            return 1;
+        }
+
+        private void UpdateCalculationRecord(TransactionProductCalculation existing, TransactionProductCalculation model)
+        {
+            existing.PACKMID = model.PACKMID;
+            existing.PCK1 = model.PCK1;
+            existing.PCK2 = model.PCK2;
+            existing.PCK3 = model.PCK3;
+            existing.PCK4 = model.PCK4;
+            existing.PCK5 = model.PCK5;
+            existing.PCK6 = model.PCK6;
+            existing.PCK7 = model.PCK7;
+            existing.PCK8 = model.PCK8;
+            existing.PCK9 = model.PCK9;
+            existing.PCK10 = model.PCK10;
+            existing.PCK11 = model.PCK11;
+            existing.PCK12 = model.PCK12;
+            existing.PCK13 = model.PCK13;
+            existing.PCK14 = model.PCK14;
+            existing.PCK15 = model.PCK15;
+            existing.PCK16 = model.PCK16;
+            existing.PCK17 = model.PCK17;
+            existing.TOPCK = model.TOPCK;
+            existing.PCKLVALUE = model.PCKLVALUE;
+            existing.AVGPCKVALUE = model.AVGPCKVALUE;
+            existing.PNDSVALUE = model.PNDSVALUE;
+            existing.TOTALPNDS = model.TOTALPNDS;
+            existing.YELDPERCENT = model.YELDPERCENT;
+            existing.TOTALYELDCOUNTS = model.TOTALYELDCOUNTS;
+            existing.KGWGT = model.KGWGT;
+            existing.PCKKGWGT = model.PCKKGWGT;
+            existing.WASTEWGT = model.WASTEWGT;
+            existing.WASTEPWGT = model.WASTEPWGT;
+            existing.FACTORYWGT = model.FACTORYWGT;
         }
 
         protected override void Dispose(bool disposing)

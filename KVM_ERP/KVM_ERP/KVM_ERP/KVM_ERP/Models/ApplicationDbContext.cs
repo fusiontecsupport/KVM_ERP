@@ -33,6 +33,7 @@ namespace KVM_ERP.Models
         public DbSet<MaterialMaster> MaterialMasters { get; set; }
         public DbSet<TransactionMaster> TransactionMasters { get; set; }
         public DbSet<TransactionDetail> TransactionDetails { get; set; }
+        public DbSet<TransactionProductCalculation> TransactionProductCalculations { get; set; }
 
         new public virtual IDbSet<ApplicationRole> Roles { get; set; }
         public virtual IDbSet<Group> Groups { get; set; }
@@ -87,6 +88,18 @@ namespace KVM_ERP.Models
             modelBuilder.Entity<MaterialMaster>().Property(m => m.MTRLPRFT).HasPrecision(18, 2);
             modelBuilder.Entity<MaterialMaster>().Property(m => m.MTRLBQTY).HasPrecision(18, 2);
             modelBuilder.Entity<MaterialMaster>().Property(m => m.MTRLBRATE).HasPrecision(18, 2);
+            
+            // Configure TransactionProductCalculation decimal precision for all decimal fields
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.AVGPCKVALUE).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.PNDSVALUE).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.TOTALPNDS).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.YELDPERCENT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.TOTALYELDCOUNTS).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.KGWGT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.PCKKGWGT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.WASTEWGT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.WASTEPWGT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.FACTORYWGT).HasPrecision(18, 3);
 
             // Keep this:
             modelBuilder.Entity<IdentityUser>().ToTable("AspNetUsers");

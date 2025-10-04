@@ -209,7 +209,21 @@
                 var $cnt = $('<td></td>').append('<input type="number" min="1" class="form-control counts" placeholder="0" />');
                 var $act = $('<td class="text-center"></td>');
                 var $del = $('<button type="button" class="btn btn-danger btn-sm removeRow"><i class="fa fa-trash"></i></button>');
+                
+                // Add P button only in edit mode
+                @if (Model.TRANMID > 0)
+                {
+                    <text>
+                var $pBtn = $('<button type="button" class="btn btn-primary btn-sm ml-1 productCalcBtn" title="Product Calculation"><i class="fa fa-calculator"></i> P</button>');
+                $act.append($del, $pBtn);
+                    </text>
+                }
+                else
+                {
+                    <text>
                 $act.append($del);
+                    </text>
+                }
 
                 var $gsel = buildGroupSelect(init && init.MTRLGID);
                 var $psel = buildProductSelect();
@@ -252,6 +266,7 @@
             if (Array.isArray(details)) {
                 details.forEach(function(d){ addRow(d); });
             }
+            
 
             // Serialize details on submit
             $('#rawIntakeForm').on('submit', function(){
@@ -268,6 +283,485 @@
                 });
                 $('#detailRowsJson').val(JSON.stringify(rows));
             });
+
+            // Product Calculation Button Click Handler
+            $tbody.on('click', '.productCalcBtn', function(){
+                var $row = $(this).closest('tr');
+                var trandid = parseInt($row.data('trandid')||'0',10);
+                
+                if (trandid <= 0) {
+                    alert('Please save the transaction first before calculating.');
+                    return;
+                }
+                
+                // Get row data for display
+                var supplierName = '@Model.CATENAME';
+                var supplierCode = '@Model.CATECODE';
+                var productType = $row.find('select.mgroup option:selected').text();
+                var product = $row.find('select.product option:selected').text();
+                var noOfBoxes = $row.find('input.nbox').val();
+                var countPerKg = $row.find('input.counts').val();
+                
+                openProductCalculationModal(trandid, supplierName, supplierCode, productType, product, noOfBoxes, countPerKg);
+            });
         })();
+
+        // Product Calculation Modal Functions
+        function openProductCalculationModal(trandid, supplierName, supplierCode, productType, product, noOfBoxes, countPerKg) {
+            // Populate display fields
+            $('#modal-supplier-name').text(supplierName);
+            $('#modal-supplier-code').text(supplierCode);
+            $('#modal-product-type').text(productType);
+            $('#modal-product').text(product);
+            $('#modal-no-boxes').text(noOfBoxes);
+            $('#modal-count-per-kg').text(countPerKg);
+            
+            // Store TRANDID for saving
+            $('#productCalculationModal').data('trandid', trandid);
+            
+            // Load existing calculation data if any
+            loadExistingCalculation(trandid);
+            
+            // Check if modal exists
+            if ($('#productCalculationModal').length === 0) {
+                alert('Modal not found in DOM!');
+                return;
+            }
+            
+            // Clear any existing modal state
+            $('#productCalculationModal').removeClass('show').hide();
+            $('.modal-backdrop').remove();
+            $('body').removeClass('modal-open');
+            
+            // Show modal using direct method (more reliable)
+            $('#productCalculationModal').show().addClass('show fade');
+            $('body').addClass('modal-open');
+            $('<div class="modal-backdrop fade show"></div>').appendTo('body');
+        }
+
+        function loadExistingCalculation(trandid) {
+            $.ajax({
+                url: '@Url.Action("GetProductCalculation", "RawMaterialIntake")',
+                type: 'GET',
+                data: { trandid: trandid },
+                success: function(data) {
+                    if (data.success && data.calculation) {
+                        populateCalculationForm(data.calculation);
+                    } else {
+                        clearCalculationForm();
+                    }
+                },
+                error: function() {
+                    clearCalculationForm();
+                }
+            });
+        }
+
+        function populateCalculationForm(calc) {
+            // Populate packing dropdown
+            $('#packingMaster').val(calc.PACKMID).trigger('change');
+            
+            // Populate packing fields (will be set after packing type loads)
+            setTimeout(function() {
+                for (let i = 1; i <= 17; i++) {
+                    const val = calc['PCK' + i];
+                    if (val !== null && val !== undefined) {
+                        $('#pck' + i).val(val);
+                    }
+                }
+                
+                // Populate other fields
+                $('#poundsValue').val(calc.PNDSVALUE || '');
+                $('#yieldPercent').val(calc.YELDPERCENT || '');
+                $('#perKgWeight').val(calc.KGWGT || '');
+                $('#wastage').val(calc.WASTEWGT || '');
+                
+                // Trigger calculations
+                calculateTotals();
+            }, 500);
+        }
+
+        function clearCalculationForm() {
+            $('#packingMaster').val('').trigger('change');
+            $('#calculationForm')[0].reset();
+            $('.calculation-result').text('0.000');
+        }
+
+        function calculateTotals() {
+            // Calculate TOPCK (sum of all PCK fields)
+            let topck = 0;
+            for (let i = 1; i <= 17; i++) {
+                const val = parseFloat($('#pck' + i).val()) || 0;
+                topck += val;
+            }
+            $('#totalCounts').text(topck.toFixed(0));
+
+            if (topck === 0) {
+                $('.calculation-result').text('0.000');
+                return;
+            }
+
+            // Calculate PCKLVALUE (sum of PCK * multiplier from packing type description)
+            let pcklValue = 0;
+            
+            for (let i = 1; i <= 17; i++) {
+                const val = parseFloat($('#pck' + i).val()) || 0;
+                if (val > 0) {
+                    const multiplier = parseFloat($('#pck' + i).attr('data-multiplier')) || 1;
+                    pcklValue += val * multiplier;
+                }
+            }
+
+            // Calculate AVGPCKVALUE
+            const avgPckValue = pcklValue / topck;
+            $('#avgPackValue').text(avgPckValue.toFixed(3));
+
+            // Calculate TOTALPNDS
+            const poundsValue = parseFloat($('#poundsValue').val()) || 0;
+            const totalPounds = avgPckValue * poundsValue;
+            $('#totalPounds').text(totalPounds.toFixed(3));
+
+            // Calculate TOTALYELDCOUNTS
+            const yieldPercent = parseFloat($('#yieldPercent').val()) || 0;
+            const totalYieldCounts = totalPounds * (yieldPercent / 100);
+            $('#totalYieldCounts').text(totalYieldCounts.toFixed(3));
+
+            // Calculate PCKKGWGT
+            const perKgWeight = parseFloat($('#perKgWeight').val()) || 0;
+            const pckKgWeight = perKgWeight * topck;
+            $('#pckKgWeight').text(pckKgWeight.toFixed(3));
+
+            // Calculate WASTEPWGT
+            const wastage = parseFloat($('#wastage').val()) || 0;
+            const wastePWeight = pckKgWeight + wastage;
+            $('#wastePWeight').text(wastePWeight.toFixed(3));
+
+            // Calculate FACTORYWGT
+            if (yieldPercent > 0) {
+                const factoryWeight = wastePWeight / (yieldPercent / 100);
+                $('#factoryWeight').text(factoryWeight.toFixed(3));
+            } else {
+                $('#factoryWeight').text('0.000');
+            }
+        }
+
+    
+        // Handle packing master dropdown change
+        $(document).on('change', '#packingMaster', function() {
+            const packingId = $(this).val();
+            if (packingId) {
+                loadPackingTypeFields(packingId);
+            } else {
+                $('#packingTypeFields').empty();
+                $('.calculation-result').text('0.000');
+            }
+        });
+
+        // Handle input changes for calculations
+        $(document).on('input', '#packingTypeFields input, #poundsValue, #yieldPercent, #perKgWeight, #wastage', function() {
+            calculateTotals();
+        });
+
+        // Handle close button clicks
+        $(document).on('click', '#productCalculationModal .close, #productCalculationModal [data-dismiss="modal"]', function() {
+            closeProductCalculationModal();
+        });
+
+        // Prevent closing when clicking on backdrop
+        $(document).on('click', '.modal-backdrop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+
+        // Prevent closing when clicking outside modal content
+        $(document).on('click', '#productCalculationModal', function(e) {
+            if (e.target === this) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        });
+
+        function closeProductCalculationModal() {
+            // Hide modal using direct method
+            $('#productCalculationModal').removeClass('show fade').hide();
+            $('.modal-backdrop').remove();
+            $('body').removeClass('modal-open');
+        }
+
+        function loadPackingTypeFields(packingId) {
+            $.ajax({
+                url: '@Url.Action("GetPackingTypeFields", "RawMaterialIntake")',
+                type: 'GET',
+                data: { packingId: packingId },
+                success: function(data) {
+                    if (data.success) {
+                        renderPackingTypeFields(data.fields);
+                    } else {
+                        $('#packingTypeFields').html('<div class="col-12"><div class="alert alert-warning">No packing type fields found.</div></div>');
+                    }
+                },
+                error: function() {
+                    $('#packingTypeFields').html('<div class="col-12"><div class="alert alert-danger">Error loading packing type fields.</div></div>');
+                }
+            });
+        }
+
+        function renderPackingTypeFields(fields) {
+            let html = '';
+            fields.forEach(function(field, index) {
+                const colClass = fields.length <= 6 ? 'col-md-4' : 'col-md-3';
+                html += `
+                    <div class="${colClass} mb-3">
+                        <div class="form-group">
+                            <label for="pck${index + 1}" data-multiplier="${getMultiplierFromLabel(field.label)}">${field.label}:</label>
+                            <input type="number" class="form-control" id="pck${index + 1}" min="0" step="1" placeholder="0" data-multiplier="${getMultiplierFromLabel(field.label)}">
+                        </div>
+                    </div>
+                `;
+            });
+            $('#packingTypeFields').html(html);
+            
+            // Reset calculations
+            $('.calculation-result').text('0.000');
+            $('#totalCounts').text('0');
+        }
+
+        function getMultiplierFromLabel(label) {
+            if (!label) return 1;
+            
+            // Extract numbers from labels like "U - 5", "U - 10", "51-60", "151-200", etc.
+            const numbers = label.match(/\d+/g);
+            
+            if (numbers && numbers.length === 1) {
+                // Single number like "U - 5" -> use 5
+                return parseInt(numbers[0]);
+            } else if (numbers && numbers.length === 2) {
+                // Range like "51-60" -> use the last/highest value (60)
+                return parseInt(numbers[1]);
+            }
+            
+            return 1; // Default fallback
+        }
+
+        function saveProductCalculation() {
+            const trandid = $('#productCalculationModal').data('trandid');
+            const packmid = $('#packingMaster').val();
+            
+            if (!packmid) {
+                alert('Please select a packing master.');
+                return;
+            }
+
+            // Collect all form data
+            const formData = {
+                TRANDID: trandid,
+                TRANMID: @Model.TRANMID,
+                PACKMID: packmid,
+                PNDSVALUE: parseFloat($('#poundsValue').val()) || 0,
+                YELDPERCENT: parseFloat($('#yieldPercent').val()) || 0,
+                KGWGT: parseFloat($('#perKgWeight').val()) || 0,
+                WASTEWGT: parseFloat($('#wastage').val()) || 0
+            };
+
+            // Add PCK fields
+            for (let i = 1; i <= 17; i++) {
+                formData['PCK' + i] = parseInt($('#pck' + i).val()) || null;
+            }
+
+            $.ajax({
+                url: '@Url.Action("SaveProductCalculation", "RawMaterialIntake")',
+                type: 'POST',
+                data: formData,
+                success: function(response) {
+                    if (response.success) {
+                        alert('Product calculation saved successfully!');
+                        closeProductCalculationModal();
+                    } else {
+                        alert('Error: ' + (response.message || 'Failed to save calculation'));
+                    }
+                },
+                error: function() {
+                    alert('Error saving product calculation.');
+                }
+            });
+        }
     </script>
 }
+
+<!-- Product Calculation Modal -->
+<div class="modal fade" id="productCalculationModal" tabindex="-1" role="dialog" aria-labelledby="productCalculationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="productCalculationModalLabel">
+                    <i class="fa fa-calculator"></i> Product Calculation
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Display Information -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fa fa-info-circle"></i> Transaction Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <strong>Supplier Name:</strong> <span id="modal-supplier-name"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Supplier Code:</strong> <span id="modal-supplier-code"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Product Type:</strong> <span id="modal-product-type"></span>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-4">
+                                <strong>Product:</strong> <span id="modal-product"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>No. of Boxes:</strong> <span id="modal-no-boxes"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Count (Per KG):</strong> <span id="modal-count-per-kg"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calculation Form -->
+                <form id="calculationForm">
+                    <!-- Packing Master Selection -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fa fa-box"></i> Packing Master Selection</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="packingMaster">Select Packing Master:</label>
+                                <select class="form-control" id="packingMaster" required>
+                                    <option value="">-- Select Packing Master --</option>
+                                    @{
+                                        var packingMasters = ViewBag.PackingMasters as List<SelectListItem> ?? new List<SelectListItem>();
+                                    }
+                                    @foreach (var packing in packingMasters)
+                                    {
+                                        <option value="@packing.Value">@packing.Text</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Packing Type Fields -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fa fa-cubes"></i> Packing Type Details</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="packingTypeFields" class="row">
+                                <!-- Dynamic fields will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calculations Section -->
+                    <div class="row">
+                        <!-- Total Counts Calculation -->
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0"><i class="fa fa-calculator"></i> Total Counts Calculation</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-group">
+                                        <label>Total Counts:</label>
+                                        <div class="alert alert-info">
+                                            <strong id="totalCounts">0</strong>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Average Pack Value:</label>
+                                        <div class="alert alert-info">
+                                            <strong id="avgPackValue" class="calculation-result">0.000</strong>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="poundsValue">Pounds Value:</label>
+                                        <input type="number" class="form-control" id="poundsValue" step="0.001" min="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Total Pounds:</label>
+                                        <div class="alert alert-info">
+                                            <strong id="totalPounds" class="calculation-result">0.000</strong>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="yieldPercent">Yield Percent (%):</label>
+                                        <input type="number" class="form-control" id="yieldPercent" step="0.001" min="0" max="100">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Total Yield Counts:</label>
+                                        <div class="alert alert-success">
+                                            <strong id="totalYieldCounts" class="calculation-result">0.000</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Total Weight Calculation -->
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-warning text-dark">
+                                    <h6 class="mb-0"><i class="fa fa-weight"></i> Total Weight Calculation</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-group">
+                                        <label for="perKgWeight">Per kg of ice plus product:</label>
+                                        <input type="number" class="form-control" id="perKgWeight" step="0.001" min="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Pack KG Weight:</label>
+                                        <div class="alert alert-info">
+                                            <strong id="pckKgWeight" class="calculation-result">0.000</strong>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="wastage">Wastage:</label>
+                                        <input type="number" class="form-control" id="wastage" step="0.001" min="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Waste + Weight:</label>
+                                        <div class="alert alert-info">
+                                            <strong id="wastePWeight" class="calculation-result">0.000</strong>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Factory Weight:</label>
+                                        <div class="alert alert-warning">
+                                            <strong id="factoryWeight" class="calculation-result">0.000</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeProductCalculationModal()">
+                    <i class="fa fa-times"></i> Close
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveProductCalculation()">
+                    <i class="fa fa-save"></i> Save Calculation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

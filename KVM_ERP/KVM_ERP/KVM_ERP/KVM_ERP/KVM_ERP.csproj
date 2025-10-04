@@ -333,6 +333,7 @@
     <Compile Include="Models\MaterialMaster.cs" />
     <Compile Include="Models\TransactionMaster.cs" />
     <Compile Include="Models\TransactionDetail.cs" />
+    <Compile Include="Models\TransactionProductCalculation.cs" />
     <Compile Include="Models\Group.cs" />
     <Compile Include="Models\IdentityManager.cs" />
     <Compile Include="Models\JQueryDataTableParamModel.cs" />
