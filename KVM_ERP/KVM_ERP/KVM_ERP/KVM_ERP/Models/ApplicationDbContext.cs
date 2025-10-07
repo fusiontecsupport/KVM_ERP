@@ -34,6 +34,7 @@ namespace KVM_ERP.Models
         public DbSet<TransactionMaster> TransactionMasters { get; set; }
         public DbSet<TransactionDetail> TransactionDetails { get; set; }
         public DbSet<TransactionProductCalculation> TransactionProductCalculations { get; set; }
+        public DbSet<QualityCheckMaster> QualityCheckMasters { get; set; }
 
         new public virtual IDbSet<ApplicationRole> Roles { get; set; }
         public virtual IDbSet<Group> Groups { get; set; }

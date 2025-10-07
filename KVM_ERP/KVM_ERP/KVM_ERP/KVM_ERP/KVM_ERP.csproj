@@ -214,6 +214,7 @@
     <Compile Include="Controllers\Masters\CustomerMasterController.cs" />
     <Compile Include="Controllers\Masters\SupplierMasterController.cs" />
     <Compile Include="Controllers\Masters\CurrencyMasterController.cs" />
+    <Compile Include="Controllers\Masters\QualityCheckMasterController.cs" />
     <Compile Include="Controllers\MaterialTypeMasterController.cs" />
     <Compile Include="Controllers\MaterialGroupMasterController.cs" />
     <Compile Include="Controllers\UnitMasterController.cs" />
@@ -323,6 +324,7 @@
     <Compile Include="Models\CustomerMaster.cs" />
     <Compile Include="Models\SupplierMaster.cs" />
     <Compile Include="Models\CurrencyMaster.cs" />
+    <Compile Include="Models\QualityCheckMaster.cs" />
     <Compile Include="Models\MaterialTypeMaster.cs" />
     <Compile Include="Models\MaterialGroupMaster.cs" />
     <Compile Include="Models\UnitMaster.cs" />
@@ -1212,6 +1214,8 @@
     <Content Include="Views\CustomerMaster\Form.cshtml" />
     <Content Include="Views\CurrencyMaster\Index.cshtml" />
     <Content Include="Views\CurrencyMaster\Form.cshtml" />
+    <Content Include="Views\QualityCheckMaster\Index.cshtml" />
+    <Content Include="Views\QualityCheckMaster\Form.cshtml" />
     <Content Include="Views\MaterialTypeMaster\Index.cshtml" />
     <Content Include="Views\MaterialTypeMaster\Form.cshtml" />
     <Content Include="Views\MaterialGroupMaster\Index.cshtml" />
