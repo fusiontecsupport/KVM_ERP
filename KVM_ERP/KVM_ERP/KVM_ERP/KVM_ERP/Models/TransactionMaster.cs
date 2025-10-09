@@ -31,6 +31,10 @@ namespace KVM_ERP.Models
         public string VECHNO { get; set; }
 
         [Required]
+        [Column("CLIENTWGHT")]
+        public decimal CLIENTWGHT { get; set; }
+
+        [Required]
         [Column("DISPSTATUS")]
         public short DISPSTATUS { get; set; }
 

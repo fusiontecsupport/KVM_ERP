@@ -96,6 +96,10 @@ namespace KVM_ERP.Controllers
                     "SELECT TRANDID, TRANMID, MTRLGID, MTRLID, MTRLNBOX, MTRLCOUNTS FROM TRANSACTIONDETAIL WHERE TRANMID = @p0 ORDER BY TRANDID",
                     model.TRANMID).ToList();
                 ViewBag.DetailsJson = JsonConvert.SerializeObject(details);
+
+                // Load existing quality check for edit
+                var qualityCheck = db.TransactionQualityChecks.FirstOrDefault(q => q.TRANMID == model.TRANMID);
+                ViewBag.QualityCheckJson = qualityCheck != null ? JsonConvert.SerializeObject(qualityCheck) : "null";
             }
             else
             {
@@ -127,7 +131,7 @@ namespace KVM_ERP.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult savedata(TransactionMaster tab, int? SupplierId, string detailRowsJson)
+        public ActionResult savedata(TransactionMaster tab, int? SupplierId, string detailRowsJson, string qualityCheckJson)
         {
             try
             {
@@ -135,6 +139,13 @@ namespace KVM_ERP.Controllers
                 if (!string.IsNullOrWhiteSpace(detailRowsJson))
                 {
                     details = JsonConvert.DeserializeObject<List<DetailRow>>(detailRowsJson) ?? new List<DetailRow>();
+                }
+
+                // Parse quality check data
+                TransactionQualityCheck qualityCheck = null;
+                if (!string.IsNullOrWhiteSpace(qualityCheckJson))
+                {
+                    qualityCheck = JsonConvert.DeserializeObject<TransactionQualityCheck>(qualityCheckJson);
                 }
 
                 if (SupplierId.HasValue && SupplierId.Value > 0)
@@ -157,6 +168,7 @@ namespace KVM_ERP.Controllers
                         existing.CATENAME = tab.CATENAME;
                         existing.CATECODE = tab.CATECODE;
                         existing.VECHNO = tab.VECHNO;
+                        existing.CLIENTWGHT = tab.CLIENTWGHT;
                         existing.DISPSTATUS = tab.DISPSTATUS;
                         existing.LMUSRID = User?.Identity?.Name ?? existing.LMUSRID;
                         existing.PRCSDATE = DateTime.Now; // treat as last modified for simplicity
@@ -203,6 +215,37 @@ namespace KVM_ERP.Controllers
                                 }
                             }
                         }
+
+                        // Handle Quality Check (same pattern as details)
+                        if (qualityCheck != null && qualityCheck.LABOID > 0)
+                        {
+                            var existingQualityCheck = db.Database.SqlQuery<int>(
+                                "SELECT COUNT(*) FROM TRANSACTION_QUALITY_CHECK WHERE TRANMID = @p0", existing.TRANMID).FirstOrDefault();
+
+                            if (existingQualityCheck > 0)
+                            {
+                                // UPDATE: preserve CUSRID, only change values and LMUSRID/PRCSDATE
+                                db.Database.ExecuteSqlCommand(@"
+                                    UPDATE TRANSACTION_QUALITY_CHECK
+                                    SET LABOID = @p1, STATUS = @p2, REMARKS = @p3, DONEBY = @p4, VERIFIEDBY = @p5,
+                                        LOTDATE = @p6, LMUSRID = @p7, PRCSDATE = @p8
+                                    WHERE TRANMID = @p0",
+                                    existing.TRANMID, qualityCheck.LABOID, qualityCheck.STATUS, qualityCheck.REMARKS?.Trim(),
+                                    qualityCheck.DONEBY?.Trim(), qualityCheck.VERIFIEDBY?.Trim(), qualityCheck.LOTDATE,
+                                    User?.Identity?.Name ?? "System", DateTime.Now);
+                            }
+                            else
+                            {
+                                // INSERT during edit: preserve creator by using master CUSRID; set LMUSRID to current user
+                                db.Database.ExecuteSqlCommand(@"
+                                    INSERT INTO TRANSACTION_QUALITY_CHECK (TRANMID, LABOID, STATUS, REMARKS, DONEBY, VERIFIEDBY, LOTDATE, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
+                                    VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, 0, @p9)",
+                                    existing.TRANMID, qualityCheck.LABOID, qualityCheck.STATUS, qualityCheck.REMARKS?.Trim(),
+                                    qualityCheck.DONEBY?.Trim(), qualityCheck.VERIFIEDBY?.Trim(), qualityCheck.LOTDATE,
+                                    existing.CUSRID, User?.Identity?.Name ?? "System", DateTime.Now);
+                            }
+                        }
+
                         TempData["SuccessMessage"] = "Updated successfully";
                         return RedirectToAction("Index");
                     }
@@ -215,10 +258,10 @@ namespace KVM_ERP.Controllers
 
                 // Insert master and get new TRANMID
                 var newId = db.Database.SqlQuery<int>(@"
-                    INSERT INTO TRANSACTIONMASTER (TRANDATE, CATENAME, CATECODE, VECHNO, DISPSTATUS, CUSRID, LMUSRID, PRCSDATE)
-                    VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7); SELECT CAST(SCOPE_IDENTITY() AS INT);
+                    INSERT INTO TRANSACTIONMASTER (TRANDATE, CATENAME, CATECODE, VECHNO, CLIENTWGHT, DISPSTATUS, CUSRID, LMUSRID, PRCSDATE)
+                    VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8); SELECT CAST(SCOPE_IDENTITY() AS INT);
                 ", tab.TRANDATE, tab.CATENAME ?? "", tab.CATECODE ?? "", tab.VECHNO ?? "",
-                   tab.DISPSTATUS, tab.CUSRID, tab.LMUSRID, tab.PRCSDATE).FirstOrDefault();
+                   tab.CLIENTWGHT, tab.DISPSTATUS, tab.CUSRID, tab.LMUSRID, tab.PRCSDATE).FirstOrDefault();
 
                 // Insert details
                 foreach (var d in details)
@@ -231,6 +274,17 @@ namespace KVM_ERP.Controllers
                             newId, d.MTRLGID, d.MTRLID, d.MTRLNBOX, d.MTRLCOUNTS,
                             User?.Identity?.Name ?? "System", User?.Identity?.Name ?? "System", DateTime.Now);
                     }
+                }
+
+                // Insert quality check (same pattern as details)
+                if (qualityCheck != null && qualityCheck.LABOID > 0)
+                {
+                    db.Database.ExecuteSqlCommand(@"
+                        INSERT INTO TRANSACTION_QUALITY_CHECK (TRANMID, LABOID, STATUS, REMARKS, DONEBY, VERIFIEDBY, LOTDATE, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
+                        VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, 0, @p9)",
+                        newId, qualityCheck.LABOID, qualityCheck.STATUS, qualityCheck.REMARKS?.Trim(),
+                        qualityCheck.DONEBY?.Trim(), qualityCheck.VERIFIEDBY?.Trim(), qualityCheck.LOTDATE,
+                        User?.Identity?.Name ?? "System", User?.Identity?.Name ?? "System", DateTime.Now);
                 }
 
                 TempData["SuccessMessage"] = "Added successfully";
@@ -399,30 +453,64 @@ namespace KVM_ERP.Controllers
             }
         }
 
-        // Get existing product calculation
-        public JsonResult GetProductCalculation(int trandid)
+        // Get existing product calculation for specific packing master
+        public JsonResult GetProductCalculation(int trandid, int packingId)
         {
             try
             {
-                var calculation = db.TransactionProductCalculations.FirstOrDefault(t => t.TRANDID == trandid);
+                System.Diagnostics.Debug.WriteLine($"Looking for calculation: TRANDID={trandid}, PACKMID={packingId}");
+                
+                var calculation = db.TransactionProductCalculations
+                    .FirstOrDefault(t => t.TRANDID == trandid && t.PACKMID == packingId);
+                    
                 if (calculation != null)
                 {
+                    System.Diagnostics.Debug.WriteLine($"Found calculation: TRANPID={calculation.TRANPID}");
+                    System.Diagnostics.Debug.WriteLine($"PCK1: {calculation.PCK1}, PCK2: {calculation.PCK2}, PCK3: {calculation.PCK3}");
+                    System.Diagnostics.Debug.WriteLine($"PNDSVALUE: {calculation.PNDSVALUE}, YELDPERCENT: {calculation.YELDPERCENT}");
+                    
                     return Json(new { success = true, calculation = calculation }, JsonRequestBehavior.AllowGet);
                 }
+                
+                System.Diagnostics.Debug.WriteLine("No calculation found");
                 return Json(new { success = false, message = "No calculation found" }, JsonRequestBehavior.AllowGet);
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Error getting calculation: {ex.Message}");
                 return Json(new { success = false, message = ex.Message }, JsonRequestBehavior.AllowGet);
             }
         }
 
         // Save product calculation
         [HttpPost]
-        public JsonResult SaveProductCalculation(TransactionProductCalculation model)
+        public JsonResult SaveProductCalculation(FormCollection form)
         {
             try
             {
+                // Manually parse form data to handle empty strings properly
+                var model = ParseFormToModel(form);
+                
+                // Debug: Log received model data
+                System.Diagnostics.Debug.WriteLine($"Received calculation for TRANDID: {model.TRANDID}, PACKMID: {model.PACKMID}");
+                System.Diagnostics.Debug.WriteLine($"PCK1: {model.PCK1}, PCK2: {model.PCK2}, PCK3: {model.PCK3}");
+                System.Diagnostics.Debug.WriteLine($"PNDSVALUE: {model.PNDSVALUE}, YELDPERCENT: {model.YELDPERCENT}");
+                System.Diagnostics.Debug.WriteLine($"KGWGT: {model.KGWGT}, WASTEWGT: {model.WASTEWGT}");
+                
+                // Sanitize PCK values - ensure null values are properly handled
+                SanitizePCKValues(model);
+                
+                // Check if all PCK values are null
+                var pckValues = new[] { model.PCK1, model.PCK2, model.PCK3, model.PCK4, model.PCK5, model.PCK6, 
+                                       model.PCK7, model.PCK8, model.PCK9, model.PCK10, model.PCK11, model.PCK12, 
+                                       model.PCK13, model.PCK14, model.PCK15, model.PCK16, model.PCK17 };
+                var nonNullPcks = pckValues.Where(p => p.HasValue && p.Value > 0).ToArray();
+                System.Diagnostics.Debug.WriteLine($"Non-null PCK values: {nonNullPcks.Length}");
+                
+                if (nonNullPcks.Length == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("Warning: All PCK values are null or zero!");
+                }
                 // Get TRANMID from TRANDID
                 var transactionDetail = db.Database.SqlQuery<int>(
                     "SELECT TRANMID FROM TRANSACTIONDETAIL WHERE TRANDID = @p0", model.TRANDID).FirstOrDefault();
@@ -437,8 +525,9 @@ namespace KVM_ERP.Controllers
                 // Calculate derived values
                 CalculateProductValues(model);
 
-                // Check if record exists
-                var existing = db.TransactionProductCalculations.FirstOrDefault(t => t.TRANDID == model.TRANDID);
+                // Check if record exists for this specific TRANDID and PACKMID combination
+                var existing = db.TransactionProductCalculations
+                    .FirstOrDefault(t => t.TRANDID == model.TRANDID && t.PACKMID == model.PACKMID);
                 
                 if (existing != null)
                 {
@@ -459,10 +548,36 @@ namespace KVM_ERP.Controllers
                 }
 
                 db.SaveChanges();
-                return Json(new { success = true, message = "Calculation saved successfully" });
+                
+                // Return the TRANPID for tracking
+                var savedRecord = db.TransactionProductCalculations
+                    .FirstOrDefault(t => t.TRANDID == model.TRANDID && t.PACKMID == model.PACKMID);
+                
+                return Json(new { 
+                    success = true, 
+                    message = "Calculation saved successfully",
+                    tranpid = savedRecord?.TRANPID ?? 0
+                });
+            }
+            catch (System.Data.Entity.Core.EntityCommandExecutionException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"EntityCommandExecutionException: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Inner Exception: {ex.InnerException?.Message}");
+                return Json(new { success = false, message = "Database error: " + (ex.InnerException?.Message ?? ex.Message) });
+            }
+            catch (System.Data.Entity.Validation.DbEntityValidationException ex)
+            {
+                var errorMessages = ex.EntityValidationErrors
+                    .SelectMany(x => x.ValidationErrors)
+                    .Select(x => x.ErrorMessage);
+                var fullErrorMessage = string.Join("; ", errorMessages);
+                System.Diagnostics.Debug.WriteLine($"Validation Error: {fullErrorMessage}");
+                return Json(new { success = false, message = "Validation error: " + fullErrorMessage });
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"General Exception: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack Trace: {ex.StackTrace}");
                 return Json(new { success = false, message = ex.Message });
             }
         }
@@ -476,13 +591,36 @@ namespace KVM_ERP.Controllers
                          (model.PCK13 ?? 0) + (model.PCK14 ?? 0) + (model.PCK15 ?? 0) + (model.PCK16 ?? 0) + 
                          (model.PCK17 ?? 0);
 
-            if (model.TOPCK > 0)
+            // Check calculation mode to determine which calculations to perform
+            bool isGradeWeightMode = model.CALCULATIONMODE == 2;
+            System.Diagnostics.Debug.WriteLine($"Calculating in {(isGradeWeightMode ? "Grade Weight" : "Packing")} mode");
+            
+            if (isGradeWeightMode)
             {
+                // Grade Weight mode: Only calculate Slab (TOPCK) and Factory Weight (Slab + Peeled)
+                // TOPCK is already calculated above (Slab value)
+                
+                // Factory Weight = Slab + Peeled (TOPCK + WASTEWGT)
+                model.FACTORYWGT = model.TOPCK + (model.WASTEWGT ?? 0);
+                
+                // Clear other calculated fields for Grade Weight mode
+                model.PCKLVALUE = 0;
+                model.AVGPCKVALUE = 0;
+                model.TOTALPNDS = 0;
+                model.TOTALYELDCOUNTS = 0;
+                model.PCKKGWGT = 0;
+                model.WASTEPWGT = 0;
+                
+                System.Diagnostics.Debug.WriteLine($"Grade Weight calculation: Slab={model.TOPCK}, Peeled={model.WASTEWGT}, Factory Weight={model.FACTORYWGT}");
+            }
+            else if (model.TOPCK > 0)
+            {
+                // Packing mode: Full calculations
                 // Calculate PCKLVALUE (multiply each PCK with its corresponding value and sum)
                 model.PCKLVALUE = CalculatePCKLValue(model);
 
                 // Calculate AVGPCKVALUE
-                model.AVGPCKVALUE = model.PCKLVALUE / (decimal)model.TOPCK;
+                model.AVGPCKVALUE = model.PCKLVALUE / model.TOPCK;
 
                 // Calculate TOTALPNDS
                 model.TOTALPNDS = model.AVGPCKVALUE * (model.PNDSVALUE ?? 0);
@@ -499,7 +637,7 @@ namespace KVM_ERP.Controllers
                 // Calculate WASTEPWGT
                 model.WASTEPWGT = model.PCKKGWGT + (model.WASTEWGT ?? 0);
 
-                // Calculate FACTORYWGT
+                // Calculate FACTORYWGT (Packing mode formula)
                 if (model.YELDPERCENT > 0)
                 {
                     model.FACTORYWGT = model.WASTEPWGT / (model.YELDPERCENT / 100);
@@ -507,9 +645,9 @@ namespace KVM_ERP.Controllers
             }
         }
 
-        private int CalculatePCKLValue(TransactionProductCalculation model)
+        private decimal CalculatePCKLValue(TransactionProductCalculation model)
         {
-            int pcklValue = 0;
+            decimal pcklValue = 0;
             var pckValues = new[] { model.PCK1, model.PCK2, model.PCK3, model.PCK4, model.PCK5, model.PCK6, 
                                    model.PCK7, model.PCK8, model.PCK9, model.PCK10, model.PCK11, model.PCK12, 
                                    model.PCK13, model.PCK14, model.PCK15, model.PCK16, model.PCK17 };
@@ -526,7 +664,7 @@ namespace KVM_ERP.Controllers
                 {
                     if (pckValues[i].HasValue && pckValues[i] > 0)
                     {
-                        int multiplier = ExtractMultiplierFromDescription(packingTypes[i].PACKTMDESC);
+                        decimal multiplier = ExtractMultiplierFromDescription(packingTypes[i].PACKTMDESC);
                         pcklValue += pckValues[i].Value * multiplier;
                     }
                 }
@@ -535,7 +673,7 @@ namespace KVM_ERP.Controllers
             return pcklValue;
         }
 
-        private int ExtractMultiplierFromDescription(string description)
+        private decimal ExtractMultiplierFromDescription(string description)
         {
             if (string.IsNullOrEmpty(description))
                 return 1;
@@ -543,7 +681,7 @@ namespace KVM_ERP.Controllers
             // Extract number from descriptions like "U - 5", "U - 10", "51-60", "151-200", etc.
             var numbers = System.Text.RegularExpressions.Regex.Matches(description, @"\d+")
                 .Cast<System.Text.RegularExpressions.Match>()
-                .Select(m => int.Parse(m.Value))
+                .Select(m => decimal.Parse(m.Value))
                 .ToArray();
 
             if (numbers.Length == 1)
@@ -593,6 +731,538 @@ namespace KVM_ERP.Controllers
             existing.WASTEWGT = model.WASTEWGT;
             existing.WASTEPWGT = model.WASTEPWGT;
             existing.FACTORYWGT = model.FACTORYWGT;
+            existing.PRODDATE = model.PRODDATE;
+            existing.CALCULATIONMODE = model.CALCULATIONMODE;
+        }
+
+        private TransactionProductCalculation ParseFormToModel(FormCollection form)
+        {
+            var model = new TransactionProductCalculation();
+            
+            // Parse required integer fields
+            if (int.TryParse(form["TRANPID"], out int tranpid)) model.TRANPID = tranpid;
+            if (int.TryParse(form["TRANDID"], out int trandid)) model.TRANDID = trandid;
+            if (int.TryParse(form["TRANMID"], out int tranmid)) model.TRANMID = tranmid;
+            if (int.TryParse(form["PACKMID"], out int packmid)) model.PACKMID = packmid;
+            
+            // Parse PCK fields - convert empty strings to null
+            model.PCK1 = ParseNullableDecimal(form["PCK1"]);
+            model.PCK2 = ParseNullableDecimal(form["PCK2"]);
+            model.PCK3 = ParseNullableDecimal(form["PCK3"]);
+            model.PCK4 = ParseNullableDecimal(form["PCK4"]);
+            model.PCK5 = ParseNullableDecimal(form["PCK5"]);
+            model.PCK6 = ParseNullableDecimal(form["PCK6"]);
+            model.PCK7 = ParseNullableDecimal(form["PCK7"]);
+            model.PCK8 = ParseNullableDecimal(form["PCK8"]);
+            model.PCK9 = ParseNullableDecimal(form["PCK9"]);
+            model.PCK10 = ParseNullableDecimal(form["PCK10"]);
+            model.PCK11 = ParseNullableDecimal(form["PCK11"]);
+            model.PCK12 = ParseNullableDecimal(form["PCK12"]);
+            model.PCK13 = ParseNullableDecimal(form["PCK13"]);
+            model.PCK14 = ParseNullableDecimal(form["PCK14"]);
+            model.PCK15 = ParseNullableDecimal(form["PCK15"]);
+            model.PCK16 = ParseNullableDecimal(form["PCK16"]);
+            model.PCK17 = ParseNullableDecimal(form["PCK17"]);
+            
+            // Parse other decimal fields
+            model.PNDSVALUE = ParseNullableDecimal(form["PNDSVALUE"]);
+            model.YELDPERCENT = ParseNullableDecimal(form["YELDPERCENT"]);
+            model.KGWGT = ParseNullableDecimal(form["KGWGT"]);
+            model.WASTEWGT = ParseNullableDecimal(form["WASTEWGT"]);
+            
+            // Parse PRODDATE field
+            model.PRODDATE = ParseNullableDateTime(form["PRODDATE"]);
+            
+            // Parse CALCULATIONMODE field - Convert frontend string to backend integer
+            var calculationModeString = form["CalculationMode"] ?? "packing";
+            model.CALCULATIONMODE = calculationModeString == "gradeweight" ? 2 : 1; // 1=Packing, 2=Grade Weight
+            
+            System.Diagnostics.Debug.WriteLine($"Parsed model - TRANDID: {model.TRANDID}, PACKMID: {model.PACKMID}");
+            System.Diagnostics.Debug.WriteLine($"Parsed PCK1: '{form["PCK1"]}' -> {model.PCK1}");
+            System.Diagnostics.Debug.WriteLine($"Parsed PCK2: '{form["PCK2"]}' -> {model.PCK2}");
+            System.Diagnostics.Debug.WriteLine($"Parsed PCK3: '{form["PCK3"]}' -> {model.PCK3}");
+            
+            return model;
+        }
+        
+        private decimal? ParseNullableDecimal(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+                
+            if (decimal.TryParse(value, out decimal result))
+                return result;
+                
+            return null;
+        }
+        
+        private DateTime? ParseNullableDateTime(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+                
+            if (DateTime.TryParse(value, out DateTime result))
+                return result;
+                
+            return null;
+        }
+
+        private void SanitizePCKValues(TransactionProductCalculation model)
+        {
+            // Ensure all PCK values are properly null if they are zero or invalid
+            // This prevents EntityCommandExecutionException when saving to database
+            
+            if (model.PCK1.HasValue && model.PCK1.Value == 0) model.PCK1 = null;
+            if (model.PCK2.HasValue && model.PCK2.Value == 0) model.PCK2 = null;
+            if (model.PCK3.HasValue && model.PCK3.Value == 0) model.PCK3 = null;
+            if (model.PCK4.HasValue && model.PCK4.Value == 0) model.PCK4 = null;
+            if (model.PCK5.HasValue && model.PCK5.Value == 0) model.PCK5 = null;
+            if (model.PCK6.HasValue && model.PCK6.Value == 0) model.PCK6 = null;
+            if (model.PCK7.HasValue && model.PCK7.Value == 0) model.PCK7 = null;
+            if (model.PCK8.HasValue && model.PCK8.Value == 0) model.PCK8 = null;
+            if (model.PCK9.HasValue && model.PCK9.Value == 0) model.PCK9 = null;
+            if (model.PCK10.HasValue && model.PCK10.Value == 0) model.PCK10 = null;
+            if (model.PCK11.HasValue && model.PCK11.Value == 0) model.PCK11 = null;
+            if (model.PCK12.HasValue && model.PCK12.Value == 0) model.PCK12 = null;
+            if (model.PCK13.HasValue && model.PCK13.Value == 0) model.PCK13 = null;
+            if (model.PCK14.HasValue && model.PCK14.Value == 0) model.PCK14 = null;
+            if (model.PCK15.HasValue && model.PCK15.Value == 0) model.PCK15 = null;
+            if (model.PCK16.HasValue && model.PCK16.Value == 0) model.PCK16 = null;
+            if (model.PCK17.HasValue && model.PCK17.Value == 0) model.PCK17 = null;
+            
+            // Don't convert these to null as they might legitimately be 0
+            // Only convert if they are exactly 0 and we want to store null instead
+            // Keep PNDSVALUE, YELDPERCENT, KGWGT, WASTEWGT as they are since 0 might be valid
+            
+            // Ensure required fields have valid values
+            if (model.TRANDID <= 0)
+            {
+                throw new ArgumentException("TRANDID is required and must be greater than 0");
+            }
+            
+            if (model.PACKMID <= 0)
+            {
+                throw new ArgumentException("PACKMID is required and must be greater than 0");
+            }
+            
+            System.Diagnostics.Debug.WriteLine("PCK values sanitized - zero values converted to null");
+        }
+
+        // Quality Check Methods
+        public JsonResult CheckQualityCheckTable()
+        {
+            try
+            {
+                // Test if the table exists by trying to query it
+                var count = db.Database.SqlQuery<int>("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'TRANSACTION_QUALITY_CHECK'").FirstOrDefault();
+                
+                if (count == 0)
+                {
+                    return Json(new { 
+                        success = false, 
+                        message = "TRANSACTION_QUALITY_CHECK table does not exist. Please run the database script to create it.",
+                        tableExists = false
+                    }, JsonRequestBehavior.AllowGet);
+                }
+                
+                return Json(new { 
+                    success = true, 
+                    message = "Table exists",
+                    tableExists = true
+                }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { 
+                    success = false, 
+                    message = ex.Message,
+                    tableExists = false
+                }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        public JsonResult CheckTransactionExists(int tranmid)
+        {
+            try
+            {
+                // Check if TRANMID exists in TRANSACTIONMASTER
+                var exists = db.Database.SqlQuery<int>("SELECT COUNT(*) FROM TRANSACTIONMASTER WHERE TRANMID = @p0", tranmid).FirstOrDefault();
+                
+                if (exists > 0)
+                {
+                    // Get transaction details
+                    var transaction = db.Database.SqlQuery<dynamic>("SELECT TRANMID, TRANDATE, CATENAME, CATECODE FROM TRANSACTIONMASTER WHERE TRANMID = @p0", tranmid).FirstOrDefault();
+                    
+                    return Json(new { 
+                        success = true, 
+                        exists = true,
+                        message = $"Transaction {tranmid} exists",
+                        transaction = transaction
+                    }, JsonRequestBehavior.AllowGet);
+                }
+                else
+                {
+                    // Get available TRANMIDs
+                    var availableIds = db.Database.SqlQuery<int>("SELECT TOP 10 TRANMID FROM TRANSACTIONMASTER ORDER BY TRANMID DESC").ToList();
+                    
+                    return Json(new { 
+                        success = false, 
+                        exists = false,
+                        message = $"Transaction {tranmid} does not exist",
+                        availableIds = availableIds
+                    }, JsonRequestBehavior.AllowGet);
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { 
+                    success = false, 
+                    message = $"Error checking transaction: {ex.Message}"
+                }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        public JsonResult TestQualityCheckInsert(int tranmid)
+        {
+            try
+            {
+                // First check if TRANMID exists
+                var transactionExists = db.Database.SqlQuery<int>("SELECT COUNT(*) FROM TRANSACTIONMASTER WHERE TRANMID = @p0", tranmid).FirstOrDefault();
+                if (transactionExists == 0)
+                {
+                    return Json(new { 
+                        success = false, 
+                        message = $"Cannot insert: TRANMID {tranmid} does not exist in TRANSACTIONMASTER table"
+                    }, JsonRequestBehavior.AllowGet);
+                }
+
+                // Try to insert a test record using raw SQL to bypass Entity Framework
+                var sql = @"
+                    INSERT INTO TRANSACTION_QUALITY_CHECK 
+                    (TRANMID, LABOID, STATUS, REMARKS, DONEBY, VERIFIEDBY, LOTDATE, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
+                    VALUES 
+                    (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10)";
+                
+                var result = db.Database.ExecuteSqlCommand(sql, 
+                    tranmid,           // TRANMID
+                    1,                 // LABOID (assuming lab with ID 1 exists)
+                    0,                 // STATUS
+                    "Test remarks",    // REMARKS
+                    "Test User",       // DONEBY
+                    "Test Verifier",   // VERIFIEDBY
+                    DateTime.Now,      // LOTDATE
+                    "System",          // CUSRID
+                    "System",          // LMUSRID
+                    0,                 // DISPSTATUS
+                    DateTime.Now       // PRCSDATE
+                );
+                
+                return Json(new { 
+                    success = true, 
+                    message = $"Test insert successful. Rows affected: {result}"
+                }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { 
+                    success = false, 
+                    message = $"Test insert failed: {ex.Message}"
+                }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        public JsonResult GetLaboratories()
+        {
+            try
+            {
+                var laboratories = db.LaboratoryMasters
+                    .Where(l => l.DISPSTATUS == 0)
+                    .OrderBy(l => l.LABODESC)
+                    .Select(l => new { id = l.LABOID, text = l.LABODESC })
+                    .ToList();
+                return Json(laboratories, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { error = ex.Message }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        public JsonResult GetQualityCheck(int tranmid)
+        {
+            try
+            {
+                var qualityCheck = db.TransactionQualityChecks
+                    .FirstOrDefault(q => q.TRANMID == tranmid);
+                    
+                if (qualityCheck != null)
+                {
+                    return Json(new { 
+                        success = true, 
+                        data = new {
+                            TRANQID = qualityCheck.TRANQID,
+                            TRANMID = qualityCheck.TRANMID,
+                            LABOID = qualityCheck.LABOID,
+                            STATUS = qualityCheck.STATUS,
+                            REMARKS = qualityCheck.REMARKS,
+                            DONEBY = qualityCheck.DONEBY,
+                            VERIFIEDBY = qualityCheck.VERIFIEDBY,
+                            LOTDATE = qualityCheck.LOTDATE.ToString("yyyy-MM-dd")
+                        }
+                    }, JsonRequestBehavior.AllowGet);
+                }
+                
+                return Json(new { success = false, message = "No quality check found" }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [HttpPost]
+        public JsonResult SaveQualityCheckRawSQL(FormCollection form)
+        {
+            try
+            {
+                var tranmid = int.Parse(form["TRANMID"]);
+                var laboid = int.Parse(form["LABOID"]);
+                var status = int.Parse(form["STATUS"]);
+                var remarks = form["REMARKS"]?.Trim();
+                var doneby = form["DONEBY"]?.Trim();
+                var verifiedby = form["VERIFIEDBY"]?.Trim();
+                var lotdate = DateTime.Parse(form["LOTDATE"]);
+                
+                System.Diagnostics.Debug.WriteLine($"SaveQualityCheckRawSQL called with TRANMID: {tranmid}");
+                
+                // First check if TRANMID exists in TRANSACTIONMASTER
+                var transactionExists = db.Database.SqlQuery<int>("SELECT COUNT(*) FROM TRANSACTIONMASTER WHERE TRANMID = @p0", tranmid).FirstOrDefault();
+                if (transactionExists == 0)
+                {
+                    var availableIds = db.Database.SqlQuery<int>("SELECT TOP 5 TRANMID FROM TRANSACTIONMASTER ORDER BY TRANMID DESC").ToList();
+                    return Json(new { 
+                        success = false, 
+                        message = $"Transaction {tranmid} does not exist in TRANSACTIONMASTER. Available IDs: {string.Join(", ", availableIds)}"
+                    });
+                }
+                
+                // Check if record exists
+                var existingCount = db.Database.SqlQuery<int>("SELECT COUNT(*) FROM TRANSACTION_QUALITY_CHECK WHERE TRANMID = @p0", tranmid).FirstOrDefault();
+                
+                if (existingCount > 0)
+                {
+                    // Update
+                    var updateSql = @"
+                        UPDATE TRANSACTION_QUALITY_CHECK 
+                        SET LABOID = @p1, STATUS = @p2, REMARKS = @p3, DONEBY = @p4, VERIFIEDBY = @p5, 
+                            LOTDATE = @p6, LMUSRID = @p7, PRCSDATE = @p8
+                        WHERE TRANMID = @p0";
+                    
+                    var result = db.Database.ExecuteSqlCommand(updateSql, 
+                        tranmid, laboid, status, remarks, doneby, verifiedby, lotdate, 
+                        User?.Identity?.Name ?? "System", DateTime.Now);
+                    
+                    return Json(new { success = true, message = "Quality check updated successfully" });
+                }
+                else
+                {
+                    // Insert
+                    var insertSql = @"
+                        INSERT INTO TRANSACTION_QUALITY_CHECK 
+                        (TRANMID, LABOID, STATUS, REMARKS, DONEBY, VERIFIEDBY, LOTDATE, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
+                        VALUES 
+                        (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10)";
+                    
+                    var result = db.Database.ExecuteSqlCommand(insertSql, 
+                        tranmid, laboid, status, remarks, doneby, verifiedby, lotdate,
+                        User?.Identity?.Name ?? "System", User?.Identity?.Name ?? "System", 0, DateTime.Now);
+                    
+                    return Json(new { success = true, message = "Quality check saved successfully" });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SaveQualityCheckRawSQL Exception: {ex.Message}");
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        public JsonResult SaveQualityCheck(TransactionQualityCheck model)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"SaveQualityCheck called with TRANMID: {model.TRANMID}");
+                
+                if (model.TRANMID <= 0)
+                {
+                    return Json(new { success = false, message = "Invalid Transaction Master ID" });
+                }
+
+                // Validate required fields
+                if (model.LABOID <= 0)
+                {
+                    return Json(new { success = false, message = "Laboratory is required" });
+                }
+
+                // Check if TRANMID exists in TRANSACTIONMASTER
+                var transactionExists = db.TransactionMasters.Any(t => t.TRANMID == model.TRANMID);
+                if (!transactionExists)
+                {
+                    return Json(new { success = false, message = $"Transaction Master with ID {model.TRANMID} does not exist" });
+                }
+
+                // Check if LABOID exists in LABORATORYMASTER
+                var laboratoryExists = db.LaboratoryMasters.Any(l => l.LABOID == model.LABOID);
+                if (!laboratoryExists)
+                {
+                    return Json(new { success = false, message = $"Laboratory with ID {model.LABOID} does not exist" });
+                }
+
+                if (string.IsNullOrWhiteSpace(model.REMARKS))
+                {
+                    return Json(new { success = false, message = "Remarks is required" });
+                }
+
+                if (string.IsNullOrWhiteSpace(model.DONEBY))
+                {
+                    return Json(new { success = false, message = "Done By is required" });
+                }
+
+                if (string.IsNullOrWhiteSpace(model.VERIFIEDBY))
+                {
+                    return Json(new { success = false, message = "Verified By is required" });
+                }
+
+                // Validate LOTDATE
+                if (model.LOTDATE == DateTime.MinValue)
+                {
+                    return Json(new { success = false, message = "Date is required" });
+                }
+
+                // Validate string lengths
+                if (model.DONEBY?.Length > 100)
+                {
+                    return Json(new { success = false, message = "Done By cannot exceed 100 characters" });
+                }
+
+                if (model.VERIFIEDBY?.Length > 100)
+                {
+                    return Json(new { success = false, message = "Verified By cannot exceed 100 characters" });
+                }
+
+                // Check if record exists
+                var existing = db.TransactionQualityChecks
+                    .FirstOrDefault(q => q.TRANMID == model.TRANMID);
+                
+                if (existing != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Updating existing quality check record: {existing.TRANQID}");
+                    
+                    // Update existing record
+                    existing.LABOID = model.LABOID;
+                    existing.STATUS = model.STATUS;
+                    existing.REMARKS = model.REMARKS?.Trim();
+                    existing.DONEBY = model.DONEBY?.Trim();
+                    existing.VERIFIEDBY = model.VERIFIEDBY?.Trim();
+                    existing.LOTDATE = model.LOTDATE;
+                    existing.LMUSRID = User?.Identity?.Name ?? "System";
+                    existing.PRCSDATE = DateTime.Now;
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("Creating new quality check record");
+                    
+                    // Create new record
+                    model.CUSRID = User?.Identity?.Name ?? "System";
+                    model.LMUSRID = User?.Identity?.Name ?? "System";
+                    model.DISPSTATUS = 0;
+                    model.PRCSDATE = DateTime.Now;
+                    
+                    // Trim string fields
+                    model.REMARKS = model.REMARKS?.Trim();
+                    model.DONEBY = model.DONEBY?.Trim();
+                    model.VERIFIEDBY = model.VERIFIEDBY?.Trim();
+                    
+                    // Debug log the data being saved
+                    System.Diagnostics.Debug.WriteLine($"Quality Check Data:");
+                    System.Diagnostics.Debug.WriteLine($"  TRANMID: {model.TRANMID}");
+                    System.Diagnostics.Debug.WriteLine($"  LABOID: {model.LABOID}");
+                    System.Diagnostics.Debug.WriteLine($"  STATUS: {model.STATUS}");
+                    System.Diagnostics.Debug.WriteLine($"  REMARKS: '{model.REMARKS}' (Length: {model.REMARKS?.Length ?? 0})");
+                    System.Diagnostics.Debug.WriteLine($"  DONEBY: '{model.DONEBY}' (Length: {model.DONEBY?.Length ?? 0})");
+                    System.Diagnostics.Debug.WriteLine($"  VERIFIEDBY: '{model.VERIFIEDBY}' (Length: {model.VERIFIEDBY?.Length ?? 0})");
+                    System.Diagnostics.Debug.WriteLine($"  LOTDATE: {model.LOTDATE}");
+                    System.Diagnostics.Debug.WriteLine($"  CUSRID: '{model.CUSRID}'");
+                    System.Diagnostics.Debug.WriteLine($"  LMUSRID: '{model.LMUSRID}'");
+                    System.Diagnostics.Debug.WriteLine($"  DISPSTATUS: {model.DISPSTATUS}");
+                    System.Diagnostics.Debug.WriteLine($"  PRCSDATE: {model.PRCSDATE}");
+                    
+                    db.TransactionQualityChecks.Add(model);
+                }
+
+                db.SaveChanges();
+                System.Diagnostics.Debug.WriteLine("Quality check saved successfully");
+                
+                return Json(new { 
+                    success = true, 
+                    message = "Quality check saved successfully"
+                });
+            }
+            catch (System.Data.Entity.Infrastructure.DbUpdateException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"DbUpdateException: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Inner Exception: {ex.InnerException?.Message}");
+                
+                // Get the deepest inner exception
+                Exception innermost = ex;
+                while (innermost.InnerException != null)
+                {
+                    innermost = innermost.InnerException;
+                    System.Diagnostics.Debug.WriteLine($"Deeper Inner Exception: {innermost.Message}");
+                }
+                
+                var errorMessage = "Database error occurred. ";
+                var innermostMessage = innermost.Message;
+                
+                if (innermostMessage.Contains("Invalid object name 'dbo.TRANSACTION_QUALITY_CHECK'"))
+                {
+                    errorMessage += "The TRANSACTION_QUALITY_CHECK table does not exist. Please run the database script to create it.";
+                }
+                else if (innermostMessage.Contains("foreign key constraint") || innermostMessage.Contains("FOREIGN KEY"))
+                {
+                    errorMessage += "Foreign key constraint violation. Please check if the referenced records exist.";
+                }
+                else if (innermostMessage.Contains("Cannot insert the value NULL"))
+                {
+                    errorMessage += "Required field is missing or null: " + innermostMessage;
+                }
+                else if (innermostMessage.Contains("String or binary data would be truncated"))
+                {
+                    errorMessage += "Data too long for field: " + innermostMessage;
+                }
+                else
+                {
+                    errorMessage += innermostMessage;
+                }
+                
+                return Json(new { success = false, message = errorMessage });
+            }
+            catch (System.Data.Entity.Validation.DbEntityValidationException ex)
+            {
+                var errorMessages = ex.EntityValidationErrors
+                    .SelectMany(x => x.ValidationErrors)
+                    .Select(x => x.ErrorMessage);
+                var fullErrorMessage = string.Join("; ", errorMessages);
+                System.Diagnostics.Debug.WriteLine($"Validation Error: {fullErrorMessage}");
+                return Json(new { success = false, message = "Validation error: " + fullErrorMessage });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"General Exception: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack Trace: {ex.StackTrace}");
+                return Json(new { success = false, message = "Unexpected error: " + ex.Message });
+            }
         }
 
         protected override void Dispose(bool disposing)

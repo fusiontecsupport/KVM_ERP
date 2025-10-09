@@ -24,61 +24,61 @@ namespace KVM_ERP.Models
         public int PACKMID { get; set; }
 
         [Column("PCK1")]
-        public int? PCK1 { get; set; }
+        public decimal? PCK1 { get; set; }
 
         [Column("PCK2")]
-        public int? PCK2 { get; set; }
+        public decimal? PCK2 { get; set; }
 
         [Column("PCK3")]
-        public int? PCK3 { get; set; }
+        public decimal? PCK3 { get; set; }
 
         [Column("PCK4")]
-        public int? PCK4 { get; set; }
+        public decimal? PCK4 { get; set; }
 
         [Column("PCK5")]
-        public int? PCK5 { get; set; }
+        public decimal? PCK5 { get; set; }
 
         [Column("PCK6")]
-        public int? PCK6 { get; set; }
+        public decimal? PCK6 { get; set; }
 
         [Column("PCK7")]
-        public int? PCK7 { get; set; }
+        public decimal? PCK7 { get; set; }
 
         [Column("PCK8")]
-        public int? PCK8 { get; set; }
+        public decimal? PCK8 { get; set; }
 
         [Column("PCK9")]
-        public int? PCK9 { get; set; }
+        public decimal? PCK9 { get; set; }
 
         [Column("PCK10")]
-        public int? PCK10 { get; set; }
+        public decimal? PCK10 { get; set; }
 
         [Column("PCK11")]
-        public int? PCK11 { get; set; }
+        public decimal? PCK11 { get; set; }
 
         [Column("PCK12")]
-        public int? PCK12 { get; set; }
+        public decimal? PCK12 { get; set; }
 
         [Column("PCK13")]
-        public int? PCK13 { get; set; }
+        public decimal? PCK13 { get; set; }
 
         [Column("PCK14")]
-        public int? PCK14 { get; set; }
+        public decimal? PCK14 { get; set; }
 
         [Column("PCK15")]
-        public int? PCK15 { get; set; }
+        public decimal? PCK15 { get; set; }
 
         [Column("PCK16")]
-        public int? PCK16 { get; set; }
+        public decimal? PCK16 { get; set; }
 
         [Column("PCK17")]
-        public int? PCK17 { get; set; }
+        public decimal? PCK17 { get; set; }
 
         [Column("TOPCK")]
-        public int? TOPCK { get; set; }
+        public decimal? TOPCK { get; set; }
 
         [Column("PCKLVALUE")]
-        public int? PCKLVALUE { get; set; }
+        public decimal? PCKLVALUE { get; set; }
 
         [Column("AVGPCKVALUE")]
         public decimal? AVGPCKVALUE { get; set; }
@@ -123,5 +123,14 @@ namespace KVM_ERP.Models
 
         [Column("PRCSDATE")]
         public DateTime? PRCSDATE { get; set; }
+
+        [Column("PRODDATE")]
+        public DateTime? PRODDATE { get; set; }
+
+        [Column("CALCULATIONMODE")]
+        public int? CALCULATIONMODE { get; set; }
+
+        // [Column("CLIENTWGHT")]
+        // public int? CLIENTWGHT { get; set; }  // Removed - column doesn't exist in database
     }
 }

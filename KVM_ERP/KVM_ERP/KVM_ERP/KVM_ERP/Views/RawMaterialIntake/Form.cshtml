@@ -19,10 +19,21 @@
     .btn-primary { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border: none; padding: 12px 30px; border-radius: 25px; font-weight: 600; box-shadow: 0 4px 15px rgba(79,172,254,.4); }
     .btn-secondary { background: linear-gradient(135deg, #6c757d, #495057); border: none; padding: 12px 30px; border-radius: 25px; font-weight: 600; color: #fff; }
 
-    /* Intake Details header and Add button (match masters/Index add style) */
-    .details-header { margin-top: 20px; display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: linear-gradient(135deg, #fbfbfb, #f5f5f5); border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
-    .details-header .section-title { margin: 0; display: flex; align-items: center; gap: 10px; color: #1f2937; }
+    /* Intake Details section styling */
+    .intake-details-section { margin-top: 30px; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9; }
+    .details-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .details-header .section-title { margin: 0; display: flex; align-items: center; gap: 10px; color: #2c3e50; font-weight: 600; font-size: 16px; }
     .add-btn { background: linear-gradient(135deg, #ff6b6b, #ee5a24); border: none; padding: 10px 18px; border-radius: 25px; color: #fff; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(238, 90, 36, 0.4); display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+    .add-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(238, 90, 36, 0.6); color: #fff; text-decoration: none; }
+    
+    /* Enhanced table styling */
+    .details-table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: none; margin-bottom: 0; }
+    .details-table thead th { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; font-weight: 600; text-align: center; padding: 15px 10px; border: none; font-size: 14px; }
+    .details-table tbody td { padding: 12px 10px; vertical-align: middle; border-color: #e9ecef; }
+    .details-table tbody tr:hover { background-color: #f8f9fa; }
+    .details-table .form-control { border-radius: 4px; border: 1px solid #ddd; padding: 8px 12px; }
+    .details-table .form-control:focus { border-color: #667eea; box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25); }
+    .details-table .btn { padding: 6px 12px; border-radius: 4px; font-size: 12px; }
     .add-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(238, 90, 36, 0.6); color: #fff; text-decoration: none; }
 
     /* Details table aesthetics */
@@ -30,6 +41,187 @@
     .details-table thead th { background: #f1f5f9; color: #334155; font-weight: 700; border-bottom: 2px solid #e2e8f0; }
     .details-table tbody td { vertical-align: middle; }
     .details-table input, .details-table select { height: 36px; padding: 6px 10px; }
+
+    /* Enhanced Tab styling */
+    .nav-tabs {
+        border-bottom: 3px solid #e3f2fd;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 8px 15px 0;
+        border-radius: 12px 12px 0 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .nav-tabs .nav-item {
+        margin-bottom: -3px;
+        margin-right: 5px;
+    }
+    
+    .nav-tabs .nav-link { 
+        color: #6c757d;
+        border: none;
+        border-radius: 25px 25px 0 0;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        padding: 12px 20px;
+        font-weight: 500;
+        font-size: 14px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+        min-width: 120px;
+        text-align: center;
+    }
+    
+    .nav-tabs .nav-link::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        transition: left 0.5s;
+    }
+    
+    .nav-tabs .nav-link:hover::before {
+        left: 100%;
+    }
+    
+    .nav-tabs .nav-link:hover { 
+        color: #2c3e50;
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        border-color: transparent;
+    }
+    
+    .nav-tabs .nav-link.active { 
+        color: #ffffff;
+        background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+        font-weight: 600;
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+        border-color: transparent;
+        z-index: 10;
+        position: relative;
+    }
+    
+    .nav-tabs .nav-link.active::after {
+        content: '';
+        position: absolute;
+        bottom: -3px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 8px solid transparent;
+        border-right: 8px solid transparent;
+        border-bottom: 8px solid #ffffff;
+    }
+    
+    .tab-content { 
+        border: none;
+        background: #ffffff;
+        border-radius: 0 0 12px 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .tab-pane { 
+        display: none;
+        animation: fadeIn 0.3s ease-in-out;
+    }
+    
+    .tab-pane.active { 
+        display: block;
+    }
+    
+    @@keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Tab icons */
+    .nav-tabs .nav-link i {
+        margin-right: 8px;
+        font-size: 16px;
+    }
+    
+    /* Responsive tabs */
+    @@media (max-width: 768px) {
+        .nav-tabs .nav-link {
+            padding: 10px 15px;
+            font-size: 12px;
+            min-width: 100px;
+        }
+    }
+    
+    /* Form field transitions for calculation mode switching */
+    .form-group {
+        transition: all 0.3s ease-in-out;
+    }
+    
+    .form-group.hidden {
+        display: none !important;
+    }
+    
+    /* Grade Weight mode styling */
+    .grade-weight-mode #slab-calculation-section {
+        border: 2px solid #28a745;
+        border-radius: 8px;
+    }
+    
+    .grade-weight-mode #total-weight-calculation-section {
+        border: 2px solid #ffc107;
+        border-radius: 8px;
+    }
+    
+    .grade-weight-mode .card-header {
+        font-weight: 600;
+    }
+    
+    /* Calculation Mode Radio Buttons */
+    .calculation-mode-section .form-check {
+        padding: 15px;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    }
+    
+    .calculation-mode-section .form-check:hover {
+        border-color: #17a2b8;
+        background: linear-gradient(135deg, #e3f7fa 0%, #f0f9ff 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(23, 162, 184, 0.2);
+    }
+    
+    .calculation-mode-section .form-check-input:checked + .form-check-label {
+        color: #17a2b8;
+        font-weight: 600;
+    }
+    
+    .calculation-mode-section .form-check-input:checked ~ * {
+        border-color: #17a2b8;
+    }
+    
+    .calculation-mode-section .form-check.selected {
+        border-color: #17a2b8;
+        background: linear-gradient(135deg, #e3f7fa 0%, #f0f9ff 100%);
+        box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+    }
+    
+    .calculation-mode-section .form-check-label {
+        cursor: pointer;
+        width: 100%;
+    }
+    
+    .calculation-mode-section .form-check-label i {
+        margin-right: 8px;
+        font-size: 18px;
+    }
 </style>
 
 <div class="main-container">
@@ -47,55 +239,112 @@
                 @Html.AntiForgeryToken()
                 @Html.HiddenFor(m => m.TRANMID)
 
-                <!-- Row 1: No, Date, Supplier Name (search), Supplier Code -->
+                <!-- Single Row: All main fields -->
                 <div class="row">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="form-group">
-                            <label class="control-label">No</label>
-                            <input type="text" class="form-control" value="@Model.TRANMID" disabled />
+                            <label class="control-label" style="font-weight: 500;">No</label>
+                            <input type="text" class="form-control" value="@Model.TRANMID" disabled style="border-radius: 4px;" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="control-label" style="font-weight: 500;">Date <span class="req" style="color: #e74c3c;">*</span></label>
+                            @Html.TextBoxFor(m => m.TRANDATE, "{0:yyyy-MM-dd}", new { @class = "form-control", type = "date", required = "required", style = "border-radius: 4px;" })
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label class="control-label">Date <span class="req">*</span></label>
-                            @Html.TextBoxFor(m => m.TRANDATE, "{0:yyyy-MM-dd}", new { @class = "form-control", type = "date", required = "required" })
+                            <label class="control-label" style="font-weight: 500;">Supplier Name <span class="req" style="color: #e74c3c;">*</span></label>
+                            @Html.DropDownList("SupplierId", supplierList, "-- Select Supplier --", new { @class = "form-control select2", id = "supplierDropdown", required = "required", style = "width:100%; border-radius: 4px;" })
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="form-group">
-                            <label class="control-label">Supplier Name <span class="req">*</span></label>
-                            @Html.DropDownList("SupplierId", supplierList, "-- Select Supplier --", new { @class = "form-control select2", id = "supplierDropdown", required = "required", style = "width:100%" })
+                            <label class="control-label" style="font-weight: 500;">Supplier Code</label>
+                            @Html.TextBoxFor(m => m.CATECODE, new { @class = "form-control", @id = "supplierCode", @readonly = "readonly", style = "border-radius: 4px;" })
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="form-group">
-                            <label class="control-label">Supplier Code</label>
-                            @Html.TextBoxFor(m => m.CATECODE, new { @class = "form-control", @id = "supplierCode", @readonly = "readonly" })
+                            <label class="control-label" style="font-weight: 500;">Vehicle No <span class="req" style="color: #e74c3c;">*</span></label>
+                            @Html.TextBoxFor(m => m.VECHNO, new { @class = "form-control", placeholder = "Enter vehicle number", required = "required", maxlength = 50, style = "border-radius: 4px;" })
                         </div>
                     </div>
-                </div>
-
-                <!-- Row 2: Vehicle No, Status (col-3 layout with spacing) -->
-                <div class="row">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="form-group">
-                            <label class="control-label">Vechicle No <span class="req">*</span></label>
-                            @Html.TextBoxFor(m => m.VECHNO, new { @class = "form-control", placeholder = "Enter vehicle number", required = "required", maxlength = 50 })
+                            <label class="control-label" style="font-weight: 500;">Client Weight <span class="req" style="color: #e74c3c;">*</span></label>
+                            @Html.TextBoxFor(m => m.CLIENTWGHT, new { @class = "form-control", placeholder = "Enter weight", required = "required", type = "number", step = "0.001", min = "0", style = "border-radius: 4px;" })
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-1">
                         <div class="form-group">
-                            <label class="control-label">Status</label>
+                            <label class="control-label" style="font-weight: 500;">Status</label>
                             @Html.DropDownListFor(m => m.DISPSTATUS,
                                 new SelectList(new[] {
                                     new SelectListItem { Text = "Enabled", Value = "0" },
                                     new SelectListItem { Text = "Disabled", Value = "1" }
                                 }, "Value", "Text", Model.DISPSTATUS.ToString()),
-                                new { @class = "form-control", id = "statusDropdown" })
+                                new { @class = "form-control", id = "statusDropdown", style = "border-radius: 4px;" })
                         </div>
                     </div>
-                    <div class="col-md-3"></div>
-                    <div class="col-md-3"></div>
+                </div>
+
+                <!-- Quality Check Section -->
+                <div class="quality-check-section" style="margin-top: 30px; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
+                    <div class="section-title" style="margin-bottom: 20px; color: #2c3e50; font-weight: 600;">
+                        <i class="fa fa-check-circle" style="color: #27ae60;"></i> Quality Check
+                    </div>
+                    
+                    <!-- First Row: Lab Testing, Status, Done By, Verified By, Date -->
+                    <div class="row">
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label class="control-label" style="font-weight: 500;">Lab Testing <span class="req" style="color: #e74c3c;">*</span></label>
+                                <select class="form-control" id="laboratoryDropdown" required style="border-radius: 4px;">
+                                    <option value="">-- Select Laboratory --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label class="control-label" style="font-weight: 500;">Status <span class="req" style="color: #e74c3c;">*</span></label>
+                                <select class="form-control" id="qualityStatusDropdown" required style="border-radius: 4px;">
+                                    <option value="">-- Select Status --</option>
+                                    <option value="0">Verified</option>
+                                    <option value="1">Not Verified</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label class="control-label" style="font-weight: 500;">Done By <span class="req" style="color: #e74c3c;">*</span></label>
+                                <input type="text" class="form-control" id="doneBy" placeholder="Enter name" required maxlength="100" style="border-radius: 4px;" />
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="control-label" style="font-weight: 500;">Verified By <span class="req" style="color: #e74c3c;">*</span></label>
+                                <input type="text" class="form-control" id="verifiedBy" placeholder="Enter name" required maxlength="100" style="border-radius: 4px;" />
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="control-label" style="font-weight: 500;">Date <span class="req" style="color: #e74c3c;">*</span></label>
+                                <input type="date" class="form-control" id="lotDate" required style="border-radius: 4px;" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Second Row: Remarks (Full Width) -->
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="control-label" style="font-weight: 500;">Remarks <span class="req" style="color: #e74c3c;">*</span></label>
+                                <textarea class="form-control" id="remarks" placeholder="Enter quality check remarks..." required rows="3" style="border-radius: 4px; resize: vertical;"></textarea>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group text-center form-actions" style="margin-top: 30px;">
@@ -109,6 +358,8 @@
                 
                 @* Details JSON holder *@
                 <input type="hidden" id="detailRowsJson" name="detailRowsJson" />
+                @* Quality Check JSON holder *@
+                <input type="hidden" id="qualityCheckJson" name="qualityCheckJson" />
             }
         </div>
     </div>
@@ -122,6 +373,7 @@
             var $code = $('#supplierCode');
             var details = @Html.Raw(ViewBag.DetailsJson ?? "[]");
             var materialGroups = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.MaterialGroups ?? new List<SelectListItem>()));
+            var existingQualityCheck = @Html.Raw(ViewBag.QualityCheckJson ?? "null");
 
             function syncCode(){
                 var val = $supplier.val();
@@ -144,9 +396,104 @@
             var modelStatus = '@Model.DISPSTATUS';
             $('#statusDropdown').val(modelStatus).trigger('change');
 
+            // -------- Quality Check Functionality --------
+            // Load laboratories dropdown
+            function loadLaboratories() {
+                $.getJSON('@Url.Action("GetLaboratories", "RawMaterialIntake")')
+                    .done(function(data) {
+                        var $lab = $('#laboratoryDropdown');
+                        $lab.empty().append('<option value="">-- Select Laboratory --</option>');
+                        $.each(data, function(_, item) {
+                            $lab.append('<option value="' + item.id + '">' + item.text + '</option>');
+                        });
+                        
+                        // Load existing quality check data AFTER laboratories are loaded
+                        loadQualityCheck();
+                    })
+                    .fail(function() {
+                        console.error('Failed to load laboratories');
+                    });
+            }
+
+            // Load existing quality check data
+            function loadQualityCheck() {
+                if (existingQualityCheck) {
+                    $('#laboratoryDropdown').val(existingQualityCheck.LABOID);
+                    $('#qualityStatusDropdown').val(existingQualityCheck.STATUS);
+                    $('#doneBy').val(existingQualityCheck.DONEBY);
+                    $('#verifiedBy').val(existingQualityCheck.VERIFIEDBY);
+                    $('#lotDate').val(existingQualityCheck.LOTDATE ? existingQualityCheck.LOTDATE.substring(0, 10) : '');
+                    $('#remarks').val(existingQualityCheck.REMARKS);
+                }
+            }
+
+
+            // Check if quality check table exists and initialize
+            function initializeQualityCheck() {
+                $.getJSON('@Url.Action("CheckQualityCheckTable", "RawMaterialIntake")')
+                    .done(function(response) {
+                        if (response.tableExists) {
+                            loadLaboratories(); // This will call loadQualityCheck() after laboratories are loaded
+                        } else {
+                            console.error('Quality Check table does not exist:', response.message);
+                            // Disable quality check fields
+                            $('#laboratoryDropdown, #qualityStatusDropdown, #doneBy, #verifiedBy, #lotDate, #remarks').prop('disabled', true);
+                            // Show warning message
+                            $('.section-title:contains("Quality Check")').after('<div class="alert alert-warning mt-2"><strong>Warning:</strong> ' + response.message + '</div>');
+                        }
+                    })
+                    .fail(function() {
+                        console.error('Failed to check quality check table status');
+                    });
+            }
+
+            // Initialize quality check
+            initializeQualityCheck();
+
+            // Form submit to serialize both details and quality check
+            $('#rawIntakeForm').on('submit', function(e) {
+                // Serialize details data
+                var rows = [];
+                $tbody.children('tr').each(function(){
+                    var gid = parseInt($(this).find('select.mgroup').val()||'0',10);
+                    var pid = parseInt($(this).find('select.product').val()||'0',10);
+                    var nbox = parseInt($(this).find('input.nbox').val()||'0',10);
+                    var cnt = parseInt($(this).find('input.counts').val()||'0',10);
+                    var trandid = parseInt($(this).data('trandid')||'0',10);
+                    if (gid>0 && pid>0 && nbox>0 && cnt>0){
+                        rows.push({ TRANDID: trandid, MTRLGID: gid, MTRLID: pid, MTRLNBOX: nbox, MTRLCOUNTS: cnt });
+                    }
+                });
+                $('#detailRowsJson').val(JSON.stringify(rows));
+
+                // Serialize quality check data
+                var qualityData = null;
+                var laboid = parseInt($('#laboratoryDropdown').val()) || 0;
+                var status = parseInt($('#qualityStatusDropdown').val()) || 0;
+                var doneby = $('#doneBy').val().trim();
+                var verifiedby = $('#verifiedBy').val().trim();
+                var lotdate = $('#lotDate').val();
+                var remarks = $('#remarks').val().trim();
+
+                // Only include quality check if at least laboratory is selected
+                if (laboid > 0 && doneby && verifiedby && lotdate && remarks) {
+                    qualityData = {
+                        LABOID: laboid,
+                        STATUS: status,
+                        DONEBY: doneby,
+                        VERIFIEDBY: verifiedby,
+                        LOTDATE: lotdate,
+                        REMARKS: remarks
+                    };
+                }
+                
+                $('#qualityCheckJson').val(qualityData ? JSON.stringify(qualityData) : '');
+            });
+
             // -------- Details Table UI --------
+            var $intakeDetailsSection = $('<div class="intake-details-section"></div>');
             var $detailsHeader = $('<div class="details-header"></div>');
-            var $detailsSection = $('<div class="section-title"><i class="fa fa-list"></i> Intake Details</div>');
+            var $detailsSection = $('<div class="section-title"><i class="fa fa-list" style="color: #667eea;"></i> Intake Details</div>');
             var $toolbar = $('<div class="mb-2"></div>');
             var $addBtn = $('<button type="button" class="add-btn" id="addRowBtn"><i class="fa fa-plus"></i> Add</button>');
             $toolbar.append($addBtn);
@@ -154,18 +501,21 @@
 
             var $table = $('<table class="table table-bordered details-table" id="detailsTable"></table>');
             var $thead = $('<thead><tr>\
-                <th style="width:60px; text-align:center;">S.No</th>\
+                <th style="width:60px;">S.No</th>\
                 <th style="width:220px;">Product Type</th>\
                 <th style="width:280px;">Product</th>\
                 <th style="width:150px;">No. of Boxes</th>\
                 <th style="width:150px;">Count (Per KG)</th>\
-                <th style="width:80px; text-align:center;">Action</th>\
+                <th style="width:80px;">Action</th>\
             </tr></thead>');
             var $tbody = $('<tbody></tbody>');
             $table.append($thead).append($tbody);
 
-            // Insert after the status row container
-            $('.form-body .row').last().after($detailsHeader, $table);
+            // Wrap everything in the styled section
+            $intakeDetailsSection.append($detailsHeader).append($table);
+
+            // Insert after the main form row
+            $('.form-body .row').last().after($intakeDetailsSection);
 
             function buildGroupSelect(selectedId){
                 var $sel = $('<select class="form-control mgroup"></select>');
@@ -268,21 +618,6 @@
             }
             
 
-            // Serialize details on submit
-            $('#rawIntakeForm').on('submit', function(){
-                var rows = [];
-                $tbody.children('tr').each(function(){
-                    var gid = parseInt($(this).find('select.mgroup').val()||'0',10);
-                    var pid = parseInt($(this).find('select.product').val()||'0',10);
-                    var nbox = parseInt($(this).find('input.nbox').val()||'0',10);
-                    var cnt = parseInt($(this).find('input.counts').val()||'0',10);
-                    var trandid = parseInt($(this).data('trandid')||'0',10);
-                    if (gid>0 && pid>0 && nbox>0 && cnt>0){
-                        rows.push({ TRANDID: trandid, MTRLGID: gid, MTRLID: pid, MTRLNBOX: nbox, MTRLCOUNTS: cnt });
-                    }
-                });
-                $('#detailRowsJson').val(JSON.stringify(rows));
-            });
 
             // Product Calculation Button Click Handler
             $tbody.on('click', '.productCalcBtn', function(){
@@ -290,7 +625,7 @@
                 var trandid = parseInt($row.data('trandid')||'0',10);
                 
                 if (trandid <= 0) {
-                    alert('Please save the transaction first before calculating.');
+                    alert('Please save the products first before calculating.');
                     return;
                 }
                 
@@ -319,8 +654,42 @@
             // Store TRANDID for saving
             $('#productCalculationModal').data('trandid', trandid);
             
-            // Load existing calculation data if any
-            loadExistingCalculation(trandid);
+            // Clear all tab calculations
+            $('.tab-pane .calculation-result').text('0.000');
+            $('.tab-pane .total-counts').text('0');
+            $('.tab-pane input').val('');
+            
+            // Load existing calculations for ALL tabs, then activate first tab
+            setTimeout(function() {
+                console.log('Loading existing calculations for all tabs...');
+                
+                // Load existing calculations for all packing masters
+                $('#packingMasterTabs .nav-link').each(function() {
+                    const packingId = $(this).data('packing-id');
+                    if (packingId) {
+                        console.log('Pre-loading calculation for packing ID:', packingId);
+                        loadExistingCalculationForTab(packingId);
+                    }
+                });
+                
+                // Activate first tab and load its fields
+                const firstTab = $('#packingMasterTabs .nav-link').first();
+                if (firstTab.length > 0) {
+                    const packingId = firstTab.data('packing-id');
+                    console.log('Activating first tab:', packingId);
+                    
+                    // Make sure first tab is active
+                    $('#packingMasterTabs .nav-link').removeClass('active');
+                    $('.tab-pane').removeClass('show active');
+                    firstTab.addClass('active');
+                    $(`#pane-${packingId}`).addClass('show active');
+                    
+                    // Load fields for first tab
+                    if (packingId) {
+                        loadPackingTypeFieldsForTab(packingId);
+                    }
+                }
+            }, 200); // Increased timeout to allow for multiple AJAX calls
             
             // Check if modal exists
             if ($('#productCalculationModal').length === 0) {
@@ -333,134 +702,298 @@
             $('.modal-backdrop').remove();
             $('body').removeClass('modal-open');
             
+            // Set default calculation mode and trigger form layout
+            setTimeout(function() {
+                // Ensure default packing mode is selected and form is properly displayed
+                if (!$('input[name="calculationMode"]:checked').length) {
+                    $('input[name="calculationMode"][value="packing"]').prop('checked', true).trigger('change');
+                    console.log('Set default calculation mode for new calculation');
+                }
+                
+                // Force recalculation for all tabs after modal is fully loaded
+                setTimeout(function() {
+                    $('.tab-pane').each(function() {
+                        const tabPane = $(this);
+                        const hasData = tabPane.find('.pck-field').filter(function() {
+                            return $(this).val() && parseFloat($(this).val()) > 0;
+                        }).length > 0;
+                        
+                        if (hasData) {
+                            console.log('Force calculating for tab:', tabPane.attr('id'));
+                            calculateTabTotals(tabPane);
+                        }
+                    });
+                }, 2000); // Wait 2 seconds for everything to be fully loaded
+            }, 100);
+            
             // Show modal using direct method (more reliable)
             $('#productCalculationModal').show().addClass('show fade');
             $('body').addClass('modal-open');
             $('<div class="modal-backdrop fade show"></div>').appendTo('body');
         }
 
-        function loadExistingCalculation(trandid) {
-            $.ajax({
-                url: '@Url.Action("GetProductCalculation", "RawMaterialIntake")',
-                type: 'GET',
-                data: { trandid: trandid },
-                success: function(data) {
-                    if (data.success && data.calculation) {
-                        populateCalculationForm(data.calculation);
-                    } else {
-                        clearCalculationForm();
-                    }
-                },
-                error: function() {
-                    clearCalculationForm();
-                }
-            });
-        }
-
-        function populateCalculationForm(calc) {
-            // Populate packing dropdown
-            $('#packingMaster').val(calc.PACKMID).trigger('change');
-            
-            // Populate packing fields (will be set after packing type loads)
-            setTimeout(function() {
-                for (let i = 1; i <= 17; i++) {
-                    const val = calc['PCK' + i];
-                    if (val !== null && val !== undefined) {
-                        $('#pck' + i).val(val);
-                    }
-                }
-                
-                // Populate other fields
-                $('#poundsValue').val(calc.PNDSVALUE || '');
-                $('#yieldPercent').val(calc.YELDPERCENT || '');
-                $('#perKgWeight').val(calc.KGWGT || '');
-                $('#wastage').val(calc.WASTEWGT || '');
-                
-                // Trigger calculations
-                calculateTotals();
-            }, 500);
-        }
-
-        function clearCalculationForm() {
-            $('#packingMaster').val('').trigger('change');
-            $('#calculationForm')[0].reset();
-            $('.calculation-result').text('0.000');
-        }
-
-        function calculateTotals() {
-            // Calculate TOPCK (sum of all PCK fields)
-            let topck = 0;
-            for (let i = 1; i <= 17; i++) {
-                const val = parseFloat($('#pck' + i).val()) || 0;
-                topck += val;
-            }
-            $('#totalCounts').text(topck.toFixed(0));
-
-            if (topck === 0) {
-                $('.calculation-result').text('0.000');
-                return;
-            }
-
-            // Calculate PCKLVALUE (sum of PCK * multiplier from packing type description)
-            let pcklValue = 0;
-            
-            for (let i = 1; i <= 17; i++) {
-                const val = parseFloat($('#pck' + i).val()) || 0;
-                if (val > 0) {
-                    const multiplier = parseFloat($('#pck' + i).attr('data-multiplier')) || 1;
-                    pcklValue += val * multiplier;
-                }
-            }
-
-            // Calculate AVGPCKVALUE
-            const avgPckValue = pcklValue / topck;
-            $('#avgPackValue').text(avgPckValue.toFixed(3));
-
-            // Calculate TOTALPNDS
-            const poundsValue = parseFloat($('#poundsValue').val()) || 0;
-            const totalPounds = avgPckValue * poundsValue;
-            $('#totalPounds').text(totalPounds.toFixed(3));
-
-            // Calculate TOTALYELDCOUNTS
-            const yieldPercent = parseFloat($('#yieldPercent').val()) || 0;
-            const totalYieldCounts = totalPounds * (yieldPercent / 100);
-            $('#totalYieldCounts').text(totalYieldCounts.toFixed(3));
-
-            // Calculate PCKKGWGT
-            const perKgWeight = parseFloat($('#perKgWeight').val()) || 0;
-            const pckKgWeight = perKgWeight * topck;
-            $('#pckKgWeight').text(pckKgWeight.toFixed(3));
-
-            // Calculate WASTEPWGT
-            const wastage = parseFloat($('#wastage').val()) || 0;
-            const wastePWeight = pckKgWeight + wastage;
-            $('#wastePWeight').text(wastePWeight.toFixed(3));
-
-            // Calculate FACTORYWGT
-            if (yieldPercent > 0) {
-                const factoryWeight = wastePWeight / (yieldPercent / 100);
-                $('#factoryWeight').text(factoryWeight.toFixed(3));
-            } else {
-                $('#factoryWeight').text('0.000');
-            }
-        }
 
     
-        // Handle packing master dropdown change
-        $(document).on('change', '#packingMaster', function() {
-            const packingId = $(this).val();
-            if (packingId) {
-                loadPackingTypeFields(packingId);
+
+        // Manual tab switching function
+        function switchTab(packingId) {
+            console.log('Switching to tab:', packingId);
+            
+            // Remove active class from all tabs and panes
+            $('#packingMasterTabs .nav-link').removeClass('active');
+            $('.tab-pane').removeClass('show active');
+            
+            // Add active class to clicked tab and corresponding pane
+            $(`#tab-${packingId}`).addClass('active');
+            $(`#pane-${packingId}`).addClass('show active');
+            
+            // Load fields for the selected tab (only if not already loaded)
+            loadPackingTypeFieldsForTab(packingId);
+            
+            // Check if we already have calculation data stored and populate it
+            const tabPane = $(`#pane-${packingId}`);
+            const storedCalculation = tabPane.data('existing-calculation');
+            
+            // Check if fields already exist (already loaded)
+            const existingFields = tabPane.find('.pck-field');
+            const fieldsExist = existingFields.length > 0;
+            
+            if (fieldsExist) {
+                console.log('Fields already exist for tab:', packingId);
+                
+                // Update radio buttons for this tab
+                setTimeout(function() {
+                    updateRadioButtonsForActiveTab();
+                }, 50);
+                
+                // Fields exist, check mode and trigger appropriate calculation
+                const storedCalc = tabPane.data('existing-calculation');
+                const isGradeWeightMode = storedCalc && storedCalc.CALCULATIONMODE == 2;
+                
+                setTimeout(function() {
+                    const hasData = tabPane.find('.pck-field').filter(function() {
+                        return $(this).val() && parseFloat($(this).val()) > 0;
+                    }).length > 0;
+                    
+                    if (hasData) {
+                        if (isGradeWeightMode) {
+                            console.log('Tab switched (Grade Weight) - INSTANT calculation for:', packingId);
+                            // Immediate calculation for Grade Weight
+                            calculateGradeWeightMode(tabPane);
+                        } else {
+                            console.log('Tab switched (Packing) - normal calculation for:', packingId);
+                            calculateTabTotals(tabPane);
+                        }
+                    }
+                }, isGradeWeightMode ? 0 : 50); // No delay for Grade Weight, 50ms for Packing
             } else {
-                $('#packingTypeFields').empty();
-                $('.calculation-result').text('0.000');
+                // Fields don't exist, need to load and populate
+                if (storedCalculation) {
+                    console.log('Found stored calculation data, populating tab...');
+                    setTimeout(function() {
+                        populateTabCalculation(storedCalculation, packingId);
+                    }, 500);
+                } else {
+                    console.log('No stored calculation found, loading from server...');
+                    loadExistingCalculationForTab(packingId);
+                }
+                
+                // Trigger calculation after fields are loaded
+                setTimeout(function() {
+                    const hasData = tabPane.find('.pck-field').filter(function() {
+                        return $(this).val() && parseFloat($(this).val()) > 0;
+                    }).length > 0;
+                    
+                    if (hasData) {
+                        console.log('Tab switched (new fields) - triggering calculation for:', packingId);
+                        calculateTabTotals(tabPane);
+                    }
+                }, 800);
+            }
+        }
+
+        // Handle packing master tab change (backup event handler)
+        $(document).on('shown.bs.tab', '#packingMasterTabs a[data-toggle="tab"]', function (e) {
+            const packingId = $(e.target).data('packing-id');
+            console.log('Tab changed via event:', packingId);
+            if (packingId) {
+                loadPackingTypeFieldsForTab(packingId);
+                loadExistingCalculationForTab(packingId);
+                
+                // Update radio buttons for this tab
+                setTimeout(function() {
+                    updateRadioButtonsForActiveTab();
+                }, 200);
+                
+                // Trigger calculation after tab change
+                setTimeout(function() {
+                    const tabPane = $(`#pane-${packingId}`);
+                    const hasData = tabPane.find('.pck-field').filter(function() {
+                        return $(this).val() && parseFloat($(this).val()) > 0;
+                    }).length > 0;
+                    
+                    if (hasData) {
+                        console.log('Bootstrap tab event - triggering calculation for:', packingId);
+                        calculateTabTotals(tabPane);
+                    }
+                }, 1000);
             }
         });
 
-        // Handle input changes for calculations
-        $(document).on('input', '#packingTypeFields input, #poundsValue, #yieldPercent, #perKgWeight, #wastage', function() {
-            calculateTotals();
+        // Handle direct tab clicks
+        $(document).on('click', '#packingMasterTabs .nav-link', function(e) {
+            e.preventDefault();
+            const packingId = $(this).data('packing-id');
+            console.log('Tab clicked:', packingId);
+            switchTab(packingId);
+            
+            // Update radio buttons for this tab
+            setTimeout(function() {
+                updateRadioButtonsForActiveTab();
+            }, 300);
+            
+            // Trigger calculation after direct tab click
+            setTimeout(function() {
+                const tabPane = $(`#pane-${packingId}`);
+                const hasData = tabPane.find('.pck-field').filter(function() {
+                    return $(this).val() && parseFloat($(this).val()) > 0;
+                }).length > 0;
+                
+                if (hasData) {
+                    console.log('Direct tab click - triggering calculation for:', packingId);
+                    calculateTabTotals(tabPane);
+                }
+            }, 1200);
         });
+
+        // Handle save tab calculation button
+        $(document).on('click', '.save-tab-calculation-btn', function() {
+            const packingId = $(this).data('packing-id');
+            const tabPane = $(`#pane-${packingId}`);
+            saveTabCalculation(tabPane, packingId);
+        });
+
+        // Handle input changes for tab calculations
+        $(document).on('input', '.tab-pane input', function() {
+            const tabPane = $(this).closest('.tab-pane');
+            const calculationMode = $('input[name="calculationMode"]:checked').val();
+            
+            if (calculationMode === 'gradeweight' && $(this).hasClass('pck-field')) {
+                // INSTANT calculation for PCK fields in Grade Weight mode
+                console.log('PCK field changed in Grade Weight mode - INSTANT calculation');
+                calculateGradeWeightMode(tabPane);
+            } else {
+                console.log('Input changed, triggering calculation for:', tabPane.attr('id'));
+                calculateTabTotals(tabPane);
+            }
+        });
+        
+        // Add a global function to manually trigger calculations (for debugging)
+        window.forceCalculateActiveTab = function() {
+            const activeTab = $('.tab-pane.active');
+            if (activeTab.length > 0) {
+                console.log('Manually triggering calculation for active tab:', activeTab.attr('id'));
+                calculateTabTotals(activeTab);
+            } else {
+                console.log('No active tab found');
+            }
+        };
+        
+        // Add a global function to calculate all tabs with data
+        window.forceCalculateAllTabs = function() {
+            $('.tab-pane').each(function() {
+                const tabPane = $(this);
+                const hasData = tabPane.find('.pck-field').filter(function() {
+                    return $(this).val() && parseFloat($(this).val()) > 0;
+                }).length > 0;
+                
+                if (hasData) {
+                    console.log('Force calculating tab:', tabPane.attr('id'));
+                    calculateTabTotals(tabPane);
+                }
+            });
+        };
+        
+        // Special handler for Peeled field in Grade Weight mode
+        $(document).on('input', '.wastage', function() {
+            const calculationMode = $('input[name="calculationMode"]:checked').val();
+            if (calculationMode === 'gradeweight') {
+                const tabPane = $(this).closest('.tab-pane');
+                // INSTANT calculation for Grade Weight mode when Peeled changes
+                calculateGradeWeightMode(tabPane);
+                console.log('Peeled value changed in Grade Weight mode - INSTANT Factory Weight calculation');
+            }
+        });
+
+        // Handle calculation mode change
+        $(document).on('change', 'input[name="calculationMode"]', function() {
+            const mode = $(this).val();
+            console.log('=== CALCULATION MODE CHANGE EVENT ===');
+            console.log('Mode changed to:', mode);
+            
+            // Update visual styling
+            $('.calculation-mode-section .form-check').removeClass('selected');
+            $(this).closest('.form-check').addClass('selected');
+            
+            // Save the mode to the active tab's stored calculation data
+            const activeTab = $('.tab-pane.active');
+            if (activeTab.length > 0) {
+                const storedCalculation = activeTab.data('existing-calculation');
+                if (storedCalculation) {
+                    // Update the stored calculation mode
+                    storedCalculation.CALCULATIONMODE = mode === 'gradeweight' ? 2 : 1;
+                    activeTab.data('existing-calculation', storedCalculation);
+                    console.log('Updated stored calculation mode for active tab to:', mode);
+                }
+            }
+            
+            // Show/hide fields based on mode
+            if (mode === 'gradeweight') {
+                // Grade Weight mode: Show Packing Type Details + Slab + Peeled + Factory Weight
+                console.log('Switching to Grade Weight mode - showing limited fields');
+                
+                // Always show Packing Type Details
+                $('.packing-fields-container').show();
+                
+                // Show only Slab field from Slab Calculation
+                $('#slab-field').show();
+                $('.slab-field').hide(); // Hide other slab calculation fields
+                
+                // Show Peeled and Factory Weight fields from Total Weight Calculation
+                $('#peeled-field').show();
+                $('#factory-weight-field').show(); // Show Factory Weight in Grade Weight mode
+                $('.weight-field').not('#factory-weight-field').hide(); // Hide other weight calculation fields except Factory Weight
+                
+            } else {
+                // Packing mode: Show all fields
+                console.log('Switching to Packing mode - showing all fields');
+                
+                // Show all fields
+                $('.packing-fields-container').show();
+                $('#slab-field').show();
+                $('.slab-field').show();
+                $('#peeled-field').show();
+                $('.weight-field').show();
+            }
+            
+            // Recalculate current tab
+            if (activeTab.length > 0) {
+                console.log('=== RADIO BUTTON CHANGE - TRIGGERING CALCULATION ===');
+                console.log('Active tab:', activeTab.attr('id'));
+                console.log('Mode:', mode);
+                calculateTabTotals(activeTab);
+            }
+            
+            console.log('=== CALCULATION MODE CHANGE EVENT COMPLETED ===');
+        });
+
+        // Handle radio button container clicks
+        $(document).on('click', '.calculation-mode-section .form-check', function(e) {
+            if (e.target.type !== 'radio') {
+                $(this).find('input[type="radio"]').prop('checked', true).trigger('change');
+            }
+        });
+
 
         // Handle close button clicks
         $(document).on('click', '#productCalculationModal .close, #productCalculationModal [data-dismiss="modal"]', function() {
@@ -490,43 +1023,6 @@
             $('body').removeClass('modal-open');
         }
 
-        function loadPackingTypeFields(packingId) {
-            $.ajax({
-                url: '@Url.Action("GetPackingTypeFields", "RawMaterialIntake")',
-                type: 'GET',
-                data: { packingId: packingId },
-                success: function(data) {
-                    if (data.success) {
-                        renderPackingTypeFields(data.fields);
-                    } else {
-                        $('#packingTypeFields').html('<div class="col-12"><div class="alert alert-warning">No packing type fields found.</div></div>');
-                    }
-                },
-                error: function() {
-                    $('#packingTypeFields').html('<div class="col-12"><div class="alert alert-danger">Error loading packing type fields.</div></div>');
-                }
-            });
-        }
-
-        function renderPackingTypeFields(fields) {
-            let html = '';
-            fields.forEach(function(field, index) {
-                const colClass = fields.length <= 6 ? 'col-md-4' : 'col-md-3';
-                html += `
-                    <div class="${colClass} mb-3">
-                        <div class="form-group">
-                            <label for="pck${index + 1}" data-multiplier="${getMultiplierFromLabel(field.label)}">${field.label}:</label>
-                            <input type="number" class="form-control" id="pck${index + 1}" min="0" step="1" placeholder="0" data-multiplier="${getMultiplierFromLabel(field.label)}">
-                        </div>
-                    </div>
-                `;
-            });
-            $('#packingTypeFields').html(html);
-            
-            // Reset calculations
-            $('.calculation-result').text('0.000');
-            $('#totalCounts').text('0');
-        }
 
         function getMultiplierFromLabel(label) {
             if (!label) return 1;
@@ -545,47 +1041,510 @@
             return 1; // Default fallback
         }
 
-        function saveProductCalculation() {
-            const trandid = $('#productCalculationModal').data('trandid');
-            const packmid = $('#packingMaster').val();
+        function loadPackingTypeFieldsForTab(packingId) {
+            // Check if fields are already loaded for this tab
+            const container = $(`#pane-${packingId} .packing-fields-container`);
+            const existingFields = container.find('.pck-field');
             
-            if (!packmid) {
-                alert('Please select a packing master.');
+            if (existingFields.length > 0) {
+                console.log('Fields already exist for tab:', packingId, '- skipping reload');
+                return; // Don't reload if fields already exist
+            }
+            
+            console.log('Loading fields for tab:', packingId);
+            $.ajax({
+                url: '@Url.Action("GetPackingTypeFields", "RawMaterialIntake")',
+                type: 'GET',
+                data: { packingId: packingId },
+                success: function(data) {
+                    if (data.success) {
+                        renderPackingTypeFieldsForTab(data.fields, packingId);
+                    } else {
+                        container.html('<div class="col-12"><div class="alert alert-warning">No packing type fields found.</div></div>');
+                    }
+                },
+                error: function() {
+                    container.html('<div class="col-12"><div class="alert alert-danger">Error loading packing type fields.</div></div>');
+                }
+            });
+        }
+
+        function renderPackingTypeFieldsForTab(fields, packingId) {
+            let html = '';
+            fields.forEach(function(field, index) {
+                const colClass = fields.length <= 6 ? 'col-md-4' : 'col-md-3';
+                html += `
+                    <div class="${colClass} mb-3">
+                        <div class="form-group">
+                            <label for="pck${index + 1}_${packingId}">${field.label}:</label>
+                            <input type="number" class="form-control pck-field" id="pck${index + 1}_${packingId}" min="0" step="0.001" placeholder="0.000" data-multiplier="${getMultiplierFromLabel(field.label)}" data-pck-index="${index + 1}">
+                        </div>
+                    </div>
+                `;
+            });
+            
+            const container = $(`#pane-${packingId} .packing-fields-container`);
+            container.html(html);
+            
+            // Reset calculations for this tab
+            const tabPane = $(`#pane-${packingId}`);
+            tabPane.find('.calculation-result').text('0.000');
+            tabPane.find('.total-counts').text('0');
+            
+            // Check if we have stored calculation data for this tab
+            const storedCalculation = tabPane.data('existing-calculation');
+            if (storedCalculation) {
+                console.log('Found stored calculation data, populating fields for packingId:', packingId);
+                setTimeout(function() {
+                    populateTabCalculation(storedCalculation, packingId);
+                }, 200);
+            }
+            
+            // Also trigger calculation on input changes for this tab
+            setTimeout(function() {
+                tabPane.find('.pck-field, .pounds-value, .yield-percent, .per-kg-weight, .wastage').on('input', function() {
+                    calculateTabTotals(tabPane);
+                });
+            }, 300);
+        }
+
+        function loadExistingCalculationForTab(packingId) {
+            const trandid = $('#productCalculationModal').data('trandid');
+            
+            if (!trandid) {
+                console.log('No TRANDID available yet, skipping calculation load');
+                return;
+            }
+            
+            console.log('Loading calculation for trandid:', trandid, 'packingId:', packingId);
+            
+            $.ajax({
+                url: '@Url.Action("GetProductCalculation", "RawMaterialIntake")',
+                type: 'GET',
+                data: { trandid: trandid, packingId: packingId },
+                success: function(data) {
+                    console.log('Calculation response for packingId', packingId, ':', data);
+                    if (data.success && data.calculation) {
+                        // Store the calculation data for later population
+                        $(`#pane-${packingId}`).data('existing-calculation', data.calculation);
+                        console.log('Stored calculation data for packingId:', packingId);
+                        
+                        // If this is the active tab, populate immediately after a delay
+                        const isActiveTab = $(`#pane-${packingId}`).hasClass('active');
+                        
+                        if (isActiveTab) {
+                            console.log('This is the active tab, populating data...');
+                            setTimeout(function() {
+                                populateTabCalculation(data.calculation, packingId);
+                            }, 800); // Wait for fields to be fully loaded
+                        }
+                    } else {
+                        console.log('No existing calculation found for packing master:', packingId);
+                    }
+                },
+                error: function() {
+                    console.log('Error loading existing calculation for tab:', packingId);
+                }
+            });
+        }
+
+        function populateTabCalculation(calculation, packingId) {
+            const tabPane = $(`#pane-${packingId}`);
+            
+            console.log('=== POPULATING TAB CALCULATION ===');
+            console.log('Packing ID:', packingId);
+            console.log('Tab pane found:', tabPane.length > 0);
+            console.log('Calculation data:', calculation);
+            
+            if (!calculation) {
+                console.log('ERROR: No calculation data provided');
+                return;
+            }
+            
+            // Wait for fields to be loaded first
+            setTimeout(function() {
+                // Populate packing fields
+                for (let i = 1; i <= 17; i++) {
+                    const val = calculation['PCK' + i];
+                    const fieldId = `#pck${i}_${packingId}`;
+                    const field = tabPane.find(fieldId);
+                    
+                    console.log(`PCK${i}: value=${val}, fieldId=${fieldId}, fieldExists=${field.length > 0}`);
+                    
+                    if (val !== null && val !== undefined && field.length > 0) {
+                        field.val(val);
+                        console.log(`Set ${fieldId} to ${val}`);
+                    }
+                }
+                
+                // Populate other fields
+                tabPane.find('.pounds-value').val(calculation.PNDSVALUE || '');
+                tabPane.find('.yield-percent').val(calculation.YELDPERCENT || '');
+                tabPane.find('.per-kg-weight').val(calculation.KGWGT || '');
+                tabPane.find('.wastage').val(calculation.WASTEWGT || '');
+                
+                // INSTANT Grade Weight calculation if this is Grade Weight mode
+                const isGradeWeightMode = calculation.CALCULATIONMODE == 2;
+                if (isGradeWeightMode) {
+                    console.log('=== INSTANT GRADE WEIGHT CALCULATION AFTER FIELD POPULATION ===');
+                    calculateGradeWeightMode(tabPane);
+                }
+                
+                // Populate production date (format for HTML date input)
+                if (calculation.PRODDATE) {
+                    const prodDate = new Date(calculation.PRODDATE);
+                    const formattedDate = prodDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+                    $('#prodDate').val(formattedDate);
+                }
+                
+                console.log('Other fields populated');
+                
+                // Store the calculation ID for updates
+                tabPane.attr('data-calculation-id', calculation.TRANPID || 0);
+                
+                // Set calculation mode AFTER all fields are populated
+                console.log('Raw CALCULATIONMODE from database:', calculation.CALCULATIONMODE);
+                const frontendMode = calculation.CALCULATIONMODE == 2 ? 'gradeweight' : 'packing'; // 1=packing, 2=gradeweight
+                console.log('Setting calculation mode to:', frontendMode, '(backend value:', calculation.CALCULATIONMODE, ')');
+                
+                // Set radio button without triggering change event initially
+                $(`input[name="calculationMode"][value="${frontendMode}"]`).prop('checked', true);
+                $('.calculation-mode-section .form-check').removeClass('selected');
+                $(`input[name="calculationMode"][value="${frontendMode}"]`).closest('.form-check').addClass('selected');
+                
+                // Apply the form layout based on mode
+                applyModeLayout(frontendMode);
+                
+                // Fast trigger for Grade Weight mode, normal timing for Packing mode
+                if (frontendMode === 'gradeweight') {
+                    // Grade Weight mode - IMMEDIATE calculation (no delay)
+                    console.log('=== INSTANT GRADE WEIGHT CALCULATION ===');
+                    calculateGradeWeightMode(tabPane);
+                    
+                    // Also trigger again after a tiny delay to ensure it sticks
+                    setTimeout(function() {
+                        calculateGradeWeightMode(tabPane);
+                    }, 50);
+                } else {
+                    // Packing mode - normal timing
+                    setTimeout(function() {
+                        console.log('=== TRIGGERING CALCULATIONS FOR EDIT MODE ===');
+                        console.log('Mode:', frontendMode);
+                        console.log('Tab pane:', tabPane.attr('id'));
+                        
+                        // Verify fields are populated before calculating
+                        let hasData = false;
+                        tabPane.find('.pck-field').each(function() {
+                            if ($(this).val() && parseFloat($(this).val()) > 0) {
+                                hasData = true;
+                                return false; // break loop
+                            }
+                        });
+                        
+                        console.log('Has PCK data:', hasData);
+                        
+                        if (hasData) {
+                            // Force trigger calculations
+                            calculateTabTotals(tabPane);
+                            
+                            // Also trigger input event to ensure all handlers work
+                            setTimeout(function() {
+                                tabPane.find('.pck-field').first().trigger('input');
+                            }, 100);
+                        } else {
+                            console.log('No PCK data found, retrying calculation...');
+                            setTimeout(function() {
+                                calculateTabTotals(tabPane);
+                            }, 500);
+                        }
+                        
+                    }, 500);
+                }
+            }, 1000); // Increased timeout to ensure fields are loaded
+        }
+
+        function updateRadioButtonsForActiveTab() {
+            const activeTab = $('.tab-pane.active');
+            if (activeTab.length > 0) {
+                const storedCalculation = activeTab.data('existing-calculation');
+                if (storedCalculation && storedCalculation.CALCULATIONMODE) {
+                    const frontendMode = storedCalculation.CALCULATIONMODE == 2 ? 'gradeweight' : 'packing';
+                    console.log('Updating radio buttons for active tab to:', frontendMode);
+                    
+                    // Update radio button selection
+                    $(`input[name="calculationMode"][value="${frontendMode}"]`).prop('checked', true);
+                    $('.calculation-mode-section .form-check').removeClass('selected');
+                    $(`input[name="calculationMode"][value="${frontendMode}"]`).closest('.form-check').addClass('selected');
+                    
+                    // Apply the layout
+                    applyModeLayout(frontendMode);
+                } else {
+                    // Default to packing mode
+                    $('input[name="calculationMode"][value="packing"]').prop('checked', true);
+                    $('.calculation-mode-section .form-check').removeClass('selected');
+                    $('input[name="calculationMode"][value="packing"]').closest('.form-check').addClass('selected');
+                    applyModeLayout('packing');
+                }
+            }
+        }
+
+        function applyModeLayout(mode) {
+            console.log('Applying mode layout:', mode);
+            
+            if (mode === 'gradeweight') {
+                // Grade Weight mode: Show Packing Type Details + Slab + Peeled + Factory Weight
+                console.log('Applying Grade Weight mode layout');
+                
+                // Always show Packing Type Details
+                $('.packing-fields-container').show();
+                
+                // Show only Slab field from Slab Calculation
+                $('#slab-field').show();
+                $('.slab-field').hide(); // Hide other slab calculation fields
+                
+                // Show Peeled and Factory Weight fields from Total Weight Calculation
+                $('#peeled-field').show();
+                $('#factory-weight-field').show(); // Show Factory Weight in Grade Weight mode
+                $('.weight-field').not('#factory-weight-field').hide(); // Hide other weight calculation fields except Factory Weight
+                
+            } else {
+                // Packing mode: Show all fields
+                console.log('Applying Packing mode layout');
+                
+                // Show all fields
+                $('.packing-fields-container').show();
+                $('#slab-field').show();
+                $('.slab-field').show();
+                $('#peeled-field').show();
+                $('.weight-field').show();
+            }
+        }
+
+        function calculateTabTotals(tabPane) {
+            // Check calculation mode from radio buttons
+            const calculationMode = $('input[name="calculationMode"]:checked').val();
+            console.log('=== calculateTabTotals called ===');
+            console.log('Calculation mode:', calculationMode);
+            console.log('Tab pane ID:', tabPane.attr('id'));
+            console.log('Tab pane exists:', tabPane.length > 0);
+            
+            if (!tabPane || tabPane.length === 0) {
+                console.log('ERROR: No tab pane provided to calculateTabTotals');
+                return;
+            }
+            
+            if (calculationMode === 'gradeweight') {
+                // Grade Weight mode: Fast calculation
+                calculateGradeWeightMode(tabPane);
+            } else {
+                // Normal Packing mode: Full calculations
+                console.log('Calling Packing mode calculation...');
+                calculatePackingMode(tabPane);
+            }
+            console.log('=== calculateTabTotals completed ===');
+        }
+
+        function calculateGradeWeightMode(tabPane) {
+            // Fast calculation for Grade Weight mode - minimal logging
+            let slabValue = 0;
+            
+            // Optimized PCK field calculation
+            tabPane.find('.pck-field').each(function() {
+                const val = parseFloat(this.value) || 0;
+                slabValue += val;
+            });
+            
+            // Update Slab display immediately
+            tabPane.find('.total-counts').text(slabValue.toFixed(3));
+            
+            // Get Peeled value (wastage field)
+            const peeledValue = parseFloat(tabPane.find('.wastage').val()) || 0;
+            
+            // Calculate Factory Weight: Slab + Peeled
+            const factoryWeight = slabValue + peeledValue;
+            
+            // Update Factory Weight display
+            tabPane.find('.factory-weight').text(factoryWeight.toFixed(3));
+            
+            // Clear other fields efficiently using a single selector (excluding factory-weight)
+            const fieldsToReset = '.avg-pack-value, .total-pounds, .total-yield-counts, .pck-kg-weight, .waste-p-weight';
+            tabPane.find(fieldsToReset).text('0.000');
+        }
+
+        function calculatePackingMode(tabPane) {
+            console.log('=== CALCULATING PACKING MODE ===');
+            console.log('Tab pane ID:', tabPane.attr('id'));
+            
+            // Calculate TOPCK (sum of all PCK fields) for this tab
+            let topck = 0;
+            const pckFields = tabPane.find('.pck-field');
+            console.log('PCK fields found in packing mode:', pckFields.length);
+            
+            // Debug: List all input fields in the tab
+            console.log('All inputs in tab:');
+            tabPane.find('input').each(function() {
+                const val = $(this).val();
+                if (val && val !== '0' && val !== '0.000') {
+                    console.log('Input:', $(this).attr('id'), 'Value:', val, 'Class:', $(this).attr('class'));
+                }
+            });
+            
+            pckFields.each(function() {
+                const val = parseFloat($(this).val()) || 0;
+                topck += val;
+                console.log('PCK field:', $(this).attr('id'), 'Value:', val, 'Raw value:', $(this).val());
+            });
+            
+            console.log('Total PCK (TOPCK):', topck);
+            tabPane.find('.total-counts').text(topck.toFixed(3)); // Show 3 decimal places
+
+            if (topck === 0) {
+                console.log('TOPCK is 0, setting all calculations to 0.000');
+                tabPane.find('.calculation-result').text('0.000');
                 return;
             }
 
-            // Collect all form data
+            // Calculate PCKLVALUE for this tab
+            let pcklValue = 0;
+            tabPane.find('.pck-field').each(function() {
+                const val = parseFloat($(this).val()) || 0;
+                if (val > 0) {
+                    const multiplier = parseFloat($(this).attr('data-multiplier')) || 1;
+                    pcklValue += val * multiplier;
+                }
+            });
+
+            // Calculate AVGPCKVALUE
+            const avgPckValue = pcklValue / topck;
+            tabPane.find('.avg-pack-value').text(avgPckValue.toFixed(3));
+
+            // Calculate TOTALPNDS
+            const poundsValue = parseFloat(tabPane.find('.pounds-value').val()) || 0;
+            const totalPounds = avgPckValue * poundsValue;
+            tabPane.find('.total-pounds').text(totalPounds.toFixed(3));
+
+            // Calculate TOTALYELDCOUNTS
+            const yieldPercent = parseFloat(tabPane.find('.yield-percent').val()) || 0;
+            const totalYieldCounts = totalPounds * (yieldPercent / 100);
+            tabPane.find('.total-yield-counts').text(totalYieldCounts.toFixed(3));
+
+            // Calculate PCKKGWGT
+            const perKgWeight = parseFloat(tabPane.find('.per-kg-weight').val()) || 0;
+            const pckKgWeight = perKgWeight * topck;
+            tabPane.find('.pck-kg-weight').text(pckKgWeight.toFixed(3));
+
+            // Calculate WASTEPWGT
+            const wastage = parseFloat(tabPane.find('.wastage').val()) || 0;
+            const wastePWeight = pckKgWeight + wastage;
+            tabPane.find('.waste-p-weight').text(wastePWeight.toFixed(3));
+
+            // Calculate FACTORYWGT
+            if (yieldPercent > 0) {
+                const factoryWeight = wastePWeight / (yieldPercent / 100);
+                tabPane.find('.factory-weight').text(factoryWeight.toFixed(3));
+            } else {
+                tabPane.find('.factory-weight').text('0.000');
+            }
+        }
+
+        function saveTabCalculation(tabPane, packingId) {
+            const trandid = $('#productCalculationModal').data('trandid');
+            const calculationId = tabPane.attr('data-calculation-id') || 0;
+
+            console.log('Saving calculation for trandid:', trandid, 'packingId:', packingId);
+
+            // Get calculation mode
+            const calculationMode = $('input[name="calculationMode"]:checked').val();
+            console.log('Saving in mode:', calculationMode);
+            
+            // Ensure calculations are up-to-date before saving
+            if (calculationMode === 'gradeweight') {
+                console.log('Grade Weight mode - ensuring Factory Weight is calculated before save');
+                calculateGradeWeightMode(tabPane);
+            } else {
+                calculateTabTotals(tabPane);
+            }
+
+            // Collect all form data for this tab
             const formData = {
+                TRANPID: calculationId,
                 TRANDID: trandid,
                 TRANMID: @Model.TRANMID,
-                PACKMID: packmid,
-                PNDSVALUE: parseFloat($('#poundsValue').val()) || 0,
-                YELDPERCENT: parseFloat($('#yieldPercent').val()) || 0,
-                KGWGT: parseFloat($('#perKgWeight').val()) || 0,
-                WASTEWGT: parseFloat($('#wastage').val()) || 0
+                PACKMID: packingId,
+                PNDSVALUE: parseFloat(tabPane.find('.pounds-value').val()) || 0,
+                YELDPERCENT: parseFloat(tabPane.find('.yield-percent').val()) || 0,
+                KGWGT: parseFloat(tabPane.find('.per-kg-weight').val()) || 0,
+                WASTEWGT: parseFloat(tabPane.find('.wastage').val()) || 0,
+                PRODDATE: $('#prodDate').val() || null,  // Add production date
+                CalculationMode: calculationMode,  // Add calculation mode to form data
+                
+                // Add calculated values from display fields
+                TOPCK: parseFloat(tabPane.find('.total-counts').text()) || 0,
+                PCKLVALUE: parseFloat(tabPane.find('.total-pack-value').text()) || 0,
+                AVGPCKVALUE: parseFloat(tabPane.find('.avg-pack-value').text()) || 0,
+                TOTALPNDS: parseFloat(tabPane.find('.total-pounds').text()) || 0,
+                TOTALYELDCOUNTS: parseFloat(tabPane.find('.total-yield-counts').text()) || 0,
+                PCKKGWGT: parseFloat(tabPane.find('.pck-kg-weight').text()) || 0,
+                WASTEPWGT: parseFloat(tabPane.find('.waste-p-weight').text()) || 0,
+                FACTORYWGT: parseFloat(tabPane.find('.factory-weight').text()) || 0  // Factory Weight calculation
             };
+            
+            // Debug: Log the Factory Weight value being saved
+            console.log('Factory Weight value being saved:', formData.FACTORYWGT);
+            console.log('Factory Weight display text:', tabPane.find('.factory-weight').text());
 
-            // Add PCK fields
-            for (let i = 1; i <= 17; i++) {
-                formData['PCK' + i] = parseInt($('#pck' + i).val()) || null;
+            // Add PCK fields for this tab
+            console.log('Looking for PCK fields in tab:', packingId);
+            const pckFields = tabPane.find('.pck-field');
+            console.log('Found PCK fields:', pckFields.length);
+            
+            pckFields.each(function() {
+                const pckIndex = $(this).data('pck-index');
+                const inputValue = $(this).val();
+                const value = inputValue && inputValue.trim() !== '' ? parseFloat(inputValue) : null;
+                const fieldId = $(this).attr('id');
+                formData['PCK' + pckIndex] = value;
+                console.log(`PCK${pckIndex}: value=${value}, fieldId=${fieldId}, inputValue='${inputValue}'`);
+            });
+            
+            // Also check if we have any PCK fields at all
+            if (pckFields.length === 0) {
+                console.log('No PCK fields found! Checking all inputs in tab...');
+                tabPane.find('input').each(function() {
+                    console.log('Found input:', $(this).attr('id'), 'class:', $(this).attr('class'), 'value:', $(this).val());
+                });
             }
+
+            console.log('Form data being sent:', formData);
 
             $.ajax({
                 url: '@Url.Action("SaveProductCalculation", "RawMaterialIntake")',
                 type: 'POST',
                 data: formData,
                 success: function(response) {
+                    console.log('Save response:', response);
                     if (response.success) {
-                        alert('Product calculation saved successfully!');
-                        closeProductCalculationModal();
+                        // Get the packing master name from the tab text
+                        const packingMasterName = $(`#tab-${packingId}`).text().trim();
+                        alert(`Calculation saved successfully for ${packingMasterName}!`);
+                        if (response.tranpid) {
+                            tabPane.attr('data-calculation-id', response.tranpid);
+                            console.log('Updated calculation ID:', response.tranpid);
+                        }
                     } else {
                         alert('Error: ' + (response.message || 'Failed to save calculation'));
                     }
                 },
-                error: function() {
-                    alert('Error saving product calculation.');
+                error: function(xhr, status, error) {
+                    console.log('Save error:', xhr.responseText);
+                    alert('Error saving calculation: ' + error);
                 }
             });
+        }
+
+        function saveProductCalculation() {
+            // This function is no longer used - individual tabs have their own save buttons
+            alert('Please use the individual "Save [Packing Master] Calculation" buttons for each tab.');
         }
     </script>
 }
@@ -631,135 +1590,209 @@
                                 <strong>Count (Per KG):</strong> <span id="modal-count-per-kg"></span>
                             </div>
                         </div>
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="prodDate" class="control-label"><strong>Date:</strong></label>
+                                    <input type="date" class="form-control" id="prodDate" name="PRODDATE" />
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Calculation Form -->
-                <form id="calculationForm">
-                    <!-- Packing Master Selection -->
-                    <div class="card mb-3">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fa fa-box"></i> Packing Master Selection</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="form-group">
-                                <label for="packingMaster">Select Packing Master:</label>
-                                <select class="form-control" id="packingMaster" required>
-                                    <option value="">-- Select Packing Master --</option>
-                                    @{
-                                        var packingMasters = ViewBag.PackingMasters as List<SelectListItem> ?? new List<SelectListItem>();
-                                    }
-                                    @foreach (var packing in packingMasters)
-                                    {
-                                        <option value="@packing.Value">@packing.Text</option>
-                                    }
-                                </select>
-                            </div>
-                        </div>
+                <!-- Packing Master Navigation Tabs -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fa fa-box"></i> Packing Master Selection</h6>
                     </div>
-
-                    <!-- Dynamic Packing Type Fields -->
-                    <div class="card mb-3">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fa fa-cubes"></i> Packing Type Details</h6>
-                        </div>
-                        <div class="card-body">
-                            <div id="packingTypeFields" class="row">
-                                <!-- Dynamic fields will be loaded here -->
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Calculations Section -->
-                    <div class="row">
-                        <!-- Total Counts Calculation -->
-                        <div class="col-md-6">
+                    <div class="card-body p-0">
+                        <ul class="nav nav-tabs" id="packingMasterTabs" role="tablist">
+                            @{
+                                var packingMasters = ViewBag.PackingMasters as List<SelectListItem> ?? new List<SelectListItem>();
+                                var isFirst = true;
+                            }
+                            @foreach (var packing in packingMasters)
+                            {
+                                <li class="nav-item" role="presentation">
+                                    <a class="nav-link @(isFirst ? "active" : "")" 
+                                       id="tab-@packing.Value" 
+                                       data-bs-toggle="tab" 
+                                       data-toggle="tab"
+                                       href="#pane-@packing.Value" 
+                                       role="tab" 
+                                       aria-controls="pane-@packing.Value" 
+                                       aria-selected="@(isFirst ? "true" : "false")"
+                                       data-packing-id="@packing.Value"
+                                       onclick="switchTab(@packing.Value)">
+                                        <i class="fa fa-fish"></i>
+                                        @packing.Text
+                                    </a>
+                                </li>
+                                isFirst = false;
+                            }
+                        </ul>
+                        
+                        <!-- Calculation Mode Selection -->
+                        <div class="calculation-mode-section">
                             <div class="card mb-3">
-                                <div class="card-header bg-success text-white">
-                                    <h6 class="mb-0"><i class="fa fa-calculator"></i> Total Counts Calculation</h6>
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0"><i class="fa fa-cog"></i> Calculation Mode</h6>
                                 </div>
-                                <div class="card-body">
-                                    <div class="form-group">
-                                        <label>Total Counts:</label>
-                                        <div class="alert alert-info">
-                                            <strong id="totalCounts">0</strong>
+                                <div class="card-body py-2">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="calculationMode" id="packingMode" value="packing" checked>
+                                                <label class="form-check-label" for="packingMode">
+                                                    <i class="fa fa-box"></i> <strong>Packing</strong>
+                                                    <small class="text-muted d-block">Full calculation with all fields</small>
+                                                </label>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Average Pack Value:</label>
-                                        <div class="alert alert-info">
-                                            <strong id="avgPackValue" class="calculation-result">0.000</strong>
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="poundsValue">Pounds Value:</label>
-                                        <input type="number" class="form-control" id="poundsValue" step="0.001" min="0">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Total Pounds:</label>
-                                        <div class="alert alert-info">
-                                            <strong id="totalPounds" class="calculation-result">0.000</strong>
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="yieldPercent">Yield Percent (%):</label>
-                                        <input type="number" class="form-control" id="yieldPercent" step="0.001" min="0" max="100">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Total Yield Counts:</label>
-                                        <div class="alert alert-success">
-                                            <strong id="totalYieldCounts" class="calculation-result">0.000</strong>
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="calculationMode" id="gradeWeightMode" value="gradeweight">
+                                                <label class="form-check-label" for="gradeWeightMode">
+                                                    <i class="fa fa-weight"></i> <strong>Grade Weight</strong>
+                                                    <small class="text-muted d-block">Simple: Slab + Peeled only</small>
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        
+                        <div class="tab-content" id="packingMasterTabContent">
+                            @{
+                                isFirst = true;
+                            }
+                            @foreach (var packing in packingMasters)
+                            {
+                                <div class="tab-pane fade @(isFirst ? "show active" : "")" 
+                                     id="pane-@packing.Value" 
+                                     role="tabpanel" 
+                                     aria-labelledby="tab-@packing.Value"
+                                     data-packing-id="@packing.Value">
+                                     
+                                    <!-- Single Form for this Packing Master -->
+                                    <div class="p-3">
+                                        <h6 class="mb-3">@packing.Text Calculation</h6>
+                                        
+                                        <!-- Dynamic Packing Type Fields -->
+                                        <div class="card mb-3">
+                                            <div class="card-header bg-light">
+                                                <h6 class="mb-0"><i class="fa fa-cubes"></i> Packing Type Details</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="packing-fields-container row" data-packing-id="@packing.Value">
+                                                    <!-- Dynamic fields will be loaded here -->
+                                                </div>
+                                            </div>
+                                        </div>
 
-                        <!-- Total Weight Calculation -->
-                        <div class="col-md-6">
-                            <div class="card mb-3">
-                                <div class="card-header bg-warning text-dark">
-                                    <h6 class="mb-0"><i class="fa fa-weight"></i> Total Weight Calculation</h6>
+                                        <!-- Calculations Section -->
+                                        <div class="row" id="calculations-section">
+                                            <!-- Slab Calculation -->
+                                            <div class="col-md-6" id="slab-calculation-section">
+                                                <div class="card">
+                                                    <div class="card-header bg-success text-white">
+                                                        <h6 class="mb-0"><i class="fa fa-calculator"></i> Slab Calculation</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="form-group" id="slab-field">
+                                                            <label>Slab:</label>
+                                                            <div class="alert alert-info">
+                                                                <strong class="total-counts">0</strong>
+                                                            </div>
+                                                        </div>
+                                                        <div class="form-group slab-field" id="avg-pack-value-field">
+                                                            <label>Average Pack Value:</label>
+                                                            <div class="alert alert-info">
+                                                                <strong class="avg-pack-value calculation-result">0.000</strong>
+                                                            </div>
+                                                        </div>
+                                                        <div class="form-group slab-field" id="pounds-value-field">
+                                                            <label for="poundsValue_@packing.Value">Pounds Value:</label>
+                                                            <input type="number" class="form-control pounds-value" id="poundsValue_@packing.Value" step="0.001" min="0">
+                                                        </div>
+                                                        <div class="form-group slab-field" id="total-pounds-field">
+                                                            <label>Total Pounds:</label>
+                                                            <div class="alert alert-info">
+                                                                <strong class="total-pounds calculation-result">0.000</strong>
+                                                            </div>
+                                                        </div>
+                                                        <div class="form-group slab-field" id="yield-percent-field">
+                                                            <label for="yieldPercent_@packing.Value">Yield Percent (%):</label>
+                                                            <input type="number" class="form-control yield-percent" id="yieldPercent_@packing.Value" step="0.001" min="0" max="100">
+                                                        </div>
+                                                        <div class="form-group slab-field" id="total-yield-counts-field">
+                                                            <label>Total Yield Counts:</label>
+                                                            <div class="alert alert-success">
+                                                                <strong class="total-yield-counts calculation-result">0.000</strong>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Total Weight Calculation -->
+                                            <div class="col-md-6" id="total-weight-calculation-section">
+                                                <div class="card">
+                                                    <div class="card-header bg-warning text-dark">
+                                                        <h6 class="mb-0"><i class="fa fa-weight"></i> Total Weight Calculation</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="form-group weight-field" id="per-kg-weight-field">
+                                                            <label for="perKgWeight_@packing.Value">Per kg of ice plus product:</label>
+                                                            <input type="number" class="form-control per-kg-weight" id="perKgWeight_@packing.Value" step="0.001" min="0">
+                                                        </div>
+                                                        <div class="form-group weight-field" id="pack-kg-weight-field">
+                                                            <label>Pack KG Weight:</label>
+                                                            <div class="alert alert-info">
+                                                                <strong class="pck-kg-weight calculation-result">0.000</strong>
+                                                            </div>
+                                                        </div>
+                                                        <div class="form-group" id="peeled-field">
+                                                            <label for="wastage_@packing.Value">Peeled:</label>
+                                                            <input type="number" class="form-control wastage" id="wastage_@packing.Value" step="0.001" min="0">
+                                                        </div>
+                                                        <div class="form-group weight-field" id="waste-weight-field">
+                                                            <label>Waste + Weight:</label>
+                                                            <div class="alert alert-info">
+                                                                <strong class="waste-p-weight calculation-result">0.000</strong>
+                                                            </div>
+                                                        </div>
+                                                        <div class="form-group weight-field" id="factory-weight-field">
+                                                            <label>Factory Weight:</label>
+                                                            <div class="alert alert-warning">
+                                                                <strong class="factory-weight calculation-result">0.000</strong>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Save Button for this tab -->
+                                        <div class="text-center mt-3">
+                                            <button type="button" class="btn btn-primary save-tab-calculation-btn" data-packing-id="@packing.Value">
+                                                <i class="fa fa-save"></i> Save @packing.Text Calculation
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="card-body">
-                                    <div class="form-group">
-                                        <label for="perKgWeight">Per kg of ice plus product:</label>
-                                        <input type="number" class="form-control" id="perKgWeight" step="0.001" min="0">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Pack KG Weight:</label>
-                                        <div class="alert alert-info">
-                                            <strong id="pckKgWeight" class="calculation-result">0.000</strong>
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="wastage">Wastage:</label>
-                                        <input type="number" class="form-control" id="wastage" step="0.001" min="0">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Waste + Weight:</label>
-                                        <div class="alert alert-info">
-                                            <strong id="wastePWeight" class="calculation-result">0.000</strong>
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Factory Weight:</label>
-                                        <div class="alert alert-warning">
-                                            <strong id="factoryWeight" class="calculation-result">0.000</strong>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                                isFirst = false;
+                            }
                         </div>
                     </div>
-                </form>
+                </div>
+
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeProductCalculationModal()">
                     <i class="fa fa-times"></i> Close
-                </button>
-                <button type="button" class="btn btn-primary" onclick="saveProductCalculation()">
-                    <i class="fa fa-save"></i> Save Calculation
                 </button>
             </div>
         </div>

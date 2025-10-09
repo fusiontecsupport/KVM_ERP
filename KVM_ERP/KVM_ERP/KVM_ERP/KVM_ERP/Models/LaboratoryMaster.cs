@@ -37,4 +37,3 @@ namespace KVM_ERP.Models
         public DateTime PRCSDATE { get; set; }
     }
 }
-
