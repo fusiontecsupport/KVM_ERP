@@ -468,8 +468,57 @@ namespace KVM_ERP.Controllers
                     System.Diagnostics.Debug.WriteLine($"Found calculation: TRANPID={calculation.TRANPID}");
                     System.Diagnostics.Debug.WriteLine($"PCK1: {calculation.PCK1}, PCK2: {calculation.PCK2}, PCK3: {calculation.PCK3}");
                     System.Diagnostics.Debug.WriteLine($"PNDSVALUE: {calculation.PNDSVALUE}, YELDPERCENT: {calculation.YELDPERCENT}");
+                    System.Diagnostics.Debug.WriteLine($"PRODDATE: {calculation.PRODDATE}");
+                    System.Diagnostics.Debug.WriteLine($"CALCULATIONMODE: {calculation.CALCULATIONMODE}");
                     
-                    return Json(new { success = true, calculation = calculation }, JsonRequestBehavior.AllowGet);
+                    // Create a custom object to ensure proper JSON serialization of dates
+                    var result = new
+                    {
+                        success = true,
+                        calculation = new
+                        {
+                            TRANPID = calculation.TRANPID,
+                            TRANDID = calculation.TRANDID,
+                            PACKMID = calculation.PACKMID,
+                            PCK1 = calculation.PCK1,
+                            PCK2 = calculation.PCK2,
+                            PCK3 = calculation.PCK3,
+                            PCK4 = calculation.PCK4,
+                            PCK5 = calculation.PCK5,
+                            PCK6 = calculation.PCK6,
+                            PCK7 = calculation.PCK7,
+                            PCK8 = calculation.PCK8,
+                            PCK9 = calculation.PCK9,
+                            PCK10 = calculation.PCK10,
+                            PCK11 = calculation.PCK11,
+                            PCK12 = calculation.PCK12,
+                            PCK13 = calculation.PCK13,
+                            PCK14 = calculation.PCK14,
+                            PCK15 = calculation.PCK15,
+                            PCK16 = calculation.PCK16,
+                            PCK17 = calculation.PCK17,
+                            TOPCK = calculation.TOPCK,
+                            PCKLVALUE = calculation.PCKLVALUE,
+                            AVGPCKVALUE = calculation.AVGPCKVALUE,
+                            PNDSVALUE = calculation.PNDSVALUE,
+                            TOTALPNDS = calculation.TOTALPNDS,
+                            YELDPERCENT = calculation.YELDPERCENT,
+                            TOTALYELDCOUNTS = calculation.TOTALYELDCOUNTS,
+                            KGWGT = calculation.KGWGT,
+                            PCKKGWGT = calculation.PCKKGWGT,
+                            WASTEWGT = calculation.WASTEWGT,
+                            WASTEPWGT = calculation.WASTEPWGT,
+                            FACTORYWGT = calculation.FACTORYWGT,
+                            PRODDATE = calculation.PRODDATE?.ToString("yyyy-MM-dd"), // Format date as string
+                            CALCULATIONMODE = calculation.CALCULATIONMODE,
+                            DISPSTATUS = calculation.DISPSTATUS,
+                            CUSRID = calculation.CUSRID,
+                            LMUSRID = calculation.LMUSRID,
+                            PRCSDATE = calculation.PRCSDATE
+                        }
+                    };
+                    
+                    return Json(result, JsonRequestBehavior.AllowGet);
                 }
                 
                 System.Diagnostics.Debug.WriteLine("No calculation found");

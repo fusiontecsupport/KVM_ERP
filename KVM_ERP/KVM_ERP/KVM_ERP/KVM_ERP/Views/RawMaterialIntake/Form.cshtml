@@ -26,6 +26,10 @@
     .add-btn { background: linear-gradient(135deg, #ff6b6b, #ee5a24); border: none; padding: 10px 18px; border-radius: 25px; color: #fff; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(238, 90, 36, 0.4); display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
     .add-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(238, 90, 36, 0.6); color: #fff; text-decoration: none; }
     
+    /* Production button with same style but different color */
+    .production-btn { background: linear-gradient(135deg, #4facfe, #00f2fe); border: none; padding: 10px 18px; border-radius: 25px; color: #fff; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4); display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+    .production-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(79, 172, 254, 0.6); color: #fff; text-decoration: none; }
+    
     /* Enhanced table styling */
     .details-table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: none; margin-bottom: 0; }
     .details-table thead th { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; font-weight: 600; text-align: center; padding: 15px 10px; border: none; font-size: 14px; }
@@ -531,7 +535,7 @@
             @if (Model.TRANMID > 0)
             {
                 <text>
-            var $productionBtn = $('<button type="button" class="btn btn-info ml-2" id="productionBtn"><i class="fa fa-industry"></i> Production</button>');
+            var $productionBtn = $('<button type="button" class="production-btn ml-2" id="productionBtn"><i class="fa fa-industry"></i> Production</button>');
             console.log('Creating Production button for edit mode, TRANMID:', @Model.TRANMID);
             $toolbar.append($addBtn, $productionBtn);
             console.log('Production button appended to toolbar');
@@ -708,6 +712,7 @@
             $('.tab-pane input').val('');
             
             // DON'T clear the production date field - preserve it for edit mode
+            // The date field is outside tab panes, so it shouldn't be affected by the above clearing
             console.log('Modal opening - current date field value:', $('#prodDate').val());
             
             // IMMEDIATE date setting - check if we have any existing data for this transaction
@@ -766,6 +771,11 @@
                         loadExistingCalculationForTab(packingId);
                     }
                 });
+                
+                // Set up a final date check after all calculations are loaded
+                setTimeout(function() {
+                    ensureDateFieldIsPopulated(trandid);
+                }, 2000);
                 
                 // Set up a periodic check to ensure date gets set (aggressive approach)
                 let dateSetAttempts = 0;
@@ -1234,6 +1244,152 @@
             $('body').removeClass('modal-open');
         }
 
+        // Function to ensure date field is populated in edit mode
+        function ensureDateFieldIsPopulated(trandid) {
+            console.log('=== ENSURING DATE FIELD IS POPULATED ===');
+            const dateField = $('#prodDate');
+            
+            if (!dateField.length) {
+                console.error('Date field not found in DOM');
+                return;
+            }
+            
+            if (dateField.val()) {
+                console.log('Date field already has value:', dateField.val());
+                return;
+            }
+            
+            console.log('Date field is empty, attempting to populate...');
+            
+            // Try to get date from any stored calculation data
+            let foundDate = null;
+            $('.tab-pane').each(function() {
+                const tabPane = $(this);
+                const storedCalculation = tabPane.data('existing-calculation');
+                
+                if (storedCalculation && storedCalculation.PRODDATE && !foundDate) {
+                    foundDate = storedCalculation.PRODDATE;
+                    console.log('Found date from tab:', tabPane.attr('id'), 'Date:', foundDate);
+                    return false; // Break out of loop
+                }
+            });
+            
+            if (foundDate) {
+                try {
+                    let formattedDate;
+                    
+                    // Handle different date formats
+                    if (typeof foundDate === 'string') {
+                        // If it's already a string in YYYY-MM-DD format, use it directly
+                        if (foundDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                            formattedDate = foundDate;
+                        } else {
+                            // Parse the string date
+                            const prodDate = new Date(foundDate);
+                            if (!isNaN(prodDate.getTime())) {
+                                formattedDate = prodDate.toISOString().split('T')[0];
+                            }
+                        }
+                    } else {
+                        // Handle Date object
+                        const prodDate = new Date(foundDate);
+                        if (!isNaN(prodDate.getTime())) {
+                            formattedDate = prodDate.toISOString().split('T')[0];
+                        }
+                    }
+                    
+                    if (formattedDate) {
+                        // Clear any existing value first
+                        dateField.val('');
+                        dateField[0].value = '';
+                        
+                        // Set the date using multiple methods
+                        dateField.val(formattedDate);
+                        dateField[0].value = formattedDate;
+                        dateField.attr('value', formattedDate);
+                        
+                        // Force the browser to recognize the change
+                        dateField[0].dispatchEvent(new Event('input', { bubbles: true }));
+                        dateField[0].dispatchEvent(new Event('change', { bubbles: true }));
+                        
+                        // Trigger jQuery events
+                        dateField.trigger('change');
+                        dateField.trigger('input');
+                        
+                        console.log('Successfully set date field to:', formattedDate);
+                        console.log('Final date field value:', dateField.val());
+                        
+                        // Verify after a short delay
+                        setTimeout(function() {
+                            console.log('ensureDateFieldIsPopulated verification:', dateField.val());
+                        }, 100);
+                    }
+                } catch (error) {
+                    console.error('Error setting date field:', error);
+                }
+            } else {
+                // If no date found in stored calculations, try to get from server
+                console.log('No date found in stored calculations, trying server...');
+                $.ajax({
+                    url: '@Url.Action("GetProductCalculation", "RawMaterialIntake")',
+                    type: 'GET',
+                    data: { trandid: trandid, packingId: $('#packingMasterTabs .nav-link').first().data('packing-id') },
+                    success: function(data) {
+                        if (data.success && data.calculation && data.calculation.PRODDATE) {
+                            try {
+                                let formattedDate;
+                                
+                                // Handle different date formats from server
+                                if (typeof data.calculation.PRODDATE === 'string') {
+                                    // If it's already a string in YYYY-MM-DD format, use it directly
+                                    if (data.calculation.PRODDATE.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                                        formattedDate = data.calculation.PRODDATE;
+                                    } else {
+                                        // Parse the string date
+                                        const prodDate = new Date(data.calculation.PRODDATE);
+                                        if (!isNaN(prodDate.getTime())) {
+                                            formattedDate = prodDate.toISOString().split('T')[0];
+                                        }
+                                    }
+                                } else {
+                                    // Handle Date object
+                                    const prodDate = new Date(data.calculation.PRODDATE);
+                                    if (!isNaN(prodDate.getTime())) {
+                                        formattedDate = prodDate.toISOString().split('T')[0];
+                                    }
+                                }
+                                
+                                if (formattedDate) {
+                                    // Clear any existing value first
+                                    dateField.val('');
+                                    dateField[0].value = '';
+                                    
+                                    dateField.val(formattedDate);
+                                    dateField[0].value = formattedDate;
+                                    dateField.attr('value', formattedDate);
+                                    
+                                    // Force the browser to recognize the change
+                                    dateField[0].dispatchEvent(new Event('input', { bubbles: true }));
+                                    dateField[0].dispatchEvent(new Event('change', { bubbles: true }));
+                                    
+                                    dateField.trigger('change');
+                                    dateField.trigger('input');
+                                    
+                                    console.log('Set date from server:', formattedDate);
+                                    console.log('Server date field verification:', dateField.val());
+                                }
+                            } catch (error) {
+                                console.error('Error setting date from server:', error);
+                            }
+                        }
+                    },
+                    error: function() {
+                        console.log('Error getting date from server');
+                    }
+                });
+            }
+        }
+
 
         function getMultiplierFromLabel(label) {
             if (!label) return 1;
@@ -1429,27 +1585,68 @@
                 console.log('Raw PRODDATE from database:', calculation.PRODDATE);
                 if (calculation.PRODDATE) {
                     try {
-                        const prodDate = new Date(calculation.PRODDATE);
-                        console.log('Parsed date object:', prodDate);
+                        let formattedDate;
                         
-                        // Check if date is valid
-                        if (!isNaN(prodDate.getTime())) {
-                            const formattedDate = prodDate.toISOString().split('T')[0]; // YYYY-MM-DD format
-                            console.log('Formatted date for input:', formattedDate);
-                            
+                        // Handle different date formats from server
+                        if (typeof calculation.PRODDATE === 'string') {
+                            // If it's already a string in YYYY-MM-DD format, use it directly
+                            if (calculation.PRODDATE.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                                formattedDate = calculation.PRODDATE;
+                            } else {
+                                // Parse the string date
+                                const prodDate = new Date(calculation.PRODDATE);
+                                if (!isNaN(prodDate.getTime())) {
+                                    formattedDate = prodDate.toISOString().split('T')[0];
+                                }
+                            }
+                        } else {
+                            // Handle Date object
+                            const prodDate = new Date(calculation.PRODDATE);
+                            if (!isNaN(prodDate.getTime())) {
+                                formattedDate = prodDate.toISOString().split('T')[0];
+                            }
+                        }
+                        
+                        console.log('Formatted date for input:', formattedDate);
+                        
+                        if (formattedDate) {
                             // Ensure the date field exists before setting
                             const dateField = $('#prodDate');
                             console.log('Date field found:', dateField.length > 0);
                             
                             if (dateField.length > 0) {
+                                // Clear any existing value first
+                                dateField.val('');
+                                dateField[0].value = '';
+                                
+                                // Set the new value using multiple methods
                                 dateField.val(formattedDate);
+                                dateField[0].value = formattedDate; // Direct DOM property
+                                dateField.attr('value', formattedDate); // HTML attribute
+                                
+                                // Force the browser to recognize the change
+                                dateField[0].dispatchEvent(new Event('input', { bubbles: true }));
+                                dateField[0].dispatchEvent(new Event('change', { bubbles: true }));
+                                
+                                // Also trigger jQuery events
+                                dateField.trigger('change');
+                                dateField.trigger('input');
+                                
                                 console.log('Set production date to:', formattedDate);
                                 console.log('Date field value after setting:', dateField.val());
+                                console.log('Date field DOM value:', dateField[0].value);
+                                
+                                // Verify the date was set correctly after a short delay
+                                setTimeout(function() {
+                                    console.log('Date field verification - jQuery val():', dateField.val());
+                                    console.log('Date field verification - DOM value:', dateField[0].value);
+                                    console.log('Date field verification - getAttribute:', dateField[0].getAttribute('value'));
+                                }, 100);
                             } else {
                                 console.error('Date field #prodDate not found in DOM');
                             }
                         } else {
-                            console.error('Invalid date parsed from:', calculation.PRODDATE);
+                            console.error('Could not format date from:', calculation.PRODDATE);
                         }
                     } catch (error) {
                         console.error('Error parsing production date:', error, 'Raw value:', calculation.PRODDATE);
@@ -1906,6 +2103,7 @@
             $tbody.empty();
             
             var rowIndex = 1;
+            var runningBalanceStock = clientWeight; // Start with client weight for cumulative calculation
             
             try {
                 // Iterate through each transaction detail row
@@ -1933,10 +2131,12 @@
                     // Get the latest date from product calculations for this TRANDID
                     var latestDate = getLatestProductionDate(trandid);
                     
-                    // Calculate balance stock
-                    var balanceStock = clientWeight - productionQty;
+                    // Calculate cumulative balance stock
+                    // For first row: Client Weight - Production Quantity
+                    // For subsequent rows: Previous Balance Stock - Current Production Quantity
+                    var balanceStock = runningBalanceStock - productionQty;
                     
-                    console.log('Row', rowIndex, '- Production Qty:', productionQty, 'Balance Stock:', balanceStock);
+                    console.log('Row', rowIndex, '- Running Balance:', runningBalanceStock.toFixed(3), 'Production Qty:', productionQty.toFixed(3), 'New Balance Stock:', balanceStock.toFixed(3));
                     
                     // Create table row
                     var $tr = $('<tr></tr>');
@@ -1949,6 +2149,9 @@
                     $tr.append('<td class="text-center">' + (latestDate || 'N/A') + '</td>');
                     
                     $tbody.append($tr);
+                    
+                    // Update running balance for next iteration
+                    runningBalanceStock = balanceStock;
                     rowIndex++;
                 });
                 
@@ -2032,6 +2235,7 @@
             $tbody.empty();
             
             var rowIndex = 1;
+            var runningBalanceStock = clientWeight; // Start with client weight for cumulative calculation
             
             // Iterate through each transaction detail row
             $('#detailsTable tbody tr').each(function() {
@@ -2073,11 +2277,13 @@
                     }
                 }
                 
-                // Calculate balance stock
-                var balanceStock = clientWeight - productionQty;
+                // Calculate cumulative balance stock
+                // For first row: Client Weight - Production Quantity
+                // For subsequent rows: Previous Balance Stock - Current Production Quantity
+                var balanceStock = runningBalanceStock - productionQty;
                 var dateDisplay = latestDate ? latestDate.toLocaleDateString() : 'N/A';
                 
-                console.log('Row', rowIndex, '- TRANDID:', trandid, 'Production Qty:', productionQty, 'Balance Stock:', balanceStock, 'Date:', dateDisplay);
+                console.log('Row', rowIndex, '- TRANDID:', trandid, 'Running Balance:', runningBalanceStock.toFixed(3), 'Production Qty:', productionQty.toFixed(3), 'New Balance Stock:', balanceStock.toFixed(3), 'Date:', dateDisplay);
                 
                 // Create table row
                 var $tr = $('<tr></tr>');
@@ -2090,6 +2296,9 @@
                 $tr.append('<td class="text-center">' + dateDisplay + '</td>');
                 
                 $tbody.append($tr);
+                
+                // Update running balance for next iteration
+                runningBalanceStock = balanceStock;
                 rowIndex++;
             });
             
@@ -2449,7 +2658,7 @@
                                                             </div>
                                                         </div>
                                                         <div class="form-group slab-field" id="pounds-value-field">
-                                                            <label for="poundsValue_@packing.Value">Pounds Value:</label>
+                                                            <label for="poundsValue_@packing.Value">Pounds Conversion:</label>
                                                             <input type="number" class="form-control pounds-value" id="poundsValue_@packing.Value" step="0.001" min="0">
                                                         </div>
                                                         <div class="form-group slab-field" id="total-pounds-field">
@@ -2480,7 +2689,7 @@
                                                     </div>
                                                     <div class="card-body">
                                                         <div class="form-group weight-field" id="per-kg-weight-field">
-                                                            <label for="perKgWeight_@packing.Value">Per kg of ice plus product:</label>
+                                                            <label for="perKgWeight_@packing.Value">Packing Weight with Glazing:</label>
                                                             <input type="number" class="form-control per-kg-weight" id="perKgWeight_@packing.Value" step="0.001" min="0">
                                                         </div>
                                                         <div class="form-group weight-field" id="pack-kg-weight-field">
@@ -2494,7 +2703,7 @@
                                                             <input type="number" class="form-control wastage" id="wastage_@packing.Value" step="0.001" min="0">
                                                         </div>
                                                         <div class="form-group weight-field" id="waste-weight-field">
-                                                            <label>Waste + Weight:</label>
+                                                            <label>Peeled + Weight:</label>
                                                             <div class="alert alert-info">
                                                                 <strong class="waste-p-weight calculation-result">0.000</strong>
                                                             </div>
