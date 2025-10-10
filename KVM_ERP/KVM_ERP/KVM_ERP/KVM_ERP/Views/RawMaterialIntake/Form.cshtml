@@ -222,6 +222,36 @@
         margin-right: 8px;
         font-size: 18px;
     }
+    
+    /* Enhanced Modal Close Button */
+    #productCalculationModal .modal-header .close:hover {
+        background: rgba(255,255,255,0.3) !important;
+        border-color: rgba(255,255,255,0.5) !important;
+        transform: scale(1.1);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    
+    #productCalculationModal .modal-header .close:focus {
+        outline: none;
+        background: rgba(255,255,255,0.3) !important;
+        border-color: rgba(255,255,255,0.5) !important;
+        box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+    }
+    
+    /* Enhanced Production Modal Close Button */
+    #productionModal .modal-header .close:hover {
+        background: rgba(255,255,255,0.3) !important;
+        border-color: rgba(255,255,255,0.5) !important;
+        transform: scale(1.1);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    
+    #productionModal .modal-header .close:focus {
+        outline: none;
+        background: rgba(255,255,255,0.3) !important;
+        border-color: rgba(255,255,255,0.5) !important;
+        box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+    }
 </style>
 
 <div class="main-container">
@@ -496,7 +526,24 @@
             var $detailsSection = $('<div class="section-title"><i class="fa fa-list" style="color: #667eea;"></i> Intake Details</div>');
             var $toolbar = $('<div class="mb-2"></div>');
             var $addBtn = $('<button type="button" class="add-btn" id="addRowBtn"><i class="fa fa-plus"></i> Add</button>');
+            
+            // Add Production button only in edit mode
+            @if (Model.TRANMID > 0)
+            {
+                <text>
+            var $productionBtn = $('<button type="button" class="btn btn-info ml-2" id="productionBtn"><i class="fa fa-industry"></i> Production</button>');
+            console.log('Creating Production button for edit mode, TRANMID:', @Model.TRANMID);
+            $toolbar.append($addBtn, $productionBtn);
+            console.log('Production button appended to toolbar');
+                </text>
+            }
+            else
+            {
+                <text>
+            console.log('Not creating Production button - not in edit mode, TRANMID:', @Model.TRANMID);
             $toolbar.append($addBtn);
+                </text>
+            }
             $detailsHeader.append($detailsSection).append($toolbar);
 
             var $table = $('<table class="table table-bordered details-table" id="detailsTable"></table>');
@@ -639,6 +686,7 @@
                 
                 openProductCalculationModal(trandid, supplierName, supplierCode, productType, product, noOfBoxes, countPerKg);
             });
+
         })();
 
         // Product Calculation Modal Functions
@@ -659,6 +707,53 @@
             $('.tab-pane .total-counts').text('0');
             $('.tab-pane input').val('');
             
+            // DON'T clear the production date field - preserve it for edit mode
+            console.log('Modal opening - current date field value:', $('#prodDate').val());
+            
+            // IMMEDIATE date setting - check if we have any existing data for this transaction
+            console.log('Checking for existing date data for TRANDID:', trandid);
+            
+            // Try to get date from server immediately
+            $.ajax({
+                url: '@Url.Action("GetProductCalculation", "RawMaterialIntake")',
+                type: 'GET',
+                data: { trandid: trandid, packingId: $('#packingMasterTabs .nav-link').first().data('packing-id') },
+                success: function(data) {
+                    console.log('Immediate date check response:', data);
+                    if (data.success && data.calculation && data.calculation.PRODDATE) {
+                        try {
+                            const prodDate = new Date(data.calculation.PRODDATE);
+                            if (!isNaN(prodDate.getTime())) {
+                                const formattedDate = prodDate.toISOString().split('T')[0];
+                                const dateField = $('#prodDate');
+                                
+                                console.log('IMMEDIATE DATE SET - Raw:', data.calculation.PRODDATE);
+                                console.log('IMMEDIATE DATE SET - Formatted:', formattedDate);
+                                
+                                if (dateField.length > 0) {
+                                    // Try multiple methods to set the date
+                                    dateField.val(formattedDate);
+                                    dateField[0].value = formattedDate; // Direct DOM property
+                                    dateField.attr('value', formattedDate); // Attribute method
+                                    
+                                    console.log('IMMEDIATE DATE SET - Success:', dateField.val());
+                                    console.log('IMMEDIATE DATE SET - DOM value:', dateField[0].value);
+                                    
+                                    // Force trigger change event to ensure it sticks
+                                    dateField.trigger('change');
+                                    dateField.trigger('input');
+                                }
+                            }
+                        } catch (error) {
+                            console.error('IMMEDIATE DATE SET - Error:', error);
+                        }
+                    }
+                },
+                error: function() {
+                    console.log('IMMEDIATE DATE SET - Ajax error');
+                }
+            });
+            
             // Load existing calculations for ALL tabs, then activate first tab
             setTimeout(function() {
                 console.log('Loading existing calculations for all tabs...');
@@ -671,6 +766,52 @@
                         loadExistingCalculationForTab(packingId);
                     }
                 });
+                
+                // Set up a periodic check to ensure date gets set (aggressive approach)
+                let dateSetAttempts = 0;
+                const maxAttempts = 10;
+                const dateSetInterval = setInterval(function() {
+                    dateSetAttempts++;
+                    const dateField = $('#prodDate');
+                    
+                    if (dateField.length > 0 && !dateField.val()) {
+                        // Try to get date from any loaded tab
+                        $('.tab-pane').each(function() {
+                            const tabPane = $(this);
+                            const storedCalculation = tabPane.data('existing-calculation');
+                            
+                            if (storedCalculation && storedCalculation.PRODDATE && !dateField.val()) {
+                                try {
+                                    const prodDate = new Date(storedCalculation.PRODDATE);
+                                    if (!isNaN(prodDate.getTime())) {
+                                        const formattedDate = prodDate.toISOString().split('T')[0];
+                                        
+                                        // Aggressive date setting
+                                        dateField.val(formattedDate);
+                                        dateField[0].value = formattedDate;
+                                        dateField.attr('value', formattedDate);
+                                        
+                                        console.log('Periodic check - set date:', formattedDate);
+                                        console.log('Periodic check - DOM value:', dateField[0].value);
+                                        
+                                        dateField.trigger('change');
+                                        dateField.trigger('input');
+                                        
+                                        clearInterval(dateSetInterval);
+                                        return false; // Break out of each loop
+                                    }
+                                } catch (error) {
+                                    console.error('Periodic check - date error:', error);
+                                }
+                            }
+                        });
+                    }
+                    
+                    if (dateSetAttempts >= maxAttempts || dateField.val()) {
+                        clearInterval(dateSetInterval);
+                        console.log('Periodic date check completed. Attempts:', dateSetAttempts, 'Final value:', dateField.val());
+                    }
+                }, 300); // Check every 300ms
                 
                 // Activate first tab and load its fields
                 const firstTab = $('#packingMasterTabs .nav-link').first();
@@ -687,6 +828,12 @@
                     // Load fields for first tab
                     if (packingId) {
                         loadPackingTypeFieldsForTab(packingId);
+                        
+                        // Update radio buttons for the initial active tab after a delay
+                        setTimeout(function() {
+                            console.log('Updating radio buttons for initial tab:', packingId);
+                            updateRadioButtonsForActiveTab();
+                        }, 1000); // Wait for data to load
                     }
                 }
             }, 200); // Increased timeout to allow for multiple AJAX calls
@@ -866,6 +1013,43 @@
             }, 1200);
         });
 
+        // Handle modal shown event to update radio buttons for initial tab
+        $('#productCalculationModal').on('shown.bs.modal', function() {
+            console.log('Modal fully shown - updating radio buttons for active tab');
+            setTimeout(function() {
+                updateRadioButtonsForActiveTab();
+                
+                // Also ensure production date is set from active tab data
+                const activeTab = $('.tab-pane.active');
+                if (activeTab.length > 0) {
+                    const storedCalculation = activeTab.data('existing-calculation');
+                    console.log('Modal shown - checking active tab calculation:', storedCalculation);
+                    
+                    if (storedCalculation && storedCalculation.PRODDATE) {
+                        try {
+                            const prodDate = new Date(storedCalculation.PRODDATE);
+                            if (!isNaN(prodDate.getTime())) {
+                                const formattedDate = prodDate.toISOString().split('T')[0];
+                                const dateField = $('#prodDate');
+                                
+                                console.log('Modal shown - setting date field:', formattedDate);
+                                console.log('Date field exists:', dateField.length > 0);
+                                
+                                if (dateField.length > 0) {
+                                    dateField.val(formattedDate);
+                                    console.log('Modal shown - date field value after setting:', dateField.val());
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Modal shown - error setting date:', error);
+                        }
+                    } else {
+                        console.log('Modal shown - no PRODDATE in stored calculation');
+                    }
+                }
+            }, 500); // Wait for data to be loaded and processed
+        });
+
         // Handle save tab calculation button
         $(document).on('click', '.save-tab-calculation-btn', function() {
             const packingId = $(this).data('packing-id');
@@ -913,6 +1097,33 @@
                 }
             });
         };
+        
+        // Add a global function to debug date field issues
+        window.debugDateField = function() {
+            const dateField = $('#prodDate');
+            console.log('=== DATE FIELD DEBUG ===');
+            console.log('Date field exists:', dateField.length > 0);
+            console.log('Date field value:', dateField.val());
+            console.log('Date field visible:', dateField.is(':visible'));
+            console.log('Date field HTML:', dateField[0] ? dateField[0].outerHTML : 'Not found');
+            
+            // Try to set a test date
+            if (dateField.length > 0) {
+                const testDate = '2025-10-09';
+                dateField.val(testDate);
+                console.log('Test date set. New value:', dateField.val());
+            }
+            
+            // Check all stored calculations for dates
+            $('.tab-pane').each(function() {
+                const tabPane = $(this);
+                const storedCalculation = tabPane.data('existing-calculation');
+                if (storedCalculation) {
+                    console.log('Tab', tabPane.attr('id'), 'PRODDATE:', storedCalculation.PRODDATE);
+                }
+            });
+        };
+        
         
         // Special handler for Peeled field in Grade Weight mode
         $(document).on('input', '.wastage', function() {
@@ -1136,6 +1347,30 @@
                             console.log('This is the active tab, populating data...');
                             setTimeout(function() {
                                 populateTabCalculation(data.calculation, packingId);
+                                
+                                // Also update radio buttons for the active tab after population
+                                setTimeout(function() {
+                                    console.log('Updating radio buttons after active tab population');
+                                    updateRadioButtonsForActiveTab();
+                                    
+                                    // Ensure date is set after all population is complete
+                                    if (data.calculation && data.calculation.PRODDATE) {
+                                        try {
+                                            const prodDate = new Date(data.calculation.PRODDATE);
+                                            if (!isNaN(prodDate.getTime())) {
+                                                const formattedDate = prodDate.toISOString().split('T')[0];
+                                                const dateField = $('#prodDate');
+                                                
+                                                if (dateField.length > 0 && !dateField.val()) {
+                                                    dateField.val(formattedDate);
+                                                    console.log('Final date set after population:', formattedDate);
+                                                }
+                                            }
+                                        } catch (error) {
+                                            console.error('Error in final date setting:', error);
+                                        }
+                                    }
+                                }, 200);
                             }, 800); // Wait for fields to be fully loaded
                         }
                     } else {
@@ -1191,10 +1426,36 @@
                 }
                 
                 // Populate production date (format for HTML date input)
+                console.log('Raw PRODDATE from database:', calculation.PRODDATE);
                 if (calculation.PRODDATE) {
-                    const prodDate = new Date(calculation.PRODDATE);
-                    const formattedDate = prodDate.toISOString().split('T')[0]; // YYYY-MM-DD format
-                    $('#prodDate').val(formattedDate);
+                    try {
+                        const prodDate = new Date(calculation.PRODDATE);
+                        console.log('Parsed date object:', prodDate);
+                        
+                        // Check if date is valid
+                        if (!isNaN(prodDate.getTime())) {
+                            const formattedDate = prodDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+                            console.log('Formatted date for input:', formattedDate);
+                            
+                            // Ensure the date field exists before setting
+                            const dateField = $('#prodDate');
+                            console.log('Date field found:', dateField.length > 0);
+                            
+                            if (dateField.length > 0) {
+                                dateField.val(formattedDate);
+                                console.log('Set production date to:', formattedDate);
+                                console.log('Date field value after setting:', dateField.val());
+                            } else {
+                                console.error('Date field #prodDate not found in DOM');
+                            }
+                        } else {
+                            console.error('Invalid date parsed from:', calculation.PRODDATE);
+                        }
+                    } catch (error) {
+                        console.error('Error parsing production date:', error, 'Raw value:', calculation.PRODDATE);
+                    }
+                } else {
+                    console.log('No production date found in calculation data');
                 }
                 
                 console.log('Other fields populated');
@@ -1465,6 +1726,13 @@
                 calculateTabTotals(tabPane);
             }
 
+            // Validate production date
+            const prodDate = $('#prodDate').val();
+            if (!prodDate) {
+                alert('Please select a production date before saving.');
+                return;
+            }
+
             // Collect all form data for this tab
             const formData = {
                 TRANPID: calculationId,
@@ -1475,7 +1743,7 @@
                 YELDPERCENT: parseFloat(tabPane.find('.yield-percent').val()) || 0,
                 KGWGT: parseFloat(tabPane.find('.per-kg-weight').val()) || 0,
                 WASTEWGT: parseFloat(tabPane.find('.wastage').val()) || 0,
-                PRODDATE: $('#prodDate').val() || null,  // Add production date
+                PRODDATE: prodDate,  // Add production date
                 CalculationMode: calculationMode,  // Add calculation mode to form data
                 
                 // Add calculated values from display fields
@@ -1492,6 +1760,7 @@
             // Debug: Log the Factory Weight value being saved
             console.log('Factory Weight value being saved:', formData.FACTORYWGT);
             console.log('Factory Weight display text:', tabPane.find('.factory-weight').text());
+            console.log('Production date being saved:', formData.PRODDATE);
 
             // Add PCK fields for this tab
             console.log('Looking for PCK fields in tab:', packingId);
@@ -1546,6 +1815,471 @@
             // This function is no longer used - individual tabs have their own save buttons
             alert('Please use the individual "Save [Packing Master] Calculation" buttons for each tab.');
         }
+
+        // Production button click handler
+        $(document).on('click', '#productionBtn', function(e) {
+            e.preventDefault();
+            console.log('Production button clicked!');
+            openProductionModal();
+        });
+
+        // Production modal close handlers
+        $(document).on('click', '#productionModal .close, #productionModal [data-dismiss="modal"]', function() {
+            closeProductionModal();
+        });
+
+        function closeProductionModal() {
+            $('#productionModal').modal('hide');
+        }
+
+        function openProductionModal() {
+            console.log('Opening Production Modal');
+            
+            try {
+                // Check if modal exists
+                if ($('#productionModal').length === 0) {
+                    alert('Production modal not found in DOM!');
+                    return;
+                }
+                
+                // Get supplier name from the correct dropdown
+                var supplierName = 'Not Selected';
+                
+                // Method 1: Try the actual supplier dropdown (supplierDropdown)
+                var selectedText = $('#supplierDropdown option:selected').text();
+                if (selectedText && selectedText !== '-- Select Supplier --' && selectedText.trim() !== '') {
+                    supplierName = selectedText.trim();
+                } else {
+                    // Method 2: Try by selected value from supplierDropdown
+                    var selectedValue = $('#supplierDropdown').val();
+                    if (selectedValue && selectedValue !== '') {
+                        var optionText = $('#supplierDropdown option[value="' + selectedValue + '"]').text();
+                        if (optionText && optionText !== '-- Select Supplier --') {
+                            supplierName = optionText.trim();
+                        }
+                    }
+                }
+                
+                // Method 3: Try Select2 if it's being used
+                if (supplierName === 'Not Selected') {
+                    try {
+                        var select2Text = $('#supplierDropdown').select2('data')[0];
+                        if (select2Text && select2Text.text && select2Text.text !== '-- Select Supplier --') {
+                            supplierName = select2Text.text.trim();
+                        }
+                    } catch (e) {
+                        // Select2 not available or not initialized
+                    }
+                }
+                
+                // Method 4: Fallback to any visible supplier text
+                if (supplierName === 'Not Selected') {
+                    var visibleSupplier = $('#supplierDropdown').find('option:selected').text();
+                    if (visibleSupplier && visibleSupplier !== '-- Select Supplier --' && visibleSupplier.trim() !== '') {
+                        supplierName = visibleSupplier.trim();
+                    }
+                }
+                
+                console.log('Supplier detection - Selected Value:', $('#supplierDropdown').val(), 'Selected Text:', selectedText, 'Final Name:', supplierName);
+                var clientWeight = parseFloat($('#CLIENTWGHT').val()) || 0;
+                
+                console.log('Supplier:', supplierName, 'Client Weight:', clientWeight);
+                
+                // Populate transaction information
+                $('#prod-supplier-name').text(supplierName);
+                $('#prod-client-weight').text(clientWeight.toFixed(3));
+                
+                // Load production data with AJAX call to ensure fresh data
+                loadProductionDataAndShow(clientWeight);
+                
+                console.log('Production Modal opened successfully');
+            } catch (error) {
+                console.error('Error opening production modal:', error);
+                alert('Error opening production modal: ' + error.message);
+            }
+        }
+
+        function populateProductionTable(clientWeight) {
+            console.log('Populating production table with client weight:', clientWeight);
+            
+            var $tbody = $('#productionTableBody');
+            $tbody.empty();
+            
+            var rowIndex = 1;
+            
+            try {
+                // Iterate through each transaction detail row
+                $('#detailsTable tbody tr').each(function() {
+                    var $row = $(this);
+                    var trandid = $row.data('trandid') || 0;
+                    
+                    console.log('Processing row with TRANDID:', trandid);
+                    
+                    // Get product information from the row
+                    var productType = $row.find('select.mgroup option:selected').text();
+                    var product = $row.find('select.product option:selected').text();
+                    
+                    console.log('Product Type:', productType, 'Product:', product);
+                    
+                    // Skip if no product selected
+                    if (!product || product === '-- Select Product --') {
+                        console.log('Skipping row - no product selected');
+                        return;
+                    }
+                    
+                    // Calculate production quantity from all factory weights for this TRANDID
+                    var productionQty = calculateProductionQuantity(trandid);
+                    
+                    // Get the latest date from product calculations for this TRANDID
+                    var latestDate = getLatestProductionDate(trandid);
+                    
+                    // Calculate balance stock
+                    var balanceStock = clientWeight - productionQty;
+                    
+                    console.log('Row', rowIndex, '- Production Qty:', productionQty, 'Balance Stock:', balanceStock);
+                    
+                    // Create table row
+                    var $tr = $('<tr></tr>');
+                    $tr.append('<td class="text-center">' + rowIndex + '</td>');
+                    $tr.append('<td>' + productType + '</td>');
+                    $tr.append('<td>' + product + '</td>');
+                    $tr.append('<td class="text-right">' + clientWeight.toFixed(3) + '</td>');
+                    $tr.append('<td class="text-right">' + productionQty.toFixed(3) + '</td>');
+                    $tr.append('<td class="text-right">' + balanceStock.toFixed(3) + '</td>');
+                    $tr.append('<td class="text-center">' + (latestDate || 'N/A') + '</td>');
+                    
+                    $tbody.append($tr);
+                    rowIndex++;
+                });
+                
+                // If no rows, show message
+                if (rowIndex === 1) {
+                    console.log('No transaction details found - showing empty message');
+                    var $emptyRow = $('<tr><td colspan="7" class="text-center text-muted">No transaction details available</td></tr>');
+                    $tbody.append($emptyRow);
+                }
+                
+                console.log('Production table populated with', (rowIndex - 1), 'rows');
+            } catch (error) {
+                console.error('Error populating production table:', error);
+                var $errorRow = $('<tr><td colspan="7" class="text-center text-danger">Error loading production data: ' + error.message + '</td></tr>');
+                $tbody.append($errorRow);
+            }
+        }
+
+        function loadProductionDataAndShow(clientWeight) {
+            console.log('Loading production data with AJAX for consistent display...');
+            
+            // Show modal first with loading message
+            $('#productionModal').modal('show');
+            $('#productionTableBody').html('<tr><td colspan="7" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading production data...</td></tr>');
+            
+            // Get all transaction detail rows
+            var trandIds = [];
+            $('#detailsTable tbody tr').each(function() {
+                var trandid = $(this).data('trandid') || 0;
+                if (trandid > 0) {
+                    trandIds.push(trandid);
+                }
+            });
+            
+            console.log('Found TRANDIDs:', trandIds);
+            
+            if (trandIds.length === 0) {
+                $('#productionTableBody').html('<tr><td colspan="7" class="text-center text-muted">No transaction details available</td></tr>');
+                return;
+            }
+            
+            // Load calculations for each TRANDID
+            var allCalculations = {};
+            var loadPromises = [];
+            
+            trandIds.forEach(function(trandid) {
+                // Load calculations for all packing masters for this TRANDID
+                @foreach (var packing in ViewBag.PackingMasters)
+                {
+                    <text>
+                    var promise = $.ajax({
+                        url: '@Url.Action("GetProductCalculation", "RawMaterialIntake")',
+                        type: 'GET',
+                        data: { trandid: trandid, packingId: @packing.Value },
+                        dataType: 'json'
+                    }).done(function(data) {
+                        if (data && data.success && data.calculation) {
+                            var key = trandid + '_' + @packing.Value;
+                            allCalculations[key] = data.calculation;
+                            console.log('Loaded calculation for TRANDID', trandid, 'PackingID', @packing.Value, 'FACTORYWGT:', data.calculation.FACTORYWGT);
+                        }
+                    }).fail(function() {
+                        console.log('No calculation found for TRANDID', trandid, 'PackingID', @packing.Value);
+                    });
+                    loadPromises.push(promise);
+                    </text>
+                }
+            });
+            
+            // Wait for all AJAX calls to complete
+            $.when.apply($, loadPromises).always(function() {
+                console.log('All calculations loaded, populating table...');
+                populateProductionTableWithData(clientWeight, allCalculations);
+            });
+        }
+
+        function populateProductionTableWithData(clientWeight, allCalculations) {
+            console.log('Populating production table with loaded data...');
+            
+            var $tbody = $('#productionTableBody');
+            $tbody.empty();
+            
+            var rowIndex = 1;
+            
+            // Iterate through each transaction detail row
+            $('#detailsTable tbody tr').each(function() {
+                var $row = $(this);
+                var trandid = $row.data('trandid') || 0;
+                
+                // Get product information from the row
+                var productType = $row.find('select.mgroup option:selected').text();
+                var product = $row.find('select.product option:selected').text();
+                
+                // Skip if no product selected
+                if (!product || product === '-- Select Product --') {
+                    return;
+                }
+                
+                // Calculate production quantity from loaded calculations
+                var productionQty = 0;
+                var latestDate = null;
+                
+                for (var key in allCalculations) {
+                    var calc = allCalculations[key];
+                    if (calc && calc.TRANDID == trandid) {
+                        var factoryWeight = parseFloat(calc.FACTORYWGT) || 0;
+                        productionQty += factoryWeight;
+                        
+                        // Check for latest date
+                        if (calc.PRODDATE) {
+                            try {
+                                var prodDate = new Date(calc.PRODDATE);
+                                if (!isNaN(prodDate.getTime())) {
+                                    if (!latestDate || prodDate > latestDate) {
+                                        latestDate = prodDate;
+                                    }
+                                }
+                            } catch (e) {
+                                // Ignore invalid dates
+                            }
+                        }
+                    }
+                }
+                
+                // Calculate balance stock
+                var balanceStock = clientWeight - productionQty;
+                var dateDisplay = latestDate ? latestDate.toLocaleDateString() : 'N/A';
+                
+                console.log('Row', rowIndex, '- TRANDID:', trandid, 'Production Qty:', productionQty, 'Balance Stock:', balanceStock, 'Date:', dateDisplay);
+                
+                // Create table row
+                var $tr = $('<tr></tr>');
+                $tr.append('<td class="text-center">' + rowIndex + '</td>');
+                $tr.append('<td>' + productType + '</td>');
+                $tr.append('<td>' + product + '</td>');
+                $tr.append('<td class="text-right">' + clientWeight.toFixed(3) + '</td>');
+                $tr.append('<td class="text-right">' + productionQty.toFixed(3) + '</td>');
+                $tr.append('<td class="text-right">' + balanceStock.toFixed(3) + '</td>');
+                $tr.append('<td class="text-center">' + dateDisplay + '</td>');
+                
+                $tbody.append($tr);
+                rowIndex++;
+            });
+            
+            // If no rows, show message
+            if (rowIndex === 1) {
+                var $emptyRow = $('<tr><td colspan="7" class="text-center text-muted">No transaction details available</td></tr>');
+                $tbody.append($emptyRow);
+            }
+            
+            console.log('Production table populated with', (rowIndex - 1), 'rows');
+        }
+
+        function calculateProductionQuantity(trandid) {
+            var totalProduction = 0;
+            
+            console.log('=== Calculating Production Quantity for TRANDID:', trandid, '===');
+            
+            // Method 1: Check tab data first (most reliable for current session)
+            $('.tab-pane').each(function() {
+                var $tabPane = $(this);
+                var storedCalculation = $tabPane.data('existing-calculation');
+                var packingName = $tabPane.find('.nav-link').text() || $tabPane.attr('id') || 'Unknown';
+                
+                if (storedCalculation && storedCalculation.TRANDID == trandid) {
+                    var factoryWeight = parseFloat(storedCalculation.FACTORYWGT) || 0;
+                    if (factoryWeight > 0) {
+                        totalProduction += factoryWeight;
+                        console.log('- Found calculation from tab data for', packingName, '(TRANDID:', trandid, ') Factory Weight:', factoryWeight);
+                    }
+                }
+            });
+            
+            // Method 2: If no tab data, check loaded calculations from database
+            if (totalProduction === 0 && window.productionCalculations) {
+                for (var key in window.productionCalculations) {
+                    var calc = window.productionCalculations[key];
+                    if (calc && calc.TRANDID == trandid) {
+                        var factoryWeight = parseFloat(calc.FACTORYWGT) || 0;
+                        if (factoryWeight > 0) {
+                            totalProduction += factoryWeight;
+                            console.log('- Found calculation from database for TRANDID', trandid, 'Factory Weight:', factoryWeight);
+                        }
+                    }
+                }
+            }
+            
+            // Method 3: Try to get from any visible calculation results on the page
+            if (totalProduction === 0) {
+                $('.factory-weight').each(function() {
+                    var factoryWeightText = $(this).text();
+                    var factoryWeight = parseFloat(factoryWeightText) || 0;
+                    if (factoryWeight > 0) {
+                        // Check if this belongs to our TRANDID (approximate check)
+                        var $modal = $(this).closest('.modal');
+                        if ($modal.length === 0 || $modal.is(':visible')) {
+                            totalProduction += factoryWeight;
+                            console.log('- Found factory weight from visible calculation:', factoryWeight);
+                        }
+                    }
+                });
+            }
+            
+            console.log('=== Total Production Quantity for TRANDID', trandid, ':', totalProduction, '===');
+            return totalProduction;
+        }
+
+        function getLatestProductionDate(trandid) {
+            var latestDate = null;
+            
+            console.log('Getting latest production date for TRANDID:', trandid);
+            
+            // Check loaded calculations from database
+            if (window.productionCalculations) {
+                for (var key in window.productionCalculations) {
+                    var calc = window.productionCalculations[key];
+                    if (calc && calc.TRANDID == trandid && calc.PRODDATE) {
+                        try {
+                            var prodDate = new Date(calc.PRODDATE);
+                            if (!isNaN(prodDate.getTime())) { // Check if date is valid
+                                if (!latestDate || prodDate > latestDate) {
+                                    latestDate = prodDate;
+                                }
+                                console.log('Found valid date from database:', prodDate.toLocaleDateString());
+                            }
+                        } catch (e) {
+                            console.log('Invalid date from database:', calc.PRODDATE);
+                        }
+                    }
+                }
+            }
+            
+            // Also check tab data
+            $('.tab-pane').each(function() {
+                var $tabPane = $(this);
+                var storedCalculation = $tabPane.data('existing-calculation');
+                
+                if (storedCalculation && storedCalculation.TRANDID === trandid && storedCalculation.PRODDATE) {
+                    try {
+                        var prodDate = new Date(storedCalculation.PRODDATE);
+                        if (!isNaN(prodDate.getTime())) { // Check if date is valid
+                            if (!latestDate || prodDate > latestDate) {
+                                latestDate = prodDate;
+                            }
+                            console.log('Found valid date from tab data:', prodDate.toLocaleDateString());
+                        }
+                    } catch (e) {
+                        console.log('Invalid date from tab data:', storedCalculation.PRODDATE);
+                    }
+                }
+            });
+            
+            var result = latestDate ? latestDate.toLocaleDateString() : 'N/A';
+            console.log('Latest production date result:', result);
+            return result;
+        }
+
+        function refreshCalculationData() {
+            console.log('Refreshing calculation data for production overview...');
+            
+            // Check if there are any existing calculations loaded in tabs
+            var calculationsFound = 0;
+            $('.tab-pane').each(function() {
+                var $tabPane = $(this);
+                var storedCalculation = $tabPane.data('existing-calculation');
+                if (storedCalculation && storedCalculation.FACTORYWGT) {
+                    calculationsFound++;
+                    console.log('Found existing calculation in tab:', $tabPane.attr('id'), 'FACTORYWGT:', storedCalculation.FACTORYWGT);
+                }
+            });
+            
+            console.log('Total calculations found in tabs:', calculationsFound);
+            
+            // If no calculations in tabs, try to trigger loading from the existing functions
+            if (calculationsFound === 0) {
+                console.log('No calculations found in tabs, checking for existing data...');
+                
+                // Try to get data from any visible calculation displays
+                $('.factory-weight').each(function() {
+                    var factoryWeight = parseFloat($(this).text()) || 0;
+                    if (factoryWeight > 0) {
+                        console.log('Found factory weight in display:', factoryWeight);
+                    }
+                });
+            }
+        }
+
+        function loadAllCalculationsForProduction(callback) {
+            console.log('Loading all calculations for production overview...');
+            
+            // Initialize global calculations storage
+            window.productionCalculations = {};
+            
+            var loadPromises = [];
+            
+            // Load calculations for each transaction detail row
+            $('#detailsTable tbody tr').each(function() {
+                var $row = $(this);
+                var trandid = $row.data('trandid') || 0;
+                
+                if (trandid > 0) {
+                    // Load calculations for all packing masters for this TRANDID
+                    @foreach (var packing in ViewBag.PackingMasters)
+                    {
+                        <text>
+                        var promise = $.ajax({
+                            url: '@Url.Action("GetProductCalculation", "RawMaterialIntake")',
+                            type: 'GET',
+                            data: { trandid: trandid, packingId: @packing.Value },
+                            dataType: 'json'
+                        }).done(function(data) {
+                            if (data && data.success && data.calculation) {
+                                var key = trandid + '_' + @packing.Value;
+                                window.productionCalculations[key] = data.calculation;
+                                console.log('Loaded calculation for TRANDID', trandid, 'PackingID', @packing.Value, ':', data.calculation);
+                            }
+                        }).fail(function() {
+                            console.log('No calculation found for TRANDID', trandid, 'PackingID', @packing.Value);
+                        });
+                        loadPromises.push(promise);
+                        </text>
+                    }
+                }
+            });
+            
+            // Wait for all calculations to load
+            $.when.apply($, loadPromises).always(function() {
+                console.log('All calculations loaded for production overview');
+                if (callback) callback();
+            });
+        }
     </script>
 }
 
@@ -1557,8 +2291,8 @@
                 <h5 class="modal-title" id="productCalculationModalLabel">
                     <i class="fa fa-calculator"></i> Product Calculation
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close" style="opacity: 1; font-size: 1.5rem; font-weight: bold; text-shadow: 0 1px 0 rgba(0,0,0,0.5); background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;">
+                    <span aria-hidden="true" style="line-height: 1;">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
@@ -1598,6 +2332,7 @@
                                 </div>
                             </div>
                         </div>
+                        
                     </div>
                 </div>
 
@@ -1792,6 +2527,70 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeProductCalculationModal()">
+                    <i class="fa fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Production Modal -->
+<div class="modal fade" id="productionModal" tabindex="-1" role="dialog" aria-labelledby="productionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="productionModalLabel">
+                    <i class="fa fa-industry"></i> Production Overview
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close" style="opacity: 1; font-size: 1.5rem; font-weight: bold; text-shadow: 0 1px 0 rgba(0,0,0,0.5); background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;">
+                    <span aria-hidden="true" style="line-height: 1;">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fa fa-info-circle"></i> Transaction Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Supplier:</strong> <span id="prod-supplier-name"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Client Weight:</strong> <span id="prod-client-weight"></span> KG
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fa fa-table"></i> Production Details</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped" id="productionTable">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>S.No</th>
+                                        <th>Product Type</th>
+                                        <th>Product</th>
+                                        <th>Client Weight (KG)</th>
+                                        <th>Production Quantity (KG)</th>
+                                        <th>Balance Stock (KG)</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productionTableBody">
+                                    <!-- Production rows will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
                     <i class="fa fa-times"></i> Close
                 </button>
             </div>
