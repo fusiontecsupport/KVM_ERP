@@ -142,24 +142,67 @@
 
         .btn-login:focus-visible {
             outline: 3px solid rgba(52, 152, 219, 0.35);
-            outline-offset: 2px;
-        }
+    }
 
-        .btn-login:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: 0 6px 16px rgba(44, 62, 80, 0.15);
-        }
+    .subscription-expired {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .subscription-expired i {
+        font-size: 1.2rem;
+        margin-right: 8px;
+    }
+
+    .subscription-expired strong {
+        display: block;
+        font-size: 1.1rem;
+        margin-bottom: 8px;
+    }
+
+    .renewal-message {
+        padding: 12px 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: center;
+        font-size: 0.95rem;
+    }
+
+    .renewal-message i {
+        margin-right: 8px;
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+
+    .alert-danger {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    .alert-info {
+        background-color: #d1ecf1;
+        border: 1px solid #bee5eb;
+        color: #0c5460;
+    }
 
     .text-danger {
-        color: #e74c3c;
-        font-size: 13px;
+        color: #e74c3c !important;
+        font-size: 0.875rem;
         margin-top: 5px;
     }
 
     .hide {
-        display: none;
+        display: none !important;
     }
 </style>
 
@@ -198,6 +241,32 @@
         {
             @Html.AntiForgeryToken()
             @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+            
+            // Success/Error Messages from TempData
+            if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success renewal-message">
+                    <i class="fa fa-check-circle"></i>
+                    @TempData["SuccessMessage"]
+                </div>
+            }
+            
+            if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger renewal-message">
+                    <i class="fa fa-exclamation-triangle"></i>
+                    @TempData["ErrorMessage"]
+                </div>
+            }
+            
+            if (TempData["InfoMessage"] != null)
+            {
+                <div class="alert alert-info renewal-message">
+                    <i class="fa fa-info-circle"></i>
+                    @TempData["InfoMessage"]
+                </div>
+            }
+            
             if (ViewBag.ReturnUrl != null)
             {
                 @Html.Hidden("returnUrl", (string)ViewBag.ReturnUrl)

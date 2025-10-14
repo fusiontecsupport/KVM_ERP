@@ -1,7 +1,7 @@
 @using KVM_ERP.Models
 @model IEnumerable<KVM_ERP.Models.MenuNavbar>
 @{
-    var isAdmin = Request.IsAuthenticated && (User.IsInRole("Admin") || (System.Web.HttpContext.Current.Session != null && System.Web.HttpContext.Current.Session["Group"] != null && System.Web.HttpContext.Current.Session["Group"].ToString() == "Admin"));
+    var isAdmin = Request.IsAuthenticated && (User.IsInRole("Admin") || (System.Web.HttpContext.Current.Session != null && System.Web.HttpContext.Current.Session["Group"] != null && (System.Web.HttpContext.Current.Session["Group"].ToString() == "Admin" || System.Web.HttpContext.Current.Session["Group"].ToString() == "SuperAdmin")));
 }
 
 <style>
@@ -709,7 +709,8 @@
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                                 @if (System.Web.HttpContext.Current.Session["Group"].ToString() == "Manager" ||
                                     System.Web.HttpContext.Current.Session["Group"].ToString() == "Admin" ||
-                                    System.Web.HttpContext.Current.Session["Group"].ToString() == "Purchaseadmin")
+                                    System.Web.HttpContext.Current.Session["Group"].ToString() == "Purchaseadmin" ||
+                                    System.Web.HttpContext.Current.Session["Group"].ToString() == "SuperAdmin")
                                 {
                                     <li>
                                         <a class="dropdown-item" href="@Url.Action("Index", "Groups")">
@@ -721,13 +722,24 @@
                                             <i class="fa fa-fw fa-envelope"></i> Users
                                         </a>
                                     </li>
+                                    @* Renewal Approval - Only for SuperAdmin Group *@
+                                    if (System.Web.HttpContext.Current.Session["Group"] != null && 
+                                        System.Web.HttpContext.Current.Session["Group"].ToString() == "SuperAdmin")
+                                    {
+                                        <li>
+                                            <a class="dropdown-item" href="@Url.Action("Index", "RenewalApproval")">
+                                                <i class="fa fa-fw fa-user-check"></i> Renewal Approval
+                                            </a>
+                                        </li>
+                                    }
                                     @*<li>
                                         <a class="dropdown-item" href="@Url.Action("Index", "Members")">
                                             <i class="fa-solid fa-people-group"></i> Members
                                         </a>
                                     </li>*@
                                     if (System.Web.HttpContext.Current.Session["Group"] != null &&
-                                        System.Web.HttpContext.Current.Session["Group"].ToString() == "Admin")
+                                        (System.Web.HttpContext.Current.Session["Group"].ToString() == "Admin" ||
+                                         System.Web.HttpContext.Current.Session["Group"].ToString() == "SuperAdmin"))
                                     {
                                         @*<li>
                                             <a class="dropdown-item" href="@Url.Action("Index", "GovernmentProof")">
@@ -736,7 +748,8 @@
                                         </li>*@
                                     }
                                     if (System.Web.HttpContext.Current.Session["Group"] != null &&
-                                        System.Web.HttpContext.Current.Session["Group"].ToString() != "Admin")
+                                        System.Web.HttpContext.Current.Session["Group"].ToString() != "Admin" &&
+                                        System.Web.HttpContext.Current.Session["Group"].ToString() != "SuperAdmin")
                                     {
                                         <li>
                                             <a class="dropdown-item" href="@Url.Action("Index", "Roles")">

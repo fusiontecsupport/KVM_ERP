@@ -24,6 +24,13 @@ namespace KVM_ERP.Controllers
     public class AccountController : Controller
     {
         ApplicationDbContext _db = new ApplicationDbContext();
+
+        // Helper method to check if user is Admin or SuperAdmin
+        private bool IsAdminOrSuperAdmin()
+        {
+            return User.IsInRole("Admin") || (Session != null && Session["Group"] != null && 
+                   (Session["Group"].ToString() == "Admin" || Session["Group"].ToString() == "SuperAdmin"));
+        }
         public AccountController()
                    : this(new UserManager<ApplicationUser>(new UserStore<ApplicationUser>(new ApplicationDbContext())))
         {
@@ -119,12 +126,106 @@ namespace KVM_ERP.Controllers
                     var user = await UserManager.FindAsync(model.UserName, model.Password);
                     if (user != null)
                     {
-
-                        context.Database.ExecuteSqlCommand("Update AspNetUsers Set NPassword = '" + model.Password + "' where id ='" + user.Id + "'");
-
+                        // Set session variables first to determine user group
                         Session["compyid"] = model.COMPYID;
                         Session["CUSRID"] = model.UserName;
                         Session["COMPID"] = model.COMPID;
+                        
+                        // Get user group to check if SuperAdmin
+                        var sql = context.Database.SqlQuery<VW_USER_DETAILS>("select * from VW_USER_DETAILS Where UserName='" + model.UserName + "'").ToList();
+                        string userGroup = "";
+                        if (sql.Count == 0)
+                        {
+                            userGroup = "";
+                        }
+                        else
+                        {
+                            if (sql.Count > 1)
+                            { userGroup = sql[1].GroupName; }
+                            else
+                            { userGroup = sql[0].GroupName; }
+                        }
+
+                        // Skip subscription checks for SuperAdmin users
+                        if (userGroup != "SuperAdmin")
+                        {
+                            // Check subscription status before allowing login (for non-SuperAdmin users)
+                            // Find an active and non-expired subscription (not just the first one)
+                            var subscription = _db.Subscriptions.FirstOrDefault(s => s.UserId == user.Id && s.IsActive == true && s.ExpiryDate > DateTime.Now);
+                            
+                            // Debug logging to track subscription selection
+                            var allUserSubscriptions = _db.Subscriptions.Where(s => s.UserId == user.Id).ToList();
+                            System.Diagnostics.Debug.WriteLine($"[Login] User {user.UserName} has {allUserSubscriptions.Count} total subscriptions");
+                            foreach (var sub in allUserSubscriptions)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[Login] Subscription {sub.SubscriptionId}: IsActive={sub.IsActive}, ExpiryDate={sub.ExpiryDate}, IsExpired={sub.IsExpired}, CanLogin={sub.CanLogin}");
+                            }
+                            System.Diagnostics.Debug.WriteLine($"[Login] Selected subscription for login: {(subscription != null ? subscription.SubscriptionId.ToString() : "None")}");
+                            
+                            if (subscription != null)
+                            {
+                                // Update subscription status if needed
+                                subscription.UpdateSubscriptionStatus();
+                                _db.SaveChanges();
+
+                                // Check if subscription allows login
+                                if (!subscription.CanLogin)
+                                {
+                                    // Redirect to subscription expired page
+                                    return RedirectToAction("SubscriptionExpired", "Account", new { 
+                                        expiryDate = subscription.ExpiryDate.ToString("dd MMM yyyy"),
+                                        planName = subscription.PlanName,
+                                        userId = user.Id
+                                    });
+                                }
+
+                                // Check for 14-day reminder
+                                if (subscription.IsNearExpiry)
+                                {
+                                    TempData["SubscriptionWarning"] = $"Your subscription will expire in {subscription.DaysRemaining} days on {subscription.ExpiryDate:dd MMM yyyy}. Please contact administrator to renew.";
+                                }
+                            }
+                            else
+                            {
+                                // No active/valid subscription found, check if user has any subscriptions at all
+                                var anySubscription = _db.Subscriptions.FirstOrDefault(s => s.UserId == user.Id);
+                                if (anySubscription != null)
+                                {
+                                    // User has subscriptions but they are all expired/inactive
+                                    // Show subscription expired page instead of creating new subscription
+                                    System.Diagnostics.Debug.WriteLine($"[Login] User {user.UserName} has expired subscriptions, redirecting to expired page");
+                                    return RedirectToAction("SubscriptionExpired", "Account", new { 
+                                        expiryDate = anySubscription.ExpiryDate.ToString("dd MMM yyyy"),
+                                        planName = anySubscription.PlanName,
+                                        userId = user.Id
+                                    });
+                                }
+                                else
+                                {
+                                    // User has no subscriptions at all, create a new one (for brand new users)
+                                    try
+                                    {
+                                        var newSubscription = Subscription.CreateBasicSubscription(user.Id);
+                                        _db.Subscriptions.Add(newSubscription);
+                                        _db.SaveChanges();
+                                        System.Diagnostics.Debug.WriteLine($"[Login->Subscription] Created basic subscription for new user {user.UserName}");
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine("[Login->Create Subscription] " + ex.Message);
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[Login] SuperAdmin user {user.UserName} - skipping subscription checks");
+                        }
+
+                        context.Database.ExecuteSqlCommand("Update AspNetUsers Set NPassword = '" + model.Password + "' where id ='" + user.Id + "'");
+
+                        // Set the user group in session
+                        Session["Group"] = userGroup;
                         Session["F_DEPTNAME"] = "ADMIN";// user.DeptName;
                         Session["BRNCHCTYPE"] = 0;// brnchctype[0];// model.BRNCHCTYPE;
                         Session["DEPTID"] = "2";// deptid[0];
@@ -229,19 +330,7 @@ namespace KVM_ERP.Controllers
                         //if (sql[0].Equals(4)) { Session["Group"] = "Users"; }
                         //if (sql[0].Equals(3)) { Session["Group"] = "Manager"; }
 
-                        var sql = context.Database.SqlQuery<VW_USER_DETAILS>("select * from VW_USER_DETAILS Where UserName='" + model.UserName + "'").ToList();
-                        if (sql.Count == 0)
-                        {
-                            Session["Group"] = "";
-                        }
-                        else
-                        {
-                            if (sql.Count > 1)
-                            { Session["Group"] = sql[1].GroupName; }
-                            else
-                            { Session["Group"] = sql[0].GroupName; }
-
-                        }
+                        // Session["Group"] is already set above based on userGroup variable
                         //if (sql[0].Equals(1)) { Session["Group"] = "Admin"; }
                         //if (sql[0].Equals(2)) { Session["Group"] = "SuperAdmin"; }
                         // if (sql[0].Equals(4)) { Session["Group"] = "Users"; }
@@ -469,17 +558,23 @@ namespace KVM_ERP.Controllers
             return RedirectToAction("Login", "Account");
         }
 
-        [Authorize(Roles = "Admin")]
         public ActionResult Create()
         {
+            if (!IsAdminOrSuperAdmin())
+            {
+                return RedirectToAction("Login");
+            }
             return View();
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Create(AccountViewModels.RegisterViewModel model)
         {
+            if (!IsAdminOrSuperAdmin())
+            {
+                return RedirectToAction("Login");
+            }
             if (!ModelState.IsValid)
             {
                 return View(model);
@@ -544,6 +639,42 @@ namespace KVM_ERP.Controllers
                     {
                         System.Diagnostics.Debug.WriteLine("[Create->Assign Users group] " + ex.Message);
                     }
+
+                    // Create default subscription for the new user (except SuperAdmin)
+                    try
+                    {
+                        var created = _db.Users.FirstOrDefault(u => u.UserName == model.UserName);
+                        if (created != null)
+                        {
+                            // Check user's group to determine if SuperAdmin
+                            var userDetails = _db.Database.SqlQuery<VW_USER_DETAILS>("select * from VW_USER_DETAILS Where UserName='" + created.UserName + "'").FirstOrDefault();
+                            string userGroup = userDetails?.GroupName ?? "";
+                            
+                            // Skip subscription creation for SuperAdmin users
+                            if (userGroup != "SuperAdmin")
+                            {
+                                // Check if subscription already exists (safety check)
+                                var existingSubscription = _db.Subscriptions.FirstOrDefault(s => s.UserId == created.Id);
+                                if (existingSubscription == null)
+                                {
+                                    var subscription = Subscription.CreateBasicSubscription(created.Id);
+                                    _db.Subscriptions.Add(subscription);
+                                    _db.SaveChanges();
+                                    System.Diagnostics.Debug.WriteLine($"[Create->Subscription] Created basic subscription for user {created.UserName}, expires on {subscription.ExpiryDate}");
+                                }
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[Create->Subscription] Skipped subscription creation for SuperAdmin user {created.UserName}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[Create->Create Subscription] " + ex.Message);
+                        // Don't fail user creation if subscription creation fails
+                    }
+
                     TempData["Message"] = "User created successfully.";
                     return RedirectToAction("Index");
                 }
@@ -558,9 +689,12 @@ namespace KVM_ERP.Controllers
             }
         }
 
-        [Authorize(Roles = "Admin")]
         public ActionResult Edit(string id)
         {
+            if (!IsAdminOrSuperAdmin())
+            {
+                return RedirectToAction("Login");
+            }
             var user = _db.Users.FirstOrDefault(u => u.UserName == id || u.Id == id);
             if (user == null) return HttpNotFound();
             var vm = new AccountViewModels.EditUserViewModel(user);
@@ -568,10 +702,13 @@ namespace KVM_ERP.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
         public ActionResult Edit(AccountViewModels.EditUserViewModel model)
         {
+            if (!IsAdminOrSuperAdmin())
+            {
+                return RedirectToAction("Login");
+            }
             if (!ModelState.IsValid) return View(model);
             var user = _db.Users.FirstOrDefault(u => u.UserName == model.UserName);
             if (user == null) return HttpNotFound();
@@ -617,9 +754,12 @@ namespace KVM_ERP.Controllers
             }
         }
 
-        [Authorize(Roles = "Admin")]
         public ActionResult Manage(string id)
         {
+            if (!IsAdminOrSuperAdmin())
+            {
+                return RedirectToAction("Login");
+            }
             var user = _db.Users.FirstOrDefault(u => u.UserName == id || u.Id == id);
             if (user == null) return HttpNotFound();
             var vm = new AccountViewModels.ManageUserViewModel();
@@ -629,10 +769,13 @@ namespace KVM_ERP.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Manage(string id, AccountViewModels.ManageUserViewModel model)
         {
+            if (!IsAdminOrSuperAdmin())
+            {
+                return RedirectToAction("Login");
+            }
             if (!ModelState.IsValid)
             {
                 ViewBag.HasLocalPassword = true;
@@ -672,6 +815,61 @@ namespace KVM_ERP.Controllers
             _db.SaveChanges();
             TempData["Message"] = "Password updated.";
             return RedirectToAction("Index");
+        }
+
+        [AllowAnonymous]
+        public ActionResult SubscriptionExpired(string expiryDate = null, string planName = null, string userId = null)
+        {
+            ViewBag.ExpiryDate = expiryDate ?? "Unknown";
+            ViewBag.PlanName = planName ?? "Basic";
+            ViewBag.UserId = userId;
+            return View();
+        }
+
+        [AllowAnonymous]
+        [HttpPost]
+        public ActionResult RenewSubscription(string userId, string planName = "Basic")
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(userId))
+                {
+                    TempData["ErrorMessage"] = "Invalid user information. Please try logging in again.";
+                    return RedirectToAction("Login", "Account");
+                }
+
+                // Check if user exists
+                var user = _db.Users.FirstOrDefault(u => u.Id == userId);
+                if (user == null)
+                {
+                    TempData["ErrorMessage"] = "User not found. Please contact administrator.";
+                    return RedirectToAction("Login", "Account");
+                }
+
+                // Check if there's already a pending renewal request
+                var existingPendingRequest = _db.Subscriptions.FirstOrDefault(s => s.UserId == userId && s.Approval == Subscription.NOT_APPROVED);
+                if (existingPendingRequest != null)
+                {
+                    TempData["InfoMessage"] = "Your renewal request is already pending approval. Please wait for administrator approval.";
+                    return RedirectToAction("Login", "Account");
+                }
+
+                // Create new renewal request subscription
+                var renewalRequest = Subscription.CreateRenewalRequest(userId, planName);
+                _db.Subscriptions.Add(renewalRequest);
+                _db.SaveChanges();
+
+                System.Diagnostics.Debug.WriteLine($"[RenewSubscription] Created renewal request for user {user.UserName}, SubscriptionId: {renewalRequest.SubscriptionId}");
+
+                TempData["SuccessMessage"] = "Your subscription renewal request has been submitted successfully. Please wait for administrator approval.";
+                return RedirectToAction("Login", "Account");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[RenewSubscription] Error: " + ex.Message);
+                TempData["ErrorMessage"] = "An error occurred while processing your renewal request. Please try again or contact administrator.";
+                return RedirectToAction("Login", "Account");
+            }
         }
 
         [Authorize]
@@ -739,9 +937,12 @@ namespace KVM_ERP.Controllers
             }
         }
 
-        [Authorize(Roles = "Admin")]
         public ActionResult UserGroups(string id)
         {
+            if (!IsAdminOrSuperAdmin())
+            {
+                return RedirectToAction("Login");
+            }
             var user = _db.Users.Include("Groups.Group").FirstOrDefault(u => u.UserName == id || u.Id == id);
             if (user == null) return HttpNotFound();
             var allGroups = _db.Groups.OrderBy(g => g.Name).ToList();
@@ -753,10 +954,13 @@ namespace KVM_ERP.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
         public ActionResult UserGroups(string id, int[] groupIds)
         {
+            if (!IsAdminOrSuperAdmin())
+            {
+                return RedirectToAction("Login");
+            }
             var user = _db.Users.Include("Groups").FirstOrDefault(u => u.UserName == id || u.Id == id);
             if (user == null) return HttpNotFound();
             user.Groups.Clear();
@@ -813,9 +1017,12 @@ namespace KVM_ERP.Controllers
             return RedirectToAction("Index");
         }
 
-        [Authorize(Roles = "Admin")]
         public ActionResult UserPermissions(string id)
         {
+            if (!IsAdminOrSuperAdmin())
+            {
+                return RedirectToAction("Login");
+            }
             var user = _db.Users.Include("Roles").FirstOrDefault(u => u.UserName == id || u.Id == id);
             if (user == null) return HttpNotFound();
             var roles = UserManager.GetRoles(user.Id).OrderBy(r => r).ToList();
@@ -832,10 +1039,13 @@ namespace KVM_ERP.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Delete(string id)
         {
+            if (!IsAdminOrSuperAdmin())
+            {
+                return RedirectToAction("Login");
+            }
             var user = _db.Users.FirstOrDefault(u => u.UserName == id || u.Id == id);
             if (user == null) return HttpNotFound();
             try
@@ -869,15 +1079,20 @@ namespace KVM_ERP.Controllers
             }
             catch (Exception ex)
             {
-                ModelState.AddModelError("", ex.Message);
+                System.Diagnostics.Debug.WriteLine("[Delete User] " + ex.Message);
             }
             return RedirectToAction("Index");
         }
 
-        [Authorize(Roles = "Admin")]
         public ActionResult Index()
         {
-            // Minimal users list for Admins
+            // Check if user is Admin or SuperAdmin
+            if (!(User.IsInRole("Admin") || (Session != null && Session["Group"] != null && (Session["Group"].ToString() == "Admin" || Session["Group"].ToString() == "SuperAdmin"))))
+            {
+                return RedirectToAction("Login");
+            }
+
+            // Minimal users list for Admins and SuperAdmins
             var users = _db.Users.OrderBy(u => u.UserName).ToList();
             return View(users);
         }

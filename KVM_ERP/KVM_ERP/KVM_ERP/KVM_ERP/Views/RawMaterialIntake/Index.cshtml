@@ -91,11 +91,66 @@
     .btn-edit:hover { background: linear-gradient(135deg, #fdcb6e, #e17055); color: #fff; transform: translateY(-1px); }
     .btn-delete { background: linear-gradient(135deg, #fd79a8, #e84393); color: #fff; }
     .btn-delete:hover { background: linear-gradient(135deg, #e84393, #d63031); transform: translateY(-1px); }
+    .btn-print { background: linear-gradient(135deg, #74b9ff, #0984e3); color: #fff; }
+    .btn-print:hover { background: linear-gradient(135deg, #0984e3, #2d3436); transform: translateY(-1px); }
 
     /* Status badge styling (match masters) */
     .badge { color: black !important; font-weight: 600; }
     .badge-success { background-color: #d4edda; color: black !important; border: 1px solid #c3e6cb; }
     .badge-danger { background-color: #f8d7da; color: black !important; border: 1px solid #f5c6cb; }
+
+    /* Date Filter Section Styling */
+    .date-filter-card {
+        background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%);
+        border: 1px solid #e3f2fd;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .form-label {
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+    
+    .form-control {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 10px 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus {
+        border-color: #4facfe;
+        box-shadow: 0 0 0 0.2rem rgba(79, 172, 254, 0.25);
+    }
+    
+    #filterBtn {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    #filterBtn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+    }
+    
+    #clearBtn {
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+        border: 2px solid #6c757d;
+        transition: all 0.3s ease;
+    }
+    
+    #clearBtn:hover {
+        background-color: #6c757d;
+        color: white;
+        transform: translateY(-2px);
+    }
 </style>
 
 <div class="main-container">
@@ -113,6 +168,50 @@
         </div>
 
         <div class="table-container">
+            <!-- Date Filter Section -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="row align-items-end">
+                                <div class="col-md-3">
+                                    <label for="fromDate" class="form-label fw-bold text-primary">
+                                        <i class="fa fa-calendar-alt"></i> From Date
+                                    </label>
+                                    <input type="date" id="fromDate" class="form-control border-2" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="toDate" class="form-label fw-bold text-primary">
+                                        <i class="fa fa-calendar-alt"></i> To Date
+                                    </label>
+                                    <input type="date" id="toDate" class="form-control border-2" />
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="button" id="filterBtn" class="btn btn-primary px-4">
+                                        <i class="fa fa-filter"></i> Filter
+                                    </button>
+                                    <button type="button" id="clearBtn" class="btn btn-outline-secondary px-4 ms-2">
+                                        <i class="fa fa-times"></i> Clear
+                                    </button>
+                                </div>
+                                <div class="col-md-3 text-end">
+                                    <div id="filterStatus" class="mb-2">
+                                        <small class="text-success fw-bold" style="display: none;">
+                                            <i class="fa fa-check-circle"></i> 
+                                            <span id="filterText"></span>
+                                        </small>
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="fa fa-info-circle"></i> 
+                                        Filter records by transaction date range
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <table id="rawIntakeTable" class="display table table-striped" cellspacing="0" width="100%">
                 <thead>
                     <tr>
@@ -152,6 +251,11 @@
                 ajax: {
                     url: '@Url.Action("GetAjaxData", "RawMaterialIntake")',
                     type: 'GET',
+                    data: function(d) {
+                        // Add date filter parameters
+                        d.fromDate = $('#fromDate').val();
+                        d.toDate = $('#toDate').val();
+                    },
                     dataSrc: function(json){
                         if (json && Array.isArray(json.data)) return json.data;
                         if (Array.isArray(json)) return json;
@@ -164,7 +268,22 @@
                     }
                 },
                 columns: [
-                    { data: 'TRANDATE' },
+                    { 
+                        data: 'TRANDATE',
+                        render: function(data, type, row) {
+                            if (data && type === 'display') {
+                                // Parse the date and format as dd/mm/yyyy
+                                var date = new Date(data);
+                                if (!isNaN(date.getTime())) {
+                                    var day = String(date.getDate()).padStart(2, '0');
+                                    var month = String(date.getMonth() + 1).padStart(2, '0');
+                                    var year = date.getFullYear();
+                                    return day + '/' + month + '/' + year;
+                                }
+                            }
+                            return data;
+                        }
+                    },
                     { data: 'TRANMID' },
                     { data: 'CATENAME' },
                     { data: 'CATECODE' },
@@ -177,7 +296,8 @@
                         render: function (data, type, row) {
                             var id = row['TRANMID'];
                             return '<a href="' + '@Url.Action("Form", "RawMaterialIntake")' + '/' + id + '" class="btn btn-action btn-edit"><i class="fa fa-edit"></i> Edit</a>' +
-                                   '&nbsp;<a href="#" class="btn btn-action btn-delete editor_remove" data-id="' + id + '"><i class="fa fa-trash"></i> Delete</a>';
+                                   '&nbsp;<a href="#" class="btn btn-action btn-delete editor_remove" data-id="' + id + '"><i class="fa fa-trash"></i> Delete</a>' +
+                                   '&nbsp;<a href="#" class="btn btn-action btn-print" data-id="' + id + '"><i class="fa fa-print"></i> Print</a>';
                         }
                     }
                 ],
@@ -210,6 +330,112 @@
                 }
                 return false;
             });
+
+            // Print handler - Generate PDF
+            $(document).on('click', 'a.btn-print', function (e) {
+                e.preventDefault();
+                var id = $(this).data('id');
+                if (!id) return false;
+                
+                // Show loading state
+                var $btn = $(this);
+                var originalHtml = $btn.html();
+                $btn.html('<i class="fa fa-spinner fa-spin"></i> Generating...');
+                $btn.prop('disabled', true);
+                
+                // Generate PDF in new window
+                var url = '@Url.Action("GenerateTransactionPDF", "RawMaterialIntake")' + '/' + id;
+                var newWindow = window.open(url, '_blank');
+                
+                // Reset button state after a short delay
+                setTimeout(function() {
+                    $btn.html(originalHtml);
+                    $btn.prop('disabled', false);
+                }, 2000);
+                
+                return false;
+            });
+
+            // Function to update filter status display
+            function updateFilterStatus() {
+                var fromDate = $('#fromDate').val();
+                var toDate = $('#toDate').val();
+                var statusDiv = $('#filterStatus small');
+                var textSpan = $('#filterText');
+                
+                if (fromDate || toDate) {
+                    var filterText = 'Filtered: ';
+                    if (fromDate && toDate) {
+                        filterText += fromDate + ' to ' + toDate;
+                    } else if (fromDate) {
+                        filterText += 'From ' + fromDate;
+                    } else if (toDate) {
+                        filterText += 'Until ' + toDate;
+                    }
+                    textSpan.text(filterText);
+                    statusDiv.show();
+                } else {
+                    statusDiv.hide();
+                }
+            }
+
+            // Date Filter Event Handlers
+            $('#filterBtn').on('click', function() {
+                var fromDate = $('#fromDate').val();
+                var toDate = $('#toDate').val();
+                
+                // Validate date range
+                if (fromDate && toDate && fromDate > toDate) {
+                    alert('From Date cannot be greater than To Date');
+                    return;
+                }
+                
+                // Show loading state
+                $(this).html('<i class="fa fa-spinner fa-spin"></i> Filtering...');
+                $(this).prop('disabled', true);
+                
+                // Reload table with new filters
+                table.ajax.reload(function() {
+                    // Reset button state
+                    $('#filterBtn').html('<i class="fa fa-filter"></i> Filter');
+                    $('#filterBtn').prop('disabled', false);
+                    updateFilterStatus();
+                });
+            });
+
+            $('#clearBtn').on('click', function() {
+                $('#fromDate').val('');
+                $('#toDate').val('');
+                updateFilterStatus();
+                
+                // Show loading state
+                $(this).html('<i class="fa fa-spinner fa-spin"></i> Clearing...');
+                $(this).prop('disabled', true);
+                
+                table.ajax.reload(function() {
+                    // Reset button state
+                    $('#clearBtn').html('<i class="fa fa-times"></i> Clear');
+                    $('#clearBtn').prop('disabled', false);
+                });
+            });
+
+            // Allow Enter key to trigger filter
+            $('#fromDate, #toDate').on('keypress', function(e) {
+                if (e.which === 13) { // Enter key
+                    $('#filterBtn').click();
+                }
+            });
+
+            // Set default date range (last 30 days) and update filter status
+            var today = new Date();
+            var thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            
+            $('#toDate').val(today.toISOString().split('T')[0]);
+            $('#fromDate').val(thirtyDaysAgo.toISOString().split('T')[0]);
+            
+            // Show initial filter status
+            updateFilterStatus();
         });
     </script>
 }

@@ -204,6 +204,33 @@
         color: #6c757d;
     }
 
+    /* SuperAdmin Exclusive Styling */
+    .superadmin-exclusive {
+        border: 2px solid #ffd700 !important;
+        background: linear-gradient(135deg, #fff9e6, #ffffff) !important;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .superadmin-exclusive::before {
+        content: "SUPERADMIN";
+        position: absolute;
+        top: 8px;
+        right: -25px;
+        background: linear-gradient(135deg, #ffd700, #ffed4e);
+        color: #333;
+        padding: 2px 30px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        transform: rotate(45deg);
+        box-shadow: 0 2px 5px rgba(255, 215, 0, 0.3);
+    }
+
+    .action-icon.renewal {
+        background: linear-gradient(135deg, #ffd700, #ffed4e);
+        color: #333;
+    }
+
     /* Responsive Design */
     @@media (max-width: 768px) {
         .dashboard-container {
@@ -330,6 +357,20 @@
             <div class="action-title">Users</div>
             <div class="action-description">Manage users and roles</div>
         </a>
+
+        @* SuperAdmin Exclusive - Renewal Approval *@
+        @if (System.Web.HttpContext.Current.Session != null && 
+             System.Web.HttpContext.Current.Session["Group"] != null && 
+             System.Web.HttpContext.Current.Session["Group"].ToString() == "SuperAdmin")
+        {
+            <a href="@Url.Action("Index", "RenewalApproval")" class="action-card superadmin-exclusive">
+                <div class="action-icon renewal">
+                    <i class="fa fa-user-check"></i>
+                </div>
+                <div class="action-title">Renewal Approval</div>
+                <div class="action-description">Manage subscription renewals (SuperAdmin Only)</div>
+            </a>
+        }
     </div>
 </div>
 

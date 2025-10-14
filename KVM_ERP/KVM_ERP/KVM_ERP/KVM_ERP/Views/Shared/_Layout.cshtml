@@ -238,6 +238,18 @@
     <div id="1wrapper">
         @Html.Action("Navbar", "Navbar", new { controller = ViewContext.RouteData.Values["Controller"].ToString(), action = ViewContext.RouteData.Values["Action"].ToString() })
 
+        @* Subscription Warning Notification *@
+        @if (TempData["SubscriptionWarning"] != null)
+        {
+            <div class="alert alert-warning subscription-warning" style="margin: 0; border-radius: 0; text-align: center; background-color: #fff3cd; border-color: #ffeaa7; color: #856404;">
+                <i class="fa fa-exclamation-triangle" style="margin-right: 8px;"></i>
+                <strong>Subscription Reminder:</strong> @TempData["SubscriptionWarning"]
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="float: right; font-size: 1.2rem; font-weight: bold; line-height: 1; color: #856404; text-shadow: none; opacity: 0.8;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        }
+
         <div id="page-wrapper">
             @RenderBody()
         </div>

@@ -166,7 +166,7 @@ namespace KVM_ERP.Controllers
         public ActionResult AdminDashboard()
         {
             // Simplified admin dashboard: remove dependencies on membership/payments/content
-            if (!User.IsInRole("Admin"))
+            if (!(User.IsInRole("Admin") || (Session != null && Session["Group"] != null && (Session["Group"].ToString() == "Admin" || Session["Group"].ToString() == "SuperAdmin"))))
             {
                 return RedirectToAction("Index");
             }
@@ -176,7 +176,7 @@ namespace KVM_ERP.Controllers
         public ActionResult Index()
         {
             // Simplified user dashboard: no membership/content dependencies
-            if (User.IsInRole("Admin"))
+            if (User.IsInRole("Admin") || (Session != null && Session["Group"] != null && (Session["Group"].ToString() == "Admin" || Session["Group"].ToString() == "SuperAdmin")))
             {
                 return RedirectToAction("AdminDashboard");
             }

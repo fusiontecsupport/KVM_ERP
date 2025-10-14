@@ -191,7 +191,7 @@ namespace KVM_ERP.Controllers.Masters
                     {
                         loctList.Add(new SelectListItem
                         {
-                            Value = loct.LOCTID.ToString(),
+                            Value = loct.LOCTID.ToString(), 
                             Text = loct.LOCTDESC
                         });
                     }

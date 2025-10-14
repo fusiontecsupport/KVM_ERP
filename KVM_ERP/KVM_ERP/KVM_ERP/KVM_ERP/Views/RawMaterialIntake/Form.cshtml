@@ -256,6 +256,30 @@
         border-color: rgba(255,255,255,0.5) !important;
         box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
     }
+    
+    /* Print button styling */
+    .print-btn {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        color: #fff;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        text-decoration: none;
+        font-size: 12px;
+    }
+    .print-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.5);
+        color: #fff;
+        text-decoration: none;
+    }
+    
 </style>
 
 <div class="main-container">
@@ -553,14 +577,20 @@
             var $table = $('<table class="table table-bordered details-table" id="detailsTable"></table>');
             var $thead = $('<thead><tr>\
                 <th style="width:60px;">S.No</th>\
-                <th style="width:220px;">Product Type</th>\
-                <th style="width:280px;">Product</th>\
-                <th style="width:150px;">No. of Boxes</th>\
-                <th style="width:150px;">Count (Per KG)</th>\
+                <th style="width:200px;">Product Type</th>\
+                <th style="width:250px;">Product</th>\
+                <th style="width:120px;">No. of Boxes</th>\
+                <th style="width:120px;">Count (Per KG)</th>\
+                <th style="width:130px;">Weight(In KGS)</th>\
                 <th style="width:80px;">Action</th>\
             </tr></thead>');
             var $tbody = $('<tbody></tbody>');
-            $table.append($thead).append($tbody);
+            var $tfoot = $('<tfoot><tr class="total-weights-row" style="background: linear-gradient(135deg, #28a745, #20c997); color: white; font-weight: bold;">\
+                <td colspan="5" class="text-center" style="padding: 12px;">Total Weights</td>\
+                <td class="text-center" style="padding: 12px;"><span id="totalWeightDisplay">0.000 KG</span></td>\
+                <td></td>\
+            </tr></tfoot>');
+            $table.append($thead).append($tbody).append($tfoot);
 
             // Wrap everything in the styled section
             $intakeDetailsSection.append($detailsHeader).append($table);
@@ -608,15 +638,17 @@
                 var $ptd = $('<td></td>');
                 var $box = $('<td></td>').append('<input type="number" min="1" class="form-control nbox" placeholder="0" />');
                 var $cnt = $('<td></td>').append('<input type="number" min="1" class="form-control counts" placeholder="0" />');
+                var $weight = $('<td class="text-center align-middle"></td>').append('<span class="factory-weight-display text-muted">-</span>');
                 var $act = $('<td class="text-center"></td>');
                 var $del = $('<button type="button" class="btn btn-danger btn-sm removeRow"><i class="fa fa-trash"></i></button>');
                 
-                // Add P button only in edit mode
+                // Add P button and Print button only in edit mode
                 @if (Model.TRANMID > 0)
                 {
                     <text>
                 var $pBtn = $('<button type="button" class="btn btn-primary btn-sm ml-1 productCalcBtn" title="Product Calculation"><i class="fa fa-calculator"></i> P</button>');
-                $act.append($del, $pBtn);
+                var $printBtn = $('<button type="button" class="btn btn-success btn-sm ml-1 printCalcBtn" title="Print Calculation"><i class="fa fa-print"></i></button>');
+                $act.append($del, $pBtn, $printBtn);
                     </text>
                 }
                 else
@@ -631,7 +663,7 @@
                 $gtd.append($gsel);
                 $ptd.append($psel);
 
-                $tr.append($sno, $gtd, $ptd, $box, $cnt, $act);
+                $tr.append($sno, $gtd, $ptd, $box, $cnt, $weight, $act);
                 $tbody.append($tr);
 
                 // carry TRANDID for existing rows (0 for new)
@@ -661,11 +693,18 @@
             $tbody.on('click', '.removeRow', function(){
                 $(this).closest('tr').remove();
                 renumber();
+                // Update total weights after row removal
+                updateTotalWeights();
             });
 
             // Load existing rows
             if (Array.isArray(details)) {
                 details.forEach(function(d){ addRow(d); });
+                
+                // Load factory weights for existing rows after a short delay
+                setTimeout(function() {
+                    loadAllFactoryWeights();
+                }, 1000);
             }
             
 
@@ -689,6 +728,24 @@
                 var countPerKg = $row.find('input.counts').val();
                 
                 openProductCalculationModal(trandid, supplierName, supplierCode, productType, product, noOfBoxes, countPerKg);
+            });
+            
+            // Print Calculation Button Click Handler - SIMPLIFIED: Direct PDF generation
+            $tbody.on('click', '.printCalcBtn', function(){
+                console.log('Print button clicked');
+                var $row = $(this).closest('tr');
+                var trandid = parseInt($row.data('trandid')||'0',10);
+                
+                console.log('TRANDID from row:', trandid);
+                
+                if (trandid <= 0) {
+                    alert('Please save the products first before printing.');
+                    return;
+                }
+                
+                console.log('Generating PDF directly for TRANDID:', trandid);
+                // Generate PDF for this specific row only
+                generateRowPDF(trandid);
             });
 
         })();
@@ -1997,6 +2054,9 @@
                             tabPane.attr('data-calculation-id', response.tranpid);
                             console.log('Updated calculation ID:', response.tranpid);
                         }
+                        
+                        // Update the weight column for this product row
+                        updateFactoryWeightDisplay(trandid);
                     } else {
                         alert('Error: ' + (response.message || 'Failed to save calculation'));
                     }
@@ -2011,6 +2071,73 @@
         function saveProductCalculation() {
             // This function is no longer used - individual tabs have their own save buttons
             alert('Please use the individual "Save [Packing Master] Calculation" buttons for each tab.');
+        }
+
+        // Function to update factory weight display in the product table
+        function updateFactoryWeightDisplay(trandid) {
+            $.ajax({
+                url: '@Url.Action("GetFactoryWeight", "RawMaterialIntake")',
+                type: 'GET',
+                data: { trandid: trandid },
+                success: function(response) {
+                    if (response.success) {
+                        // Find the row with this TRANDID and update the weight display
+                        var $tableBody = $('#detailsTable tbody');
+                        $tableBody.children('tr').each(function() {
+                            var rowTrandid = $(this).data('trandid');
+                            if (rowTrandid == trandid) {
+                                var weightDisplay = $(this).find('.factory-weight-display');
+                                if (response.factoryWeight > 0) {
+                                    var displayText = parseFloat(response.factoryWeight).toFixed(3) + ' KG';
+                                    weightDisplay.text(displayText)
+                                                .removeClass('text-muted')
+                                                .addClass('text-success font-weight-bold');
+                                } else {
+                                    weightDisplay.text('-').removeClass('text-success font-weight-bold').addClass('text-muted');
+                                }
+                                
+                                // Update total weights after individual weight is updated
+                                updateTotalWeights();
+                            }
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.log('Error getting factory weight for TRANDID:', trandid, 'Error:', error);
+                }
+            });
+        }
+
+        // Function to load factory weights for all existing rows
+        function loadAllFactoryWeights() {
+            var $tableBody = $('#detailsTable tbody');
+            
+            $tableBody.children('tr').each(function(index) {
+                var trandid = $(this).data('trandid');
+                if (trandid > 0) {
+                    updateFactoryWeightDisplay(trandid);
+                }
+            });
+        }
+
+        // Function to calculate and update total weights
+        function updateTotalWeights() {
+            var totalWeight = 0;
+            var $tableBody = $('#detailsTable tbody');
+            
+            $tableBody.children('tr').each(function() {
+                var weightText = $(this).find('.factory-weight-display').text();
+                if (weightText && weightText !== '-') {
+                    // Extract numeric value from "X.XXX KG" format
+                    var weightValue = parseFloat(weightText.replace(' KG', ''));
+                    if (!isNaN(weightValue)) {
+                        totalWeight += weightValue;
+                    }
+                }
+            });
+            
+            // Update the total display
+            $('#totalWeightDisplay').text(totalWeight.toFixed(3) + ' KG');
         }
 
         // Production button click handler
@@ -2365,6 +2492,17 @@
             return totalProduction;
         }
 
+        // Helper function to format date as dd/MM/yyyy
+        function formatDateToDDMMYYYY(date) {
+            if (!date || isNaN(date.getTime())) return 'N/A';
+            
+            var day = String(date.getDate()).padStart(2, '0');
+            var month = String(date.getMonth() + 1).padStart(2, '0');
+            var year = date.getFullYear();
+            
+            return day + '/' + month + '/' + year;
+        }
+
         function getLatestProductionDate(trandid) {
             var latestDate = null;
             
@@ -2381,7 +2519,7 @@
                                 if (!latestDate || prodDate > latestDate) {
                                     latestDate = prodDate;
                                 }
-                                console.log('Found valid date from database:', prodDate.toLocaleDateString());
+                                console.log('Found valid date from database:', formatDateToDDMMYYYY(prodDate));
                             }
                         } catch (e) {
                             console.log('Invalid date from database:', calc.PRODDATE);
@@ -2402,7 +2540,7 @@
                             if (!latestDate || prodDate > latestDate) {
                                 latestDate = prodDate;
                             }
-                            console.log('Found valid date from tab data:', prodDate.toLocaleDateString());
+                            console.log('Found valid date from tab data:', formatDateToDDMMYYYY(prodDate));
                         }
                     } catch (e) {
                         console.log('Invalid date from tab data:', storedCalculation.PRODDATE);
@@ -2410,7 +2548,7 @@
                 }
             });
             
-            var result = latestDate ? latestDate.toLocaleDateString() : 'N/A';
+            var result = latestDate ? formatDateToDDMMYYYY(latestDate) : 'N/A';
             console.log('Latest production date result:', result);
             return result;
         }
@@ -2488,6 +2626,153 @@
                 console.log('All calculations loaded for production overview');
                 if (callback) callback();
             });
+        }
+        
+        
+        // Active checkCalculationsExist function (outside commented section)
+        function checkCalculationsExist(trandid, callback) {
+            console.log('checkCalculationsExist called with trandid:', trandid);
+            var hasCalculations = false;
+            var checkPromises = [];
+            var packingMasterCount = 0;
+            
+            // Check each packing master for calculations
+            @foreach (var packing in ViewBag.PackingMasters)
+            {
+                <text>
+                packingMasterCount++;
+                console.log('Checking packing master:', @packing.Value, '@packing.Text');
+                var promise = $.ajax({
+                    url: '@Url.Action("GetProductCalculation", "RawMaterialIntake")',
+                    type: 'GET',
+                    data: { trandid: trandid, packingId: @packing.Value },
+                    dataType: 'json'
+                }).done(function(data) {
+                    console.log('AJAX response for packing ID @packing.Value:', data);
+                    if (data && data.success && data.calculation) {
+                        hasCalculations = true;
+                        console.log('Found calculation for packing ID:', @packing.Value, '@packing.Text');
+                    } else {
+                        console.log('No valid calculation data for packing ID:', @packing.Value, '@packing.Text');
+                    }
+                }).fail(function(xhr, status, error) {
+                    console.log('AJAX failed for packing ID @packing.Value:', status, error);
+                    console.log('Response:', xhr.responseText);
+                });
+                checkPromises.push(promise);
+                </text>
+            }
+            
+            console.log('Total packing masters to check:', packingMasterCount);
+            console.log('Total promises created:', checkPromises.length);
+            
+            if (checkPromises.length === 0) {
+                console.log('No packing masters found, calling callback with false');
+                callback(false);
+                return;
+            }
+            
+            $.when.apply($, checkPromises).always(function() {
+                console.log('All AJAX requests completed. Final hasCalculations:', hasCalculations);
+                console.log('About to call callback with hasCalculations:', hasCalculations);
+                callback(hasCalculations);
+            });
+        }
+        
+        // Direct PDF Generation Function for entire transaction (TRANMID)
+        function generateDirectPDF(tranmid) {
+            console.log('=== generateDirectPDF CALLED ===');
+            console.log('Generating direct PDF for TRANMID:', tranmid);
+            console.log('Type of tranmid:', typeof tranmid);
+            
+            if (!tranmid || tranmid <= 0) {
+                console.error('Invalid TRANMID provided:', tranmid);
+                alert('Invalid transaction ID. Cannot generate PDF.');
+                return;
+            }
+            
+            // Build PDF URL
+            var pdfUrl = '@Url.Action("GenerateCalculationPDF", "RawMaterialIntake")' + '?tranmid=' + tranmid;
+            console.log('PDF URL constructed:', pdfUrl);
+            
+            try {
+                console.log('Attempting to open PDF window...');
+                // Open PDF in new window/tab
+                var pdfWindow = window.open(pdfUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+                
+                if (pdfWindow) {
+                    console.log('PDF window opened successfully');
+                    // Focus on the new window
+                    pdfWindow.focus();
+                    
+                    // Check if window was blocked after a short delay
+                    setTimeout(function() {
+                        if (pdfWindow.closed) {
+                            console.log('PDF window was closed/blocked');
+                            alert('PDF window was blocked. Please allow popups for this site to view the PDF report.');
+                        } else {
+                            console.log('PDF window is still open');
+                        }
+                    }, 1000);
+                } else {
+                    console.error('Failed to open PDF window - popup blocked');
+                    alert('Please allow popups for this site to view the PDF report.');
+                }
+            } catch (error) {
+                console.error('Exception in generateDirectPDF:', error);
+                console.error('Error stack:', error.stack);
+                alert('Error opening PDF: ' + error.message);
+            }
+            
+            console.log('=== generateDirectPDF COMPLETED ===');
+        }
+
+        // Direct PDF Generation Function for specific row (TRANDID)
+        function generateRowPDF(trandid) {
+            console.log('=== generateRowPDF CALLED ===');
+            console.log('Generating row PDF for TRANDID:', trandid);
+            console.log('Type of trandid:', typeof trandid);
+            
+            if (!trandid || trandid <= 0) {
+                console.error('Invalid TRANDID provided:', trandid);
+                alert('Invalid transaction detail ID. Cannot generate PDF.');
+                return;
+            }
+            
+            // Build PDF URL for specific row
+            var pdfUrl = '@Url.Action("GenerateRowCalculationPDF", "RawMaterialIntake")' + '?trandid=' + trandid;
+            console.log('Row PDF URL constructed:', pdfUrl);
+            
+            try {
+                console.log('Attempting to open row PDF window...');
+                // Open PDF in new window/tab
+                var pdfWindow = window.open(pdfUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+                
+                if (pdfWindow) {
+                    console.log('Row PDF window opened successfully');
+                    // Focus on the new window
+                    pdfWindow.focus();
+                    
+                    // Check if window was blocked after a short delay
+                    setTimeout(function() {
+                        if (pdfWindow.closed) {
+                            console.log('Row PDF window was closed/blocked');
+                            alert('PDF window was blocked. Please allow popups for this site to view the PDF report.');
+                        } else {
+                            console.log('Row PDF window is still open');
+                        }
+                    }, 1000);
+                } else {
+                    console.error('Failed to open row PDF window - popup blocked');
+                    alert('Please allow popups for this site to view the PDF report.');
+                }
+            } catch (error) {
+                console.error('Exception in generateRowPDF:', error);
+                console.error('Error stack:', error.stack);
+                alert('Error opening PDF: ' + error.message);
+            }
+            
+            console.log('=== generateRowPDF COMPLETED ===');
         }
     </script>
 }
@@ -2806,3 +3091,4 @@
         </div>
     </div>
 </div>
+

@@ -225,6 +225,7 @@
     <Compile Include="Controllers\MaterialMasterController.cs" />
     <Compile Include="Controllers\NavbarController.cs" />
     <Compile Include="Controllers\RawMaterialIntakeController.cs" />
+    <Compile Include="Controllers\RenewalApprovalController.cs" />
     <!-- Excluded per cleanup -->
     <!-- <Compile Include="Controllers\ProfileMasterController.cs" /> -->
     <Compile Include="Controllers\RolesController.cs" />
@@ -337,6 +338,7 @@
     <Compile Include="Models\TransactionDetail.cs" />
     <Compile Include="Models\TransactionProductCalculation.cs" />
     <Compile Include="Models\TransactionQualityCheck.cs" />
+    <Compile Include="Models\Subscription.cs" />
     <Compile Include="Models\Group.cs" />
     <Compile Include="Models\IdentityManager.cs" />
     <Compile Include="Models\JQueryDataTableParamModel.cs" />

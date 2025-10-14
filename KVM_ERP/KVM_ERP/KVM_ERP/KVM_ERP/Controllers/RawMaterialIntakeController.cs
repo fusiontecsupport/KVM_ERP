@@ -326,13 +326,41 @@ namespace KVM_ERP.Controllers
         }
 
         // AJAX: RawMaterialIntake/GetAjaxData
-        public ActionResult GetAjaxData()
+        public ActionResult GetAjaxData(string fromDate = null, string toDate = null)
         {
             try
             {
-                // Pull minimal fields needed for the Index grid
-                var rows = db.Database.SqlQuery<TransactionRow>(
-                    @"SELECT tm.TRANMID, tm.TRANDATE, tm.CATENAME, tm.CATECODE, tm.VECHNO, tm.DISPSTATUS,
+                // Debug logging
+                System.Diagnostics.Debug.WriteLine($"[GetAjaxData] fromDate: {fromDate}, toDate: {toDate}");
+                // Build dynamic WHERE clause for date filtering
+                string whereClause = "";
+                var parameters = new List<object>();
+                int paramIndex = 0;
+
+                if (!string.IsNullOrEmpty(fromDate))
+                {
+                    DateTime fromDateTime;
+                    if (DateTime.TryParse(fromDate, out fromDateTime))
+                    {
+                        whereClause += $" AND tm.TRANDATE >= @p{paramIndex}";
+                        parameters.Add(fromDateTime.Date);
+                        paramIndex++;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(toDate))
+                {
+                    DateTime toDateTime;
+                    if (DateTime.TryParse(toDate, out toDateTime))
+                    {
+                        whereClause += $" AND tm.TRANDATE <= @p{paramIndex}";
+                        parameters.Add(toDateTime.Date.AddDays(1).AddSeconds(-1)); // Include full day
+                        paramIndex++;
+                    }
+                }
+
+                // Build the SQL query with optional date filtering
+                string sql = $@"SELECT tm.TRANMID, tm.TRANDATE, tm.CATENAME, tm.CATECODE, tm.VECHNO, tm.DISPSTATUS,
                              ISNULL(p.PRODUCTS,'') AS PRODUCTS
                       FROM TRANSACTIONMASTER tm
                       LEFT JOIN (
@@ -346,8 +374,19 @@ namespace KVM_ERP.Controllers
                          FROM TRANSACTIONDETAIL td
                          GROUP BY td.TRANMID
                       ) p ON p.TRANMID = tm.TRANMID
-                      ORDER BY tm.TRANDATE DESC, tm.TRANMID DESC"
-                ).ToList();
+                      WHERE 1=1 {whereClause}
+                      ORDER BY tm.TRANDATE DESC, tm.TRANMID DESC";
+
+                // Debug logging
+                System.Diagnostics.Debug.WriteLine($"[GetAjaxData] SQL: {sql}");
+                System.Diagnostics.Debug.WriteLine($"[GetAjaxData] Parameters: {string.Join(", ", parameters)}");
+
+                // Execute query with parameters
+                var rows = parameters.Count > 0 
+                    ? db.Database.SqlQuery<TransactionRow>(sql, parameters.ToArray()).ToList()
+                    : db.Database.SqlQuery<TransactionRow>(sql).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"[GetAjaxData] Returned {rows.Count} rows");
 
                 var data = rows.Select((r, idx) => new
                 {
@@ -1311,6 +1350,761 @@ namespace KVM_ERP.Controllers
                 System.Diagnostics.Debug.WriteLine($"General Exception: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"Stack Trace: {ex.StackTrace}");
                 return Json(new { success = false, message = "Unexpected error: " + ex.Message });
+            }
+        }
+
+
+        // Test method to check if controller is accessible
+        public ActionResult TestPDF()
+        {
+            return Content("PDF Controller is working! Current time: " + DateTime.Now.ToString());
+        }
+
+        // Helper class for PDF transaction details
+        public class PDFTransactionDetail
+        {
+            public int TRANDID { get; set; }
+            public int TRANMID { get; set; }
+            public int MTRLGID { get; set; }
+            public int MTRLID { get; set; }
+            public int MTRLNBOX { get; set; }
+            public int MTRLCOUNTS { get; set; }
+            public string ProductType { get; set; }
+            public string Product { get; set; }
+        }
+
+        // Direct PDF Generation Methods
+        public ActionResult GenerateCalculationPDF(int tranmid)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[PDF] GenerateCalculationPDF called with tranmid: {tranmid}");
+                
+                // Get transaction master details
+                var transaction = db.TransactionMasters.FirstOrDefault(t => t.TRANMID == tranmid);
+                if (transaction == null)
+                {
+                    return HttpNotFound("Transaction not found");
+                }
+
+                // Get transaction details with products
+                var transactionDetails = db.Database.SqlQuery<PDFTransactionDetail>(@"
+                    SELECT td.TRANDID, td.MTRLGID, td.MTRLID, td.MTRLNBOX, td.MTRLCOUNTS,
+                           mg.MTRLGDESC as ProductType, m.MTRLDESC as Product
+                    FROM TRANSACTIONDETAIL td
+                    INNER JOIN MATERIALGROUPMASTER mg ON mg.MTRLGID = td.MTRLGID
+                    INNER JOIN MATERIALMASTER m ON m.MTRLID = td.MTRLID
+                    WHERE td.TRANMID = @p0
+                    ORDER BY td.TRANDID", tranmid).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"[PDF] Found {transactionDetails.Count} transaction details");
+
+                // Get all calculations for this transaction
+                var allCalculations = db.TransactionProductCalculations
+                    .Where(c => c.TRANMID == tranmid)
+                    .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"[PDF] Found {allCalculations.Count} calculations");
+
+                // Group calculations by TRANDID
+                var calculationsByTrandid = allCalculations.GroupBy(c => c.TRANDID).ToList();
+
+                // Generate HTML content for PDF
+                var htmlContent = GeneratePDFContent(transaction, transactionDetails, calculationsByTrandid);
+
+                System.Diagnostics.Debug.WriteLine($"[PDF] Generated HTML content length: {htmlContent.Length}");
+
+                // Return HTML content as a view result for PDF generation
+                ViewBag.HtmlContent = htmlContent;
+                return View("PDFView");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PDF] Error generating PDF: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[PDF] Stack trace: {ex.StackTrace}");
+                
+                // Return an error page instead of JSON for better debugging
+                ViewBag.ErrorMessage = $"Error generating PDF: {ex.Message}";
+                ViewBag.HtmlContent = $@"
+                    <html>
+                    <head><title>PDF Generation Error</title></head>
+                    <body>
+                        <h1>PDF Generation Error</h1>
+                        <p><strong>Error:</strong> {ex.Message}</p>
+                        <p><strong>Transaction ID:</strong> {tranmid}</p>
+                        <p><strong>Time:</strong> {DateTime.Now}</p>
+                        <hr>
+                        <p>Please check the console logs for more details.</p>
+                    </body>
+                    </html>";
+                return View("PDFView");
+            }
+        }
+
+        // Generate PDF for specific TRANDID (single row)
+        public ActionResult GenerateRowCalculationPDF(int trandid)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[PDF] GenerateRowCalculationPDF called with trandid: {trandid}");
+                
+                // Get transaction detail for this TRANDID
+                var transactionDetail = db.Database.SqlQuery<PDFTransactionDetail>(@"
+                    SELECT td.TRANDID, td.TRANMID, td.MTRLGID, td.MTRLID, td.MTRLNBOX, td.MTRLCOUNTS,
+                           mg.MTRLGDESC as ProductType, m.MTRLDESC as Product
+                    FROM TRANSACTIONDETAIL td
+                    INNER JOIN MATERIALGROUPMASTER mg ON mg.MTRLGID = td.MTRLGID
+                    INNER JOIN MATERIALMASTER m ON m.MTRLID = td.MTRLID
+                    WHERE td.TRANDID = @p0", trandid).FirstOrDefault();
+
+                if (transactionDetail == null)
+                {
+                    return HttpNotFound("Transaction detail not found");
+                }
+
+                // Get transaction master details
+                var transaction = db.TransactionMasters.FirstOrDefault(t => t.TRANMID == transactionDetail.TRANMID);
+                if (transaction == null)
+                {
+                    return HttpNotFound("Transaction master not found");
+                }
+
+                // Get calculations for this specific TRANDID
+                var calculations = db.TransactionProductCalculations
+                    .Where(c => c.TRANDID == trandid)
+                    .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"[PDF] Found {calculations.Count} calculations for TRANDID {trandid}");
+
+                // Generate HTML content for PDF
+                var htmlContent = GenerateRowPDFContent(transaction, transactionDetail, calculations);
+
+                System.Diagnostics.Debug.WriteLine($"[PDF] Generated HTML content length: {htmlContent.Length}");
+
+                // Return HTML content as a view result for PDF generation
+                ViewBag.HtmlContent = htmlContent;
+                return View("PDFView");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PDF] Error generating row PDF: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[PDF] Stack trace: {ex.StackTrace}");
+                
+                // Return an error page instead of JSON for better debugging
+                ViewBag.ErrorMessage = $"Error generating PDF: {ex.Message}";
+                ViewBag.HtmlContent = $@"
+                    <html>
+                    <head><title>PDF Generation Error</title></head>
+                    <body>
+                        <h1>PDF Generation Error</h1>
+                        <p><strong>Error:</strong> {ex.Message}</p>
+                        <p><strong>Transaction Detail ID:</strong> {trandid}</p>
+                        <p><strong>Time:</strong> {DateTime.Now}</p>
+                        <hr>
+                        <p>Please check the console logs for more details.</p>
+                    </body>
+                    </html>";
+                return View("PDFView");
+            }
+        }
+
+        private string GenerateRowPDFContent(TransactionMaster transaction, PDFTransactionDetail transactionDetail, 
+            List<TransactionProductCalculation> calculations)
+        {
+            var html = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Product Calculation Report - Single Row</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; line-height: 1.4; }}
+        .header {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }}
+        .section {{ margin-bottom: 20px; page-break-inside: avoid; }}
+        .table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; }}
+        .table th, .table td {{ border: 1px solid #333; padding: 8px; text-align: left; }}
+        .table th {{ background-color: #f8f9fa; font-weight: bold; }}
+        .page-break {{ page-break-before: always; }}
+        .calculation-header {{ background-color: #e9ecef; padding: 10px; margin: 10px 0; font-weight: bold; }}
+        .packing-section {{ margin: 15px 0; }}
+        .calculation-section {{ margin: 15px 0; }}
+        .value {{ font-weight: bold; color: #007bff; }}
+        h2 {{ color: #333; margin-bottom: 5px; }}
+        h3 {{ color: #666; margin-bottom: 10px; }}
+        h4 {{ color: #333; margin-bottom: 8px; }}
+        .transaction-info {{ background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+        .no-calculations {{ text-align: center; color: #666; font-style: italic; padding: 20px; }}
+    </style>
+</head>
+<body>
+    <div class='header'>
+        <h2>MARINEX - Product Calculation Report</h2>
+        <h3>Raw Material Intake - Single Product Calculation</h3>
+    </div>
+    
+    <div class='transaction-info'>
+        <h4>Transaction Information</h4>
+        <table class='table'>
+            <tr><th>Transaction ID:</th><td>{transaction.TRANMID}</td></tr>
+            <tr><th>Transaction Date:</th><td>{transaction.TRANDATE:dd/MM/yyyy}</td></tr>
+            <tr><th>Supplier Name:</th><td>{transaction.CATENAME ?? "N/A"}</td></tr>
+            <tr><th>Supplier Code:</th><td>{transaction.CATECODE ?? "N/A"}</td></tr>
+            <tr><th>Vehicle No:</th><td>{transaction.VECHNO ?? "N/A"}</td></tr>
+            <tr><th>Client Weight (KG):</th><td>{transaction.CLIENTWGHT:F3}</td></tr>
+        </table>
+        
+        <h4>Product Information</h4>
+        <table class='table'>
+            <tr><th>Product Type:</th><td>{transactionDetail.ProductType}</td></tr>
+            <tr><th>Product:</th><td>{transactionDetail.Product}</td></tr>
+            <tr><th>No. of Boxes:</th><td>{transactionDetail.MTRLNBOX}</td></tr>
+            <tr><th>Count (Per KG):</th><td>{transactionDetail.MTRLCOUNTS}</td></tr>
+            <tr><th>Report Generated:</th><td>{DateTime.Now:dd/MM/yyyy HH:mm:ss}</td></tr>
+        </table>
+    </div>";
+
+            // Add calculations for this specific product
+            if (calculations != null && calculations.Any())
+            {
+                // Group by packing master
+                var packingGroups = calculations.GroupBy(c => c.PACKMID);
+                
+                foreach (var packingGroup in packingGroups)
+                {
+                    var packingId = packingGroup.Key;
+                    var calculation = packingGroup.First();
+                    
+                    // Get packing master name
+                    var packingMaster = db.PackingMasters.FirstOrDefault(p => p.PACKMID == packingId);
+                    var packingName = packingMaster?.PACKMDESC ?? $"Packing {packingId}";
+
+                    html += $@"
+    <div class='section'>
+        <div class='calculation-header'>
+            {packingName} Calculation
+        </div>
+        
+        <div class='packing-section'>";
+
+                    // Add production date if available
+                    if (calculation.PRODDATE.HasValue)
+                    {
+                        html += $@"
+            <p><strong>Production Date:</strong> {calculation.PRODDATE.Value:dd/MM/yyyy}</p>";
+                    }
+
+                    // Add calculation mode
+                    var calculationMode = calculation.CALCULATIONMODE == 2 ? "Grade Weight Mode" : "Packing Mode";
+                    html += $@"
+            <p><strong>Calculation Mode:</strong> {calculationMode}</p>";
+
+                    // Get packing type fields for this packing master
+                    var packingFields = GetPackingTypeFieldsForPDF(packingId);
+                    
+                    // Display packing details
+                    html += $@"
+            <div class='calculation-section'>
+                <h5>Packing Details</h5>
+                <table class='table'>
+                    <tr><th>Slab Size</th><th>Count</th></tr>";
+
+                    var pckValues = new[] { 
+                        calculation.PCK1, calculation.PCK2, calculation.PCK3, calculation.PCK4, 
+                        calculation.PCK5, calculation.PCK6, calculation.PCK7, calculation.PCK8, 
+                        calculation.PCK9, calculation.PCK10, calculation.PCK11, calculation.PCK12, 
+                        calculation.PCK13, calculation.PCK14, calculation.PCK15, calculation.PCK16, 
+                        calculation.PCK17 
+                    };
+
+                    for (int i = 0; i < pckValues.Length && i < packingFields.Count; i++)
+                    {
+                        if (pckValues[i].HasValue && pckValues[i] > 0)
+                        {
+                            html += $@"
+                    <tr><td>{packingFields[i]}</td><td class='value'>{pckValues[i]:F3}</td></tr>";
+                        }
+                    }
+
+                    html += $@"
+                    <tr style='background-color: #e9ecef;'><th>Total (Slab):</th><th class='value'>{calculation.TOPCK:F3}</th></tr>
+                </table>
+            </div>";
+
+                    // Display calculation results based on mode
+                    if (calculation.CALCULATIONMODE == 2) // Grade Weight Mode
+                    {
+                        html += $@"
+            <div class='calculation-section'>
+                <h5>Grade Weight Calculation</h5>
+                <table class='table'>
+                    <tr><th>Slab:</th><td class='value'>{calculation.TOPCK:F3}</td></tr>
+                    <tr><th>Peeled:</th><td class='value'>{calculation.WASTEWGT:F3}</td></tr>
+                    <tr style='background-color: #e9ecef;'><th>Factory Weight:</th><th class='value'>{calculation.FACTORYWGT:F3}</th></tr>
+                </table>
+            </div>";
+                    }
+                    else // Packing Mode
+                    {
+                        html += $@"
+            <div class='calculation-section'>
+                <h5>Slab Calculation</h5>
+                <table class='table'>
+                    <tr><th>Total PCK:</th><td class='value'>{calculation.TOPCK:F3}</td></tr>
+                    <tr><th>PCK L Value:</th><td class='value'>{calculation.PCKLVALUE:F3}</td></tr>
+                    <tr><th>Avg PCK Value:</th><td class='value'>{calculation.AVGPCKVALUE:F3}</td></tr>
+                    <tr><th>PNDS Value:</th><td class='value'>{calculation.PNDSVALUE:F3}</td></tr>
+                    <tr><th>Total PNDS:</th><td class='value'>{calculation.TOTALPNDS:F3}</td></tr>
+                </table>
+            </div>
+
+            <div class='calculation-section'>
+                <h5>Total Weight Calculation</h5>
+                <table class='table'>
+                    <tr><th>Yield Percent:</th><td class='value'>{calculation.YELDPERCENT:F3}%</td></tr>
+                    <tr><th>Total Yield Counts:</th><td class='value'>{calculation.TOTALYELDCOUNTS:F3}</td></tr>
+                    <tr><th>KG Weight:</th><td class='value'>{calculation.KGWGT:F3}</td></tr>
+                    <tr><th>PCK KG Weight:</th><td class='value'>{calculation.PCKKGWGT:F3}</td></tr>
+                    <tr><th>Waste Weight:</th><td class='value'>{calculation.WASTEWGT:F3}</td></tr>
+                    <tr><th>Waste P Weight:</th><td class='value'>{calculation.WASTEPWGT:F3}</td></tr>
+                    <tr style='background-color: #e9ecef;'><th>Factory Weight:</th><th class='value'>{calculation.FACTORYWGT:F3}</th></tr>
+                </table>
+            </div>";
+                    }
+
+                    html += @"
+        </div>
+    </div>"; // End section
+                }
+            }
+            else
+            {
+                html += @"
+    <div class='section'>
+        <div class='no-calculations'>No calculations available for this product.</div>
+    </div>";
+            }
+
+            html += @"
+</body>
+</html>";
+
+            return html;
+        }
+
+        private string GeneratePDFContent(TransactionMaster transaction, List<PDFTransactionDetail> transactionDetails, 
+            IEnumerable<IGrouping<int, TransactionProductCalculation>> calculationsByTrandid)
+        {
+            var html = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Product Calculation Report</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; line-height: 1.4; }}
+        .header {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }}
+        .section {{ margin-bottom: 20px; page-break-inside: avoid; }}
+        .table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; }}
+        .table th, .table td {{ border: 1px solid #333; padding: 8px; text-align: left; }}
+        .table th {{ background-color: #f8f9fa; font-weight: bold; }}
+        .page-break {{ page-break-before: always; }}
+        .calculation-header {{ background-color: #e9ecef; padding: 10px; margin: 10px 0; font-weight: bold; }}
+        .packing-section {{ margin: 15px 0; }}
+        .calculation-section {{ margin: 15px 0; }}
+        .value {{ font-weight: bold; color: #007bff; }}
+        h2 {{ color: #333; margin-bottom: 5px; }}
+        h3 {{ color: #666; margin-bottom: 10px; }}
+        h4 {{ color: #333; margin-bottom: 8px; }}
+        .transaction-info {{ background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+        .no-calculations {{ text-align: center; color: #666; font-style: italic; padding: 20px; }}
+    </style>
+</head>
+<body>
+    <div class='header'>
+        <h2>MARINEX - Product Calculation Report</h2>
+        <h3>Raw Material Intake Calculation Details</h3>
+    </div>
+    
+    <div class='transaction-info'>
+        <h4>Transaction Information</h4>
+        <table class='table'>
+            <tr><th>Transaction ID:</th><td>{transaction.TRANMID}</td></tr>
+            <tr><th>Transaction Date:</th><td>{transaction.TRANDATE:dd/MM/yyyy}</td></tr>
+            <tr><th>Supplier Name:</th><td>{transaction.CATENAME ?? "N/A"}</td></tr>
+            <tr><th>Supplier Code:</th><td>{transaction.CATECODE ?? "N/A"}</td></tr>
+            <tr><th>Vehicle No:</th><td>{transaction.VECHNO ?? "N/A"}</td></tr>
+            <tr><th>Client Weight (KG):</th><td>{transaction.CLIENTWGHT:F3}</td></tr>
+            <tr><th>Report Generated:</th><td>{DateTime.Now:dd/MM/yyyy HH:mm:ss}</td></tr>
+        </table>
+    </div>";
+
+            // Add calculations for each transaction detail
+            foreach (var detail in transactionDetails)
+            {
+                var trandid = detail.TRANDID;
+                var productType = detail.ProductType;
+                var product = detail.Product;
+                var boxes = detail.MTRLNBOX;
+                var counts = detail.MTRLCOUNTS;
+
+                html += $@"
+    <div class='section'>
+        <div class='calculation-header'>
+            Product: {product} ({productType}) - Boxes: {boxes}, Count: {counts}
+        </div>";
+
+                // Get calculations for this TRANDID
+                var calculations = calculationsByTrandid.FirstOrDefault(g => g.Key == trandid);
+                if (calculations != null && calculations.Any())
+                {
+                    // Group by packing master
+                    var packingGroups = calculations.GroupBy(c => c.PACKMID);
+                    
+                    foreach (var packingGroup in packingGroups)
+                    {
+                        var packingId = packingGroup.Key;
+                        var calculation = packingGroup.First();
+                        
+                        // Get packing master name
+                        var packingMaster = db.PackingMasters.FirstOrDefault(p => p.PACKMID == packingId);
+                        var packingName = packingMaster?.PACKMDESC ?? $"Packing {packingId}";
+
+                        html += $@"
+        <div class='packing-section'>
+            <h4>{packingName} Calculation</h4>";
+
+                        // Add production date if available
+                        if (calculation.PRODDATE.HasValue)
+                        {
+                            html += $@"
+            <p><strong>Production Date:</strong> {calculation.PRODDATE.Value:dd/MM/yyyy}</p>";
+                        }
+
+                        // Add calculation mode
+                        var calculationMode = calculation.CALCULATIONMODE == 2 ? "Grade Weight Mode" : "Packing Mode";
+                        html += $@"
+            <p><strong>Calculation Mode:</strong> {calculationMode}</p>";
+
+                        // Get packing type fields for this packing master
+                        var packingFields = GetPackingTypeFieldsForPDF(packingId);
+                        
+                        // Display packing details
+                        html += $@"
+            <div class='calculation-section'>
+                <h5>Packing Details</h5>
+                <table class='table'>
+                    <tr><th>Slab Size</th><th>Count</th></tr>";
+
+                        var pckValues = new[] { 
+                            calculation.PCK1, calculation.PCK2, calculation.PCK3, calculation.PCK4, 
+                            calculation.PCK5, calculation.PCK6, calculation.PCK7, calculation.PCK8, 
+                            calculation.PCK9, calculation.PCK10, calculation.PCK11, calculation.PCK12, 
+                            calculation.PCK13, calculation.PCK14, calculation.PCK15, calculation.PCK16, 
+                            calculation.PCK17 
+                        };
+
+                        for (int i = 0; i < pckValues.Length && i < packingFields.Count; i++)
+                        {
+                            if (pckValues[i].HasValue && pckValues[i] > 0)
+                            {
+                                html += $@"
+                    <tr><td>{packingFields[i]}</td><td class='value'>{pckValues[i]:F3}</td></tr>";
+                            }
+                        }
+
+                        html += $@"
+                    <tr style='background-color: #e9ecef;'><th>Total (Slab):</th><th class='value'>{calculation.TOPCK:F3}</th></tr>
+                </table>
+            </div>";
+
+                        // Display calculation results based on mode
+                        if (calculation.CALCULATIONMODE == 2) // Grade Weight Mode
+                        {
+                            html += $@"
+            <div class='calculation-section'>
+                <h5>Grade Weight Calculation</h5>
+                <table class='table'>
+                    <tr><th>Slab:</th><td class='value'>{calculation.TOPCK:F3}</td></tr>
+                    <tr><th>Peeled:</th><td class='value'>{calculation.WASTEWGT:F3}</td></tr>
+                    <tr style='background-color: #e9ecef;'><th>Factory Weight:</th><th class='value'>{calculation.FACTORYWGT:F3}</th></tr>
+                </table>
+            </div>";
+                        }
+                        else // Packing Mode
+                        {
+                            html += $@"
+            <div class='calculation-section'>
+                <h5>Slab Calculation</h5>
+                <table class='table'>
+                    <tr><th>Total PCK:</th><td class='value'>{calculation.TOPCK:F3}</td></tr>
+                    <tr><th>PCK L Value:</th><td class='value'>{calculation.PCKLVALUE:F3}</td></tr>
+                    <tr><th>Avg PCK Value:</th><td class='value'>{calculation.AVGPCKVALUE:F3}</td></tr>
+                    <tr><th>PNDS Value:</th><td class='value'>{calculation.PNDSVALUE:F3}</td></tr>
+                    <tr><th>Total PNDS:</th><td class='value'>{calculation.TOTALPNDS:F3}</td></tr>
+                </table>
+            </div>
+
+            <div class='calculation-section'>
+                <h5>Total Weight Calculation</h5>
+                <table class='table'>
+                    <tr><th>Yield Percent:</th><td class='value'>{calculation.YELDPERCENT:F3}%</td></tr>
+                    <tr><th>Total Yield Counts:</th><td class='value'>{calculation.TOTALYELDCOUNTS:F3}</td></tr>
+                    <tr><th>KG Weight:</th><td class='value'>{calculation.KGWGT:F3}</td></tr>
+                    <tr><th>PCK KG Weight:</th><td class='value'>{calculation.PCKKGWGT:F3}</td></tr>
+                    <tr><th>Waste Weight:</th><td class='value'>{calculation.WASTEWGT:F3}</td></tr>
+                    <tr><th>Waste P Weight:</th><td class='value'>{calculation.WASTEPWGT:F3}</td></tr>
+                    <tr style='background-color: #e9ecef;'><th>Factory Weight:</th><th class='value'>{calculation.FACTORYWGT:F3}</th></tr>
+                </table>
+            </div>";
+                        }
+
+                        html += @"
+        </div>"; // End packing-section
+                    }
+                }
+                else
+                {
+                    html += @"
+        <div class='no-calculations'>No calculations available for this product.</div>";
+                }
+
+                html += @"
+    </div>"; // End section
+            }
+
+            html += @"
+</body>
+</html>";
+
+            return html;
+        }
+
+        private List<string> GetPackingTypeFieldsForPDF(int packingId)
+        {
+            try
+            {
+                var packingTypes = db.PackingTypeMasters
+                    .Where(pt => pt.PACKMID == packingId && pt.DISPSTATUS == 0)
+                    .OrderBy(pt => pt.PACKTMCODE)
+                    .Select(pt => pt.PACKTMDESC)
+                    .ToList();
+
+                return packingTypes.Any() ? packingTypes : new List<string> 
+                { 
+                    "PCK1", "PCK2", "PCK3", "PCK4", "PCK5", "PCK6", "PCK7", "PCK8", "PCK9", 
+                    "PCK10", "PCK11", "PCK12", "PCK13", "PCK14", "PCK15", "PCK16", "PCK17" 
+                };
+            }
+            catch
+            {
+                return new List<string> 
+                { 
+                    "PCK1", "PCK2", "PCK3", "PCK4", "PCK5", "PCK6", "PCK7", "PCK8", "PCK9", 
+                    "PCK10", "PCK11", "PCK12", "PCK13", "PCK14", "PCK15", "PCK16", "PCK17" 
+                };
+            }
+        }
+
+        // Generate Transaction PDF for Index page Print button
+        public ActionResult GenerateTransactionPDF(int id)
+        {
+            try
+            {
+                var htmlContent = GenerateTransactionPDFContent(id);
+                
+                Response.ContentType = "text/html";
+                Response.AddHeader("Content-Disposition", $"inline; filename=RawMaterialIntake_{id}.html");
+                
+                return Content(htmlContent);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GenerateTransactionPDF] Error: {ex.Message}");
+                return Content($"<html><body><h3>Error generating PDF: {ex.Message}</h3></body></html>");
+            }
+        }
+
+        private string GenerateTransactionPDFContent(int tranmid)
+        {
+            // Get transaction master data
+            var transaction = db.TransactionMasters.FirstOrDefault(t => t.TRANMID == tranmid);
+            if (transaction == null)
+            {
+                return "<html><body><h3>Transaction not found</h3></body></html>";
+            }
+
+            // Get transaction details with product information using Entity Framework
+            var details = (from td in db.TransactionDetails
+                          join m in db.MaterialMasters on td.MTRLID equals m.MTRLID
+                          join mg in db.MaterialGroupMasters on td.MTRLGID equals mg.MTRLGID
+                          where td.TRANMID == tranmid
+                          select new
+                          {
+                              td.TRANDID,
+                              td.TRANMID,
+                              td.MTRLNBOX,
+                              td.MTRLCOUNTS,
+                              ProductType = mg.MTRLGDESC,
+                              ProductName = m.MTRLDESC
+                          }).OrderBy(x => x.TRANDID).ToList();
+
+            var html = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Raw Material Intake - {transaction.TRANMID}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }}
+        .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+        .header {{ text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #007bff; }}
+        .company-name {{ font-size: 28px; font-weight: bold; color: #007bff; margin-bottom: 5px; }}
+        .document-title {{ font-size: 20px; color: #6c757d; margin-bottom: 10px; }}
+        .transaction-info {{ background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); padding: 20px; border-radius: 8px; margin-bottom: 25px; }}
+        .info-row {{ display: flex; justify-content: space-between; margin-bottom: 10px; }}
+        .info-label {{ font-weight: bold; color: #1976d2; }}
+        .info-value {{ color: #424242; }}
+        .section-title {{ font-size: 18px; font-weight: bold; color: #007bff; margin: 25px 0 15px 0; padding-bottom: 8px; border-bottom: 2px solid #e9ecef; }}
+        .table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
+        .table th, .table td {{ padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6; }}
+        .table th {{ background: linear-gradient(135deg, #007bff, #0056b3); color: white; font-weight: 600; }}
+        .table tbody tr:nth-child(even) {{ background-color: #f8f9fa; }}
+        .table tbody tr:hover {{ background-color: #e3f2fd; }}
+        .value {{ text-align: right; font-weight: 600; }}
+        .total-row {{ background: linear-gradient(135deg, #28a745, #20c997) !important; color: white; font-weight: bold; }}
+        .no-data {{ text-align: center; color: #6c757d; font-style: italic; padding: 20px; }}
+        @media print {{ 
+            body {{ background: white; }} 
+            .container {{ box-shadow: none; }} 
+            @page {{ margin: 1in; }}
+        }}
+    </style>
+    <script>
+        window.onload = function() {{
+            window.print();
+        }};
+    </script>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <div class='company-name'>MARINEX</div>
+            <div class='document-title'>Raw Material Intake Report</div>
+            <div style='color: #6c757d; font-size: 14px;'>Transaction ID: {transaction.TRANMID}</div>
+        </div>
+
+        <div class='transaction-info'>
+            <div class='info-row'>
+                <span class='info-label'>Date:</span>
+                <span class='info-value'>{transaction.TRANDATE:dd/MM/yyyy}</span>
+            </div>
+            <div class='info-row'>
+                <span class='info-label'>Supplier Name:</span>
+                <span class='info-value'>{transaction.CATENAME}</span>
+            </div>
+            <div class='info-row'>
+                <span class='info-label'>Supplier Code:</span>
+                <span class='info-value'>{transaction.CATECODE}</span>
+            </div>
+            <div class='info-row'>
+                <span class='info-label'>Vehicle No:</span>
+                <span class='info-value'>{transaction.VECHNO}</span>
+            </div>
+            <div class='info-row'>
+                <span class='info-label'>Client Weight (KG):</span>
+                <span class='info-value'>{transaction.CLIENTWGHT:F2} KG</span>
+            </div>
+        </div>";
+
+            if (details.Any())
+            {
+                html += @"
+        <div class='section-title'>Product Details</div>
+        <table class='table'>
+            <thead>
+                <tr>
+                    <th>S.No</th>
+                    <th>Product Type</th>
+                    <th>Product Name</th>
+                    <th>No of Boxes</th>
+                    <th>Counts per KG</th>
+                </tr>
+            </thead>
+            <tbody>";
+
+                int serialNo = 1;
+                int totalBoxes = 0;
+
+                foreach (var detail in details)
+                {
+                    totalBoxes += detail.MTRLNBOX;
+
+                    html += $@"
+                <tr>
+                    <td>{serialNo}</td>
+                    <td>{detail.ProductType}</td>
+                    <td>{detail.ProductName}</td>
+                    <td class='value'>{detail.MTRLNBOX}</td>
+                    <td class='value'>{detail.MTRLCOUNTS}</td>
+                </tr>";
+                    serialNo++;
+                }
+
+                html += $@"
+                <tr class='total-row'>
+                    <td colspan='3'><strong>Total No.of Boxes</strong></td>
+                    <td colspan='2' class='value' style='text-align: center;'><strong>{totalBoxes}</strong></td>
+                </tr>
+            </tbody>
+        </table>";
+            }
+            else
+            {
+                html += @"
+        <div class='section-title'>Product Details</div>
+        <div class='no-data'>No product details available for this transaction.</div>";
+            }
+
+            html += $@"
+        <div style='margin-top: 40px; text-align: center; color: #6c757d; font-size: 12px;'>
+            Generated on {DateTime.Now:dd/MM/yyyy HH:mm} | MARINEX ERP System
+        </div>
+    </div>
+</body>
+</html>";
+
+            return html;
+        }
+
+        // Get total factory weight for a specific transaction detail (product row)
+        [HttpGet]
+        public ActionResult GetFactoryWeight(int trandid)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[GetFactoryWeight] Looking for TRANDID: {trandid}");
+                
+                var calculations = db.TransactionProductCalculations
+                    .Where(calc => calc.TRANDID == trandid && calc.DISPSTATUS == 0)
+                    .ToList();
+                
+                System.Diagnostics.Debug.WriteLine($"[GetFactoryWeight] Found {calculations.Count} calculations for TRANDID {trandid}");
+                
+                var totalFactoryWeight = calculations.Sum(calc => calc.FACTORYWGT ?? 0);
+                
+                System.Diagnostics.Debug.WriteLine($"[GetFactoryWeight] Total factory weight: {totalFactoryWeight}");
+                
+                foreach (var calc in calculations)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[GetFactoryWeight] TRANPID: {calc.TRANPID}, PACKMID: {calc.PACKMID}, FACTORYWGT: {calc.FACTORYWGT}");
+                }
+
+                return Json(new { success = true, factoryWeight = totalFactoryWeight }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GetFactoryWeight] Error: {ex.Message}");
+                return Json(new { success = false, error = ex.Message }, JsonRequestBehavior.AllowGet);
             }
         }
 
