@@ -110,6 +110,12 @@ namespace KVM_ERP.Models
         [Column("FACTORYWGT")]
         public decimal? FACTORYWGT { get; set; }
 
+        [Column("FACAVGWGT")]
+        public decimal? FACAVGWGT { get; set; }
+
+        [Column("FACAVGCOUNT")]
+        public decimal? FACAVGCOUNT { get; set; }
+
         [Column("DISPSTATUS")]
         public short? DISPSTATUS { get; set; }
 

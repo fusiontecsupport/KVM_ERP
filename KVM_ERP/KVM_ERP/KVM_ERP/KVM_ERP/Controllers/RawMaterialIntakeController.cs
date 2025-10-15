@@ -548,6 +548,8 @@ namespace KVM_ERP.Controllers
                             WASTEWGT = calculation.WASTEWGT,
                             WASTEPWGT = calculation.WASTEPWGT,
                             FACTORYWGT = calculation.FACTORYWGT,
+                            FACAVGWGT = calculation.FACAVGWGT,
+                            FACAVGCOUNT = calculation.FACAVGCOUNT,
                             PRODDATE = calculation.PRODDATE?.ToString("yyyy-MM-dd"), // Format date as string
                             CALCULATIONMODE = calculation.CALCULATIONMODE,
                             DISPSTATUS = calculation.DISPSTATUS,
@@ -819,6 +821,8 @@ namespace KVM_ERP.Controllers
             existing.WASTEWGT = model.WASTEWGT;
             existing.WASTEPWGT = model.WASTEPWGT;
             existing.FACTORYWGT = model.FACTORYWGT;
+            existing.FACAVGWGT = model.FACAVGWGT;
+            existing.FACAVGCOUNT = model.FACAVGCOUNT;
             existing.PRODDATE = model.PRODDATE;
             existing.CALCULATIONMODE = model.CALCULATIONMODE;
         }
@@ -857,6 +861,8 @@ namespace KVM_ERP.Controllers
             model.YELDPERCENT = ParseNullableDecimal(form["YELDPERCENT"]);
             model.KGWGT = ParseNullableDecimal(form["KGWGT"]);
             model.WASTEWGT = ParseNullableDecimal(form["WASTEWGT"]);
+            model.FACAVGWGT = ParseNullableDecimal(form["FACAVGWGT"]);
+            model.FACAVGCOUNT = ParseNullableDecimal(form["FACAVGCOUNT"]);
             
             // Parse PRODDATE field
             model.PRODDATE = ParseNullableDateTime(form["PRODDATE"]);

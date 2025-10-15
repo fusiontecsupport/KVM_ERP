@@ -125,6 +125,8 @@ namespace KVM_ERP.Models
             modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.WASTEWGT).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.WASTEPWGT).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.FACTORYWGT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.FACAVGWGT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.FACAVGCOUNT).HasPrecision(18, 3);
 
             // Keep this:
             modelBuilder.Entity<IdentityUser>().ToTable("AspNetUsers");

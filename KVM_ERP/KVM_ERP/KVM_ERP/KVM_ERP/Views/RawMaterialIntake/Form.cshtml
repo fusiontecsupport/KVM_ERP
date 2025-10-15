@@ -751,6 +751,36 @@
         })();
 
         // Product Calculation Modal Functions
+        // --- Helpers to stabilize global factory fields population ---
+        function resolveFactoryFieldsFromTabs() {
+            var weight = null, count = null;
+            $('.tab-pane').each(function(){
+                var stored = $(this).data('existing-calculation');
+                if (stored) {
+                    if (weight === null && (stored.FACAVGWGT || stored.FACAVGWGT === 0)) {
+                        weight = stored.FACAVGWGT;
+                    }
+                    if (count === null && (stored.FACAVGCOUNT || stored.FACAVGCOUNT === 0)) {
+                        count = stored.FACAVGCOUNT;
+                    }
+                }
+            });
+            return { weight: weight, count: count };
+        }
+
+        function ensureFactoryFieldsPopulated() {
+            var $w = $('#facAvgWeight');
+            var $c = $('#facAvgCount');
+            if (!$w.length || !$c.length) return;
+
+            var vals = resolveFactoryFieldsFromTabs();
+            if ((!$w.val() || $w.val() === '') && (vals.weight || vals.weight === 0)) {
+                $w.val(vals.weight);
+            }
+            if ((!$c.val() || $c.val() === '') && (vals.count || vals.count === 0)) {
+                $c.val(vals.count);
+            }
+        }
         function openProductCalculationModal(trandid, supplierName, supplierCode, productType, product, noOfBoxes, countPerKg) {
             // Populate display fields
             $('#modal-supplier-name').text(supplierName);
@@ -810,6 +840,15 @@
                             console.error('IMMEDIATE DATE SET - Error:', error);
                         }
                     }
+                    // Also set global Client Factory fields if present
+                    if (data && data.success && data.calculation) {
+                        if ($('#facAvgWeight').length && !$('#facAvgWeight').val() && (data.calculation.FACAVGWGT || data.calculation.FACAVGWGT === 0)) {
+                            $('#facAvgWeight').val(data.calculation.FACAVGWGT);
+                        }
+                        if ($('#facAvgCount').length && !$('#facAvgCount').val() && (data.calculation.FACAVGCOUNT || data.calculation.FACAVGCOUNT === 0)) {
+                            $('#facAvgCount').val(data.calculation.FACAVGCOUNT);
+                        }
+                    }
                 },
                 error: function() {
                     console.log('IMMEDIATE DATE SET - Ajax error');
@@ -829,9 +868,10 @@
                     }
                 });
                 
-                // Set up a final date check after all calculations are loaded
+                // Set up final checks after all calculations are loaded
                 setTimeout(function() {
                     ensureDateFieldIsPopulated(trandid);
+                    ensureFactoryFieldsPopulated();
                 }, 2000);
                 
                 // Set up a periodic check to ensure date gets set (aggressive approach)
@@ -873,6 +913,8 @@
                             }
                         });
                     }
+                    // Also stabilize factory fields repeatedly until set
+                    ensureFactoryFieldsPopulated();
                     
                     if (dateSetAttempts >= maxAttempts || dateField.val()) {
                         clearInterval(dateSetInterval);
@@ -963,6 +1005,8 @@
             
             // Load fields for the selected tab (only if not already loaded)
             loadPackingTypeFieldsForTab(packingId);
+            // Ensure global factory fields remain populated across tab switches
+            ensureFactoryFieldsPopulated();
             
             // Check if we already have calculation data stored and populate it
             const tabPane = $(`#pane-${packingId}`);
@@ -1038,6 +1082,8 @@
                 setTimeout(function() {
                     updateRadioButtonsForActiveTab();
                 }, 200);
+                // Re-ensure factory fields after tab change
+                ensureFactoryFieldsPopulated();
                 
                 // Trigger calculation after tab change
                 setTimeout(function() {
@@ -1065,6 +1111,8 @@
             setTimeout(function() {
                 updateRadioButtonsForActiveTab();
             }, 300);
+            // Re-ensure factory fields on manual tab click
+            ensureFactoryFieldsPopulated();
             
             // Trigger calculation after direct tab click
             setTimeout(function() {
@@ -1122,6 +1170,52 @@
             const packingId = $(this).data('packing-id');
             const tabPane = $(`#pane-${packingId}`);
             saveTabCalculation(tabPane, packingId);
+        });
+
+        // Handle Next button to move to the next tab
+        $(document).on('click', '.next-tab-btn', function() {
+            const currentPackingId = $(this).data('packing-id');
+            const $tabs = $('#packingMasterTabs .nav-link');
+            const index = $tabs.index($(`#tab-${currentPackingId}`));
+            if (index === -1) return;
+            const nextIndex = index + 1;
+            if (nextIndex < $tabs.length) {
+                const $nextTab = $tabs.eq(nextIndex);
+                const nextPackingId = $nextTab.data('packing-id');
+                if (nextPackingId) {
+                    switchTab(nextPackingId);
+                }
+            } else {
+                // Optional: loop back to first tab
+                const $firstTab = $tabs.first();
+                const firstPackingId = $firstTab.data('packing-id');
+                if (firstPackingId) {
+                    switchTab(firstPackingId);
+                }
+            }
+        });
+
+        // Handle Back button to move to the previous tab
+        $(document).on('click', '.back-tab-btn', function() {
+            const currentPackingId = $(this).data('packing-id');
+            const $tabs = $('#packingMasterTabs .nav-link');
+            const index = $tabs.index($(`#tab-${currentPackingId}`));
+            if (index === -1) return;
+            let prevIndex = index - 1;
+            if (prevIndex >= 0) {
+                const $prevTab = $tabs.eq(prevIndex);
+                const prevPackingId = $prevTab.data('packing-id');
+                if (prevPackingId) {
+                    switchTab(prevPackingId);
+                }
+            } else {
+                // Optional: loop to the last tab
+                const $lastTab = $tabs.last();
+                const lastPackingId = $lastTab.data('packing-id');
+                if (lastPackingId) {
+                    switchTab(lastPackingId);
+                }
+            }
         });
 
         // Handle input changes for tab calculations
@@ -1318,8 +1412,10 @@
             
             console.log('Date field is empty, attempting to populate...');
             
-            // Try to get date from any stored calculation data
+            // Try to get date and client factory fields from any stored calculation data
             let foundDate = null;
+            let foundFacAvgWgt = null;
+            let foundFacAvgCnt = null;
             $('.tab-pane').each(function() {
                 const tabPane = $(this);
                 const storedCalculation = tabPane.data('existing-calculation');
@@ -1327,7 +1423,14 @@
                 if (storedCalculation && storedCalculation.PRODDATE && !foundDate) {
                     foundDate = storedCalculation.PRODDATE;
                     console.log('Found date from tab:', tabPane.attr('id'), 'Date:', foundDate);
-                    return false; // Break out of loop
+                }
+                if (storedCalculation) {
+                    if ((storedCalculation.FACAVGWGT || storedCalculation.FACAVGWGT === 0) && foundFacAvgWgt === null) {
+                        foundFacAvgWgt = storedCalculation.FACAVGWGT;
+                    }
+                    if ((storedCalculation.FACAVGCOUNT || storedCalculation.FACAVGCOUNT === 0) && foundFacAvgCnt === null) {
+                        foundFacAvgCnt = storedCalculation.FACAVGCOUNT;
+                    }
                 }
             });
             
@@ -1380,6 +1483,13 @@
                         setTimeout(function() {
                             console.log('ensureDateFieldIsPopulated verification:', dateField.val());
                         }, 100);
+                    }
+                    // Also set factory fields if found
+                    if (foundFacAvgWgt !== null && $('#facAvgWeight').length) {
+                        $('#facAvgWeight').val(foundFacAvgWgt);
+                    }
+                    if (foundFacAvgCnt !== null && $('#facAvgCount').length) {
+                        $('#facAvgCount').val(foundFacAvgCnt);
                     }
                 } catch (error) {
                     console.error('Error setting date field:', error);
@@ -1434,6 +1544,15 @@
                                     
                                     console.log('Set date from server:', formattedDate);
                                     console.log('Server date field verification:', dateField.val());
+                                }
+                                // Also set factory fields from server response if present
+                                if (data.calculation) {
+                                    if ((data.calculation.FACAVGWGT || data.calculation.FACAVGWGT === 0) && $('#facAvgWeight').length) {
+                                        $('#facAvgWeight').val(data.calculation.FACAVGWGT);
+                                    }
+                                    if ((data.calculation.FACAVGCOUNT || data.calculation.FACAVGCOUNT === 0) && $('#facAvgCount').length) {
+                                        $('#facAvgCount').val(data.calculation.FACAVGCOUNT);
+                                    }
                                 }
                             } catch (error) {
                                 console.error('Error setting date from server:', error);
@@ -1552,6 +1671,13 @@
                         // Store the calculation data for later population
                         $(`#pane-${packingId}`).data('existing-calculation', data.calculation);
                         console.log('Stored calculation data for packingId:', packingId);
+                        // If global fields are empty, populate from this tab's data too
+                        if ($('#facAvgWeight').length && !$('#facAvgWeight').val() && (data.calculation.FACAVGWGT || data.calculation.FACAVGWGT === 0)) {
+                            $('#facAvgWeight').val(data.calculation.FACAVGWGT);
+                        }
+                        if ($('#facAvgCount').length && !$('#facAvgCount').val() && (data.calculation.FACAVGCOUNT || data.calculation.FACAVGCOUNT === 0)) {
+                            $('#facAvgCount').val(data.calculation.FACAVGCOUNT);
+                        }
                         
                         // If this is the active tab, populate immediately after a delay
                         const isActiveTab = $(`#pane-${packingId}`).hasClass('active');
@@ -1586,6 +1712,8 @@
                                 }, 200);
                             }, 800); // Wait for fields to be fully loaded
                         }
+                        // Stabilize global factory fields regardless of active tab
+                        ensureFactoryFieldsPopulated();
                     } else {
                         console.log('No existing calculation found for packing master:', packingId);
                     }
@@ -1630,6 +1758,12 @@
                 tabPane.find('.yield-percent').val(calculation.YELDPERCENT || '');
                 tabPane.find('.per-kg-weight').val(calculation.KGWGT || '');
                 tabPane.find('.wastage').val(calculation.WASTEWGT || '');
+                if (calculation.FACAVGWGT !== null && calculation.FACAVGWGT !== undefined) {
+                    $('#facAvgWeight').val(calculation.FACAVGWGT);
+                }
+                if (calculation.FACAVGCOUNT !== null && calculation.FACAVGCOUNT !== undefined) {
+                    $('#facAvgCount').val(calculation.FACAVGCOUNT);
+                }
                 
                 // INSTANT Grade Weight calculation if this is Grade Weight mode
                 const isGradeWeightMode = calculation.CALCULATIONMODE == 2;
@@ -1988,7 +2122,7 @@
             }
 
             // Collect all form data for this tab
-            const formData = {
+                const formData = {
                 TRANPID: calculationId,
                 TRANDID: trandid,
                 TRANMID: @Model.TRANMID,
@@ -2008,7 +2142,9 @@
                 TOTALYELDCOUNTS: parseFloat(tabPane.find('.total-yield-counts').text()) || 0,
                 PCKKGWGT: parseFloat(tabPane.find('.pck-kg-weight').text()) || 0,
                 WASTEPWGT: parseFloat(tabPane.find('.waste-p-weight').text()) || 0,
-                FACTORYWGT: parseFloat(tabPane.find('.factory-weight').text()) || 0  // Factory Weight calculation
+                FACTORYWGT: parseFloat(tabPane.find('.factory-weight').text()) || 0,  // Factory Weight calculation
+                FACAVGWGT: parseFloat($('#facAvgWeight').val()) || 0,
+                FACAVGCOUNT: parseFloat($('#facAvgCount').val()) || 0
             };
             
             // Debug: Log the Factory Weight value being saved
@@ -2825,6 +2961,18 @@
                                     <input type="date" class="form-control" id="prodDate" name="PRODDATE" />
                                 </div>
                             </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="facAvgWeight" class="control-label"><strong>Client Factory weight:</strong></label>
+                                    <input type="number" class="form-control fac-avg-weight" id="facAvgWeight" step="0.001" min="0" placeholder="0.000" />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="facAvgCount" class="control-label"><strong>Client Factory Count:</strong></label>
+                                    <input type="number" class="form-control fac-avg-count" id="facAvgCount" step="0.001" min="0" placeholder="0.000" />
+                                </div>
+                            </div>
                         </div>
                         
                     </div>
@@ -2839,9 +2987,21 @@
                         <ul class="nav nav-tabs" id="packingMasterTabs" role="tablist">
                             @{
                                 var packingMasters = ViewBag.PackingMasters as List<SelectListItem> ?? new List<SelectListItem>();
+                                // Order tabs so that "Head On" appears before "Head Less", others follow original order
+                                Func<string, int> pmPriority = text =>
+                                {
+                                    var t = (text ?? "").ToLowerInvariant();
+                                    if (t.Contains("head on")) return 0;
+                                    if (t.Contains("head less") || t.Contains("headless")) return 1;
+                                    return 2;
+                                };
+                                var packingMastersOrdered = packingMasters
+                                    .OrderBy(pm => pmPriority(pm.Text))
+                                    .ThenBy(pm => pm.Text)
+                                    .ToList();
                                 var isFirst = true;
                             }
-                            @foreach (var packing in packingMasters)
+                            @foreach (var packing in packingMastersOrdered)
                             {
                                 <li class="nav-item" role="presentation">
                                     <a class="nav-link @(isFirst ? "active" : "")" 
@@ -2897,7 +3057,7 @@
                             @{
                                 isFirst = true;
                             }
-                            @foreach (var packing in packingMasters)
+                            @foreach (var packing in packingMastersOrdered)
                             {
                                 <div class="tab-pane fade @(isFirst ? "show active" : "")" 
                                      id="pane-@packing.Value" 
@@ -2993,12 +3153,14 @@
                                                                 <strong class="waste-p-weight calculation-result">0.000</strong>
                                                             </div>
                                                         </div>
-                                                        <div class="form-group weight-field" id="factory-weight-field">
-                                                            <label>Factory Weight:</label>
-                                                            <div class="alert alert-warning">
-                                                                <strong class="factory-weight calculation-result">0.000</strong>
-                                                            </div>
+                                                    <div class="form-group weight-field" id="factory-weight-field">
+                                                        <label>Factory Weight:</label>
+                                                        <div class="alert alert-warning">
+                                                            <strong class="factory-weight calculation-result">0.000</strong>
                                                         </div>
+                                                    </div>
+
+                                                    
                                                     </div>
                                                 </div>
                                             </div>
@@ -3006,8 +3168,14 @@
                                         
                                         <!-- Save Button for this tab -->
                                         <div class="text-center mt-3">
+                                            <button type="button" class="btn btn-outline-secondary mr-2 back-tab-btn" data-packing-id="@packing.Value">
+                                                <i class="fa fa-arrow-left"></i> Back
+                                            </button>
                                             <button type="button" class="btn btn-primary save-tab-calculation-btn" data-packing-id="@packing.Value">
                                                 <i class="fa fa-save"></i> Save @packing.Text Calculation
+                                            </button>
+                                            <button type="button" class="btn btn-secondary ml-2 next-tab-btn" data-packing-id="@packing.Value">
+                                                <i class="fa fa-arrow-right"></i> Next
                                             </button>
                                         </div>
                                     </div>

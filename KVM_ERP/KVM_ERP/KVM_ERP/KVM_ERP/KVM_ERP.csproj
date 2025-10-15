@@ -224,6 +224,7 @@
     <Compile Include="Controllers\PackingTypeMasterController.cs" />
     <Compile Include="Controllers\MaterialMasterController.cs" />
     <Compile Include="Controllers\NavbarController.cs" />
+    <Compile Include="Controllers\ReportsController.cs" />
     <Compile Include="Controllers\RawMaterialIntakeController.cs" />
     <Compile Include="Controllers\RenewalApprovalController.cs" />
     <!-- Excluded per cleanup -->
