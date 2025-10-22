@@ -45,6 +45,7 @@ namespace KVM_ERP.Controllers
                         Date = t.TRANDATE.ToString("yyyy-MM-dd"),
                         SupplierCode = t.CATECODE,
                         SupplierName = t.CATENAME,
+                        VehicleNo = t.VECHNO,
                         ClientWeight = t.CLIENTWGHT,
                         NoOfBoxes = details.FirstOrDefault(x => x.TRANMID == t.TRANMID)?.Boxes ?? 0,
                         Sno = t.TRANMID
@@ -78,6 +79,7 @@ namespace KVM_ERP.Controllers
                     Date = t.TRANDATE,
                     SupplierCode = t.CATECODE,
                     SupplierName = t.CATENAME,
+                    VehicleNo = t.VECHNO,
                     ClientWeight = t.CLIENTWGHT,
                     NoOfBoxes = detailMap.FirstOrDefault(x => x.TRANMID == t.TRANMID)?.Boxes ?? 0
                 })
@@ -103,9 +105,10 @@ namespace KVM_ERP.Controllers
                 ws.Cell(4, 2).Value = "Date";
                 ws.Cell(4, 3).Value = "Supplier Code";
                 ws.Cell(4, 4).Value = "Supplier Name";
-                ws.Cell(4, 5).Value = "Client Weight";
-                ws.Cell(4, 6).Value = "No of Boxes";
-                ws.Range(4,1,4,6).Style.Font.Bold = true;
+                ws.Cell(4, 5).Value = "Vehicle No";
+                ws.Cell(4, 6).Value = "Client Weight";
+                ws.Cell(4, 7).Value = "No of Boxes";
+                ws.Range(4,1,4,7).Style.Font.Bold = true;
 
                 int r = 5;
                 int sno = 1;
@@ -116,8 +119,9 @@ namespace KVM_ERP.Controllers
                     ws.Cell(r, 2).Style.DateFormat.Format = "dd/MM/yyyy";
                     ws.Cell(r, 3).Value = row.SupplierCode;
                     ws.Cell(r, 4).Value = row.SupplierName;
-                    ws.Cell(r, 5).Value = row.ClientWeight;
-                    ws.Cell(r, 6).Value = row.NoOfBoxes;
+                    ws.Cell(r, 5).Value = row.VehicleNo;
+                    ws.Cell(r, 6).Value = row.ClientWeight;
+                    ws.Cell(r, 7).Value = row.NoOfBoxes;
                     r++;
                 }
 

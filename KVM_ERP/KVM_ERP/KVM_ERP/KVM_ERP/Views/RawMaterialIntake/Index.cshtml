@@ -94,6 +94,10 @@
     .btn-print { background: linear-gradient(135deg, #74b9ff, #0984e3); color: #fff; }
     .btn-print:hover { background: linear-gradient(135deg, #0984e3, #2d3436); transform: translateY(-1px); }
 
+    /* New: Common Calculation Print button */
+    .btn-print-calc { background: linear-gradient(135deg, #8e2de2, #4a00e0); color: #fff; }
+    .btn-print-calc:hover { background: linear-gradient(135deg, #4a00e0, #2b086e); transform: translateY(-1px); }
+
     /* Status badge styling (match masters) */
     .badge { color: black !important; font-weight: 600; }
     .badge-success { background-color: #d4edda; color: black !important; border: 1px solid #c3e6cb; }
@@ -297,6 +301,7 @@
                             var id = row['TRANMID'];
                             return '<a href="' + '@Url.Action("Form", "RawMaterialIntake")' + '/' + id + '" class="btn btn-action btn-edit"><i class="fa fa-edit"></i> Edit</a>' +
                                    '&nbsp;<a href="#" class="btn btn-action btn-delete editor_remove" data-id="' + id + '"><i class="fa fa-trash"></i> Delete</a>' +
+                                   '&nbsp;<a href="#" class="btn btn-action btn-print-calc" title="Print all calculations" data-id="' + id + '"><i class="fa fa-calculator"></i> Calc</a>' +
                                    '&nbsp;<a href="#" class="btn btn-action btn-print" data-id="' + id + '"><i class="fa fa-print"></i> Print</a>';
                         }
                     }
@@ -353,6 +358,28 @@
                     $btn.prop('disabled', false);
                 }, 2000);
                 
+                return false;
+            });
+
+            // Common Calculation Print handler - Generate consolidated calculations PDF
+            $(document).on('click', 'a.btn-print-calc', function (e) {
+                e.preventDefault();
+                var id = $(this).data('id');
+                if (!id) return false;
+
+                var $btn = $(this);
+                var originalHtml = $btn.html();
+                $btn.html('<i class="fa fa-spinner fa-spin"></i> Generating...');
+                $btn.prop('disabled', true);
+
+                var url = '@Url.Action("GenerateCalculationPDF", "RawMaterialIntake")' + '?tranmid=' + id;
+                var newWindow = window.open(url, '_blank');
+
+                setTimeout(function() {
+                    $btn.html(originalHtml);
+                    $btn.prop('disabled', false);
+                }, 2000);
+
                 return false;
             });
 

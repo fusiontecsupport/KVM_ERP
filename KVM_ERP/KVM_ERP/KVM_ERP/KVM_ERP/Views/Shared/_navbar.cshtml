@@ -226,7 +226,7 @@
 <!-- Navigation -->
 @if ((Request.IsAuthenticated))
 {
-    var tmpcusrid = Session["CUSRID"].ToString();
+    var tmpcusrid = Session["CUSRID"] != null ? Session["CUSRID"].ToString() : string.Empty;
     KVM_ERP.Models.ApplicationDbContext db = new KVM_ERP.Models.ApplicationDbContext();
     var links = (from item in db.MenuRoleMasters.Where(x => x.Roles == tmpcusrid).OrderBy(x => x.MenuGId).OrderBy(x => x.MenuGIndex).ToList()
                  select item).ToList();
@@ -707,10 +707,9 @@
                                 <i class="fa fa-user"></i> @User.Identity.Name
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                @if (System.Web.HttpContext.Current.Session["Group"].ToString() == "Manager" ||
-                                    System.Web.HttpContext.Current.Session["Group"].ToString() == "Admin" ||
-                                    System.Web.HttpContext.Current.Session["Group"].ToString() == "Purchaseadmin" ||
-                                    System.Web.HttpContext.Current.Session["Group"].ToString() == "SuperAdmin")
+                                @{ var group = (System.Web.HttpContext.Current.Session != null ? System.Web.HttpContext.Current.Session["Group"] as string : null) ?? string.Empty; }
+                                @{ var isPrivilegedGroup = string.Equals(group, "Manager", System.StringComparison.OrdinalIgnoreCase) || string.Equals(group, "Admin", System.StringComparison.OrdinalIgnoreCase) || string.Equals(group, "Purchaseadmin", System.StringComparison.OrdinalIgnoreCase) || string.Equals(group, "SuperAdmin", System.StringComparison.OrdinalIgnoreCase); }
+                                @if (isPrivilegedGroup)
                                 {
                                     <li>
                                         <a class="dropdown-item" href="@Url.Action("Index", "Groups")">
@@ -723,8 +722,7 @@
                                         </a>
                                     </li>
                                     @* Renewal Approval - Only for SuperAdmin Group *@
-                                    if (System.Web.HttpContext.Current.Session["Group"] != null && 
-                                        System.Web.HttpContext.Current.Session["Group"].ToString() == "SuperAdmin")
+                                    if (string.Equals(group, "SuperAdmin", System.StringComparison.OrdinalIgnoreCase))
                                     {
                                         <li>
                                             <a class="dropdown-item" href="@Url.Action("Index", "RenewalApproval")">
@@ -737,9 +735,7 @@
                                             <i class="fa-solid fa-people-group"></i> Members
                                         </a>
                                     </li>*@
-                                    if (System.Web.HttpContext.Current.Session["Group"] != null &&
-                                        (System.Web.HttpContext.Current.Session["Group"].ToString() == "Admin" ||
-                                         System.Web.HttpContext.Current.Session["Group"].ToString() == "SuperAdmin"))
+                                    if (string.Equals(group, "Admin", System.StringComparison.OrdinalIgnoreCase) || string.Equals(group, "SuperAdmin", System.StringComparison.OrdinalIgnoreCase))
                                     {
                                         @*<li>
                                             <a class="dropdown-item" href="@Url.Action("Index", "GovernmentProof")">
@@ -747,9 +743,7 @@
                                             </a>
                                         </li>*@
                                     }
-                                    if (System.Web.HttpContext.Current.Session["Group"] != null &&
-                                        System.Web.HttpContext.Current.Session["Group"].ToString() != "Admin" &&
-                                        System.Web.HttpContext.Current.Session["Group"].ToString() != "SuperAdmin")
+                                    if (!string.Equals(group, "Admin", System.StringComparison.OrdinalIgnoreCase) && !string.Equals(group, "SuperAdmin", System.StringComparison.OrdinalIgnoreCase))
                                     {
                                         <li>
                                             <a class="dropdown-item" href="@Url.Action("Index", "Roles")">

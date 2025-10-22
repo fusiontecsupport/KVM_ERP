@@ -8,6 +8,8 @@ namespace KVM_ERP
         public static void RegisterGlobalFilters(GlobalFilterCollection filters)
         {
             filters.Add(new HandleErrorAttribute());
+            // Enforce redirect to Login when critical session keys are missing
+            filters.Add(new SessionExpire());
         }
     }
 }

@@ -789,6 +789,7 @@
             $('#modal-product').text(product);
             $('#modal-no-boxes').text(noOfBoxes);
             $('#modal-count-per-kg').text(countPerKg);
+            $('#modal-client-weight').text('@(Model != null ? (Model.CLIENTWGHT.ToString("0.000")) : "")');
             
             // Store TRANDID for saving
             $('#productCalculationModal').data('trandid', trandid);
@@ -988,8 +989,6 @@
             $('<div class="modal-backdrop fade show"></div>').appendTo('body');
         }
 
-
-    
 
         // Manual tab switching function
         function switchTab(packingId) {
@@ -1365,6 +1364,8 @@
                 $(this).find('input[type="radio"]').prop('checked', true).trigger('change');
             }
         });
+        
+
 
 
         // Handle close button clicks
@@ -2952,6 +2953,11 @@
                             </div>
                             <div class="col-md-4">
                                 <strong>Count (Per KG):</strong> <span id="modal-count-per-kg"></span>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-4">
+                                <strong>Client Weight (KG):</strong> <span id="modal-client-weight"></span>
                             </div>
                         </div>
                         <div class="row mt-3">

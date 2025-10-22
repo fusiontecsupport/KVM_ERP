@@ -18,8 +18,19 @@ namespace KVM_ERP
             //var uname = HttpSessionStateBase["CUSRID"].ToString();
             var amenu = new List<MenuNavbar>();
 
+            // Guard against missing session (e.g., timeout) to avoid NullReference
+            var http = System.Web.HttpContext.Current;
+            var session = http != null ? http.Session : null;
+            var cusrid = session != null ? Convert.ToString(session["CUSRID"]) : null;
+
+            if (string.IsNullOrWhiteSpace(cusrid))
+            {
+                // No session -> return empty menu to keep layout rendering without crash
+                return amenu.ToList();
+            }
+
             //var query = context.Database.SqlQuery<MenuRoleMaster>("selecgit statust * from MenuRoleMaster where Roles='admin'");
-            var query = context.Database.SqlQuery<MenuRoleMaster>("select * from MenuRoleMaster where Roles='" + System.Web.HttpContext.Current.Session["CUSRID"].ToString() + "'");
+            var query = context.Database.SqlQuery<MenuRoleMaster>("select * from MenuRoleMaster where Roles='" + cusrid + "'");
             foreach (var data in query)
             {
                 amenu.Add(new MenuNavbar { MenuGId = Convert.ToInt32(data.MenuGId),
@@ -27,7 +38,7 @@ namespace KVM_ERP
                                            LinkText  = data.LinkText,
                                            ActionName = data.ActionName,
                                            ControllerName = data.ControllerName,
-                                           username = System.Web.HttpContext.Current.Session["CUSRID"].ToString(),// "admin",
+                                           username = cusrid,// "admin",
                                            imageClass = data.ImageClassName, estatus = true });
             }
 

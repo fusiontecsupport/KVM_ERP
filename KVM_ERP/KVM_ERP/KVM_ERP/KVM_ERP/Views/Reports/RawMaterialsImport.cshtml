@@ -53,6 +53,7 @@
                                 <th>Date</th>
                                 <th>Supplier Code</th>
                                 <th>Supplier Name</th>
+                                <th>Vehicle No</th>
                                 <th>Client Weight</th>
                                 <th>No of Boxes</th>
                             </tr>
@@ -99,6 +100,7 @@
                             '<td>'+ (row.Date ? row.Date : '') +'</td>'+
                             '<td>'+ (row.SupplierCode||'') +'</td>'+
                             '<td>'+ (row.SupplierName||'') +'</td>'+
+                            '<td>'+ (row.VehicleNo||'') +'</td>'+
                             '<td>'+ ((row.ClientWeight||0).toFixed ? (parseFloat(row.ClientWeight)||0).toFixed(3) : row.ClientWeight) +'</td>'+
                             '<td>'+ (row.NoOfBoxes||0) +'</td>'+
                         '</tr>';
