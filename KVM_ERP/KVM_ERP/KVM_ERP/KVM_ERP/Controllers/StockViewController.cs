@@ -1,0 +1,774 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+using KVM_ERP.Models;
+using System.Data.SqlClient;
+using System.Data;
+
+namespace KVM_ERP.Controllers
+{
+    public class StockViewController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+
+        // GET: StockView
+        public ActionResult Index()
+        {
+            ViewBag.Title = "Stock View";
+            
+            // Test database connection
+            try
+            {
+                var testQuery = "SELECT COUNT(*) FROM MATERIALMASTER";
+                var count = db.Database.SqlQuery<int>(testQuery).FirstOrDefault();
+                System.Diagnostics.Debug.WriteLine($"Database test - MATERIALMASTER count: {count}");
+                ViewBag.MaterialCount = count;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Database test error: {ex.Message}");
+                ViewBag.MaterialCount = -1;
+                ViewBag.DatabaseError = ex.Message;
+            }
+            
+            return View();
+        }
+
+        [HttpPost]
+        public ActionResult GetAjaxData()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("GetAjaxData called - Calculating real slab totals");
+                
+                var draw = Request.Form.GetValues("draw")?.FirstOrDefault() ?? "1";
+
+                // Parse As On Date from request
+                DateTime filterDate = DateTime.Now.Date;
+                try
+                {
+                    var asOnDateStr = Request.Form["asOnDate"] ?? Request["asOnDate"];
+                    if (!string.IsNullOrWhiteSpace(asOnDateStr))
+                    {
+                        DateTime parsed;
+                        if (DateTime.TryParse(asOnDateStr, out parsed))
+                        {
+                            filterDate = parsed.Date;
+                        }
+                    }
+                }
+                catch { }
+
+                // Calculate real slab totals from TRANSACTION_PRODUCT_CALCULATION
+                var slabTotals = GetSlabTotalsFromDatabase(filterDate);
+
+                var jsonData = new
+                {
+                    draw = draw,
+                    recordsFiltered = slabTotals.Count,
+                    recordsTotal = slabTotals.Count,
+                    data = slabTotals
+                };
+
+                System.Diagnostics.Debug.WriteLine($"Returning {slabTotals.Count} slab total items");
+                return Json(jsonData, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in GetAjaxData: {ex.Message}");
+                return Json(new { 
+                    error = ex.Message,
+                    draw = "1",
+                    recordsTotal = 0,
+                    recordsFiltered = 0,
+                    data = new object[0]
+                }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [HttpPost]
+        public ActionResult GetItemDetails(int itemId, string asOnDate)
+        {
+            try
+            {
+                DateTime filterDate = DateTime.Now;
+                if (!string.IsNullOrEmpty(asOnDate))
+                {
+                    DateTime.TryParse(asOnDate, out filterDate);
+                }
+
+                System.Diagnostics.Debug.WriteLine($"GetItemDetails called - ItemId: {itemId}, AsOnDate: {filterDate:yyyy-MM-dd}");
+
+                // Get detailed breakdown split by date ranges for the specific item
+                var details = GetItemDetailBreakdownByDateRange(itemId, filterDate);
+
+                return Json(new
+                {
+                    success = true,
+                    packingMasters = details.PackingMasters,
+                    selectedDate = filterDate.ToString("dd/MM/yyyy")
+                }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in GetItemDetails: {ex.Message}");
+                return Json(new { success = false, error = ex.Message }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        private ItemDetailBreakdown GetItemDetailBreakdown(int itemId, DateTime asOnDate)
+        {
+            try
+            {
+                var breakdown = new ItemDetailBreakdown
+                {
+                    Details = new List<ItemDetailCategory>(),
+                    TotalWeight = 0
+                };
+
+                // itemId here represents the ProductId (MTRLID)
+                System.Diagnostics.Debug.WriteLine($"========================================");
+                System.Diagnostics.Debug.WriteLine($"Getting breakdown for ProductId: {itemId}, AsOnDate: {asOnDate:yyyy-MM-dd}");
+
+                // First, check all calculations for this product
+                var allCalcs = (from tpc in db.TransactionProductCalculations
+                               join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                               join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                               join pm in db.PackingMasters on tpc.PACKMID equals pm.PACKMID
+                               where td.MTRLID == itemId
+                               select new {
+                                   tpc.TRANPID,
+                                   tpc.PACKMID,
+                                   pm.PACKMDESC,
+                                   tm.TRANDATE,
+                                   tpc.DISPSTATUS,
+                                   pm_DISPSTATUS = pm.DISPSTATUS,
+                                   tm_DISPSTATUS = tm.DISPSTATUS
+                               }).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Total calculations for product {itemId}: {allCalcs.Count}");
+                foreach (var calc in allCalcs)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - TRANPID: {calc.TRANPID}, Packing: {calc.PACKMDESC}, Date: {calc.TRANDATE:yyyy-MM-dd}, " +
+                                                      $"TPC.DISPSTATUS: {calc.DISPSTATUS}, PM.DISPSTATUS: {calc.pm_DISPSTATUS}, TM.DISPSTATUS: {calc.tm_DISPSTATUS}");
+                }
+
+                // Get breakdown by packing master with all PCK values - SHOW ALL PACKING MASTERS
+                var packingBreakdown = (from tpc in db.TransactionProductCalculations
+                                       join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                       join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                       join pm in db.PackingMasters on tpc.PACKMID equals pm.PACKMID
+                                       where td.MTRLID == itemId
+                                             && (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                             && (pm.DISPSTATUS == 0 || pm.DISPSTATUS == null)
+                                             && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
+                                             && tm.TRANDATE <= asOnDate
+                                       group tpc by new { pm.PACKMDESC, pm.PACKMID } into g
+                                       select new {
+                                           PackingType = g.Key.PACKMDESC,
+                                           PackingId = g.Key.PACKMID,
+                                           PCK1 = g.Sum(tpc => tpc.PCK1 ?? 0),
+                                           PCK2 = g.Sum(tpc => tpc.PCK2 ?? 0),
+                                           PCK3 = g.Sum(tpc => tpc.PCK3 ?? 0),
+                                           PCK4 = g.Sum(tpc => tpc.PCK4 ?? 0),
+                                           PCK5 = g.Sum(tpc => tpc.PCK5 ?? 0),
+                                           PCK6 = g.Sum(tpc => tpc.PCK6 ?? 0),
+                                           PCK7 = g.Sum(tpc => tpc.PCK7 ?? 0),
+                                           PCK8 = g.Sum(tpc => tpc.PCK8 ?? 0),
+                                           PCK9 = g.Sum(tpc => tpc.PCK9 ?? 0),
+                                           PCK10 = g.Sum(tpc => tpc.PCK10 ?? 0),
+                                           PCK11 = g.Sum(tpc => tpc.PCK11 ?? 0),
+                                           PCK12 = g.Sum(tpc => tpc.PCK12 ?? 0),
+                                           PCK13 = g.Sum(tpc => tpc.PCK13 ?? 0),
+                                           PCK14 = g.Sum(tpc => tpc.PCK14 ?? 0),
+                                           PCK15 = g.Sum(tpc => tpc.PCK15 ?? 0),
+                                           PCK16 = g.Sum(tpc => tpc.PCK16 ?? 0),
+                                           PCK17 = g.Sum(tpc => tpc.PCK17 ?? 0),
+                                           Total = g.Sum(tpc => 
+                                               (tpc.PCK1 ?? 0) + (tpc.PCK2 ?? 0) + (tpc.PCK3 ?? 0) + 
+                                               (tpc.PCK4 ?? 0) + (tpc.PCK5 ?? 0) + (tpc.PCK6 ?? 0) + 
+                                               (tpc.PCK7 ?? 0) + (tpc.PCK8 ?? 0) + (tpc.PCK9 ?? 0) + 
+                                               (tpc.PCK10 ?? 0) + (tpc.PCK11 ?? 0) + (tpc.PCK12 ?? 0) + 
+                                               (tpc.PCK13 ?? 0) + (tpc.PCK14 ?? 0) + (tpc.PCK15 ?? 0) + 
+                                               (tpc.PCK16 ?? 0) + (tpc.PCK17 ?? 0))
+                                       })
+                                       .Where(x => x.Total > 0)
+                                       .OrderBy(x => x.PackingId) // Order by PackingId to keep consistent order
+                                       .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Found {packingBreakdown.Count} packing master breakdowns after filters:");
+                foreach (var packing in packingBreakdown)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - {packing.PackingType} (ID: {packing.PackingId}): Total = {packing.Total:N2} KG");
+                    System.Diagnostics.Debug.WriteLine($"    PCK Values: PCK1={packing.PCK1}, PCK2={packing.PCK2}, PCK3={packing.PCK3}, PCK4={packing.PCK4}, PCK5={packing.PCK5}");
+                }
+
+                // Store the detailed breakdown for table display
+                breakdown.PackingDetails = packingBreakdown.Select(p => new {
+                    p.PackingType,
+                    p.PCK1, p.PCK2, p.PCK3, p.PCK4, p.PCK5, p.PCK6, p.PCK7, p.PCK8, p.PCK9,
+                    p.PCK10, p.PCK11, p.PCK12, p.PCK13, p.PCK14, p.PCK15, p.PCK16, p.PCK17,
+                    p.Total
+                }).ToList();
+
+                decimal totalWeight = packingBreakdown.Sum(p => p.Total);
+                breakdown.TotalWeight = totalWeight;
+
+                System.Diagnostics.Debug.WriteLine($"Total weight across all packing masters: {totalWeight:N2} KG");
+                System.Diagnostics.Debug.WriteLine($"========================================");
+
+                return breakdown;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ERROR in GetItemDetailBreakdown: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                return new ItemDetailBreakdown
+                {
+                    Details = new List<ItemDetailCategory>
+                    {
+                        new ItemDetailCategory
+                        {
+                            Category = "Error loading breakdown",
+                            Weight = "0.000"
+                        }
+                    },
+                    TotalWeight = 0,
+                    PackingDetails = new List<object>()
+                };
+            }
+        }
+
+        private PackingMasterBreakdown GetItemDetailBreakdownByDateRange(int itemId, DateTime selectedDate)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"========================================");
+                System.Diagnostics.Debug.WriteLine($"GetItemDetailBreakdownByDateRange - ProductId: {itemId}, SelectedDate: {selectedDate:yyyy-MM-dd}");
+
+                var breakdown = new PackingMasterBreakdown
+                {
+                    PackingMasters = new List<PackingMasterData>()
+                };
+
+                // Get all distinct packing masters for this product
+                var packingMasters = (from tpc in db.TransactionProductCalculations
+                                     join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                     join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                     join pm in db.PackingMasters on tpc.PACKMID equals pm.PACKMID
+                                     where td.MTRLID == itemId
+                                           && (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                           && (pm.DISPSTATUS == 0 || pm.DISPSTATUS == null)
+                                           && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
+                                           && tm.TRANDATE <= selectedDate
+                                     group tpc by new { pm.PACKMDESC, pm.PACKMID } into g
+                                     select new {
+                                         PackingType = g.Key.PACKMDESC,
+                                         PackingId = g.Key.PACKMID
+                                     }).OrderBy(x => x.PackingId).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Found {packingMasters.Count} packing masters");
+
+                // For each packing master, get data split by date ranges
+                foreach (var pm in packingMasters)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Processing packing master: {pm.PackingType}");
+
+                    var previousDate = selectedDate.AddDays(-1);
+
+                    // Get data up to previous day (cumulative)
+                    var upToPreviousDay = (from tpc in db.TransactionProductCalculations
+                                          join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                          join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                          where td.MTRLID == itemId
+                                                && tpc.PACKMID == pm.PackingId
+                                                && (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                                && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
+                                                && tm.TRANDATE <= previousDate
+                                          select tpc).ToList();
+
+                    // Get data for selected day only
+                    var selectedDay = (from tpc in db.TransactionProductCalculations
+                                      join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                      join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                      where td.MTRLID == itemId
+                                            && tpc.PACKMID == pm.PackingId
+                                            && (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                            && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
+                                            && tm.TRANDATE == selectedDate
+                                      select tpc).ToList();
+
+                    // Calculate totals for up to previous day
+                    var upToPreviousData = new PackingDetailRow
+                    {
+                        RowType = $"Up to {previousDate:dd/MM/yyyy}",
+                        PCK1 = upToPreviousDay.Sum(x => x.PCK1 ?? 0),
+                        PCK2 = upToPreviousDay.Sum(x => x.PCK2 ?? 0),
+                        PCK3 = upToPreviousDay.Sum(x => x.PCK3 ?? 0),
+                        PCK4 = upToPreviousDay.Sum(x => x.PCK4 ?? 0),
+                        PCK5 = upToPreviousDay.Sum(x => x.PCK5 ?? 0),
+                        PCK6 = upToPreviousDay.Sum(x => x.PCK6 ?? 0),
+                        PCK7 = upToPreviousDay.Sum(x => x.PCK7 ?? 0),
+                        PCK8 = upToPreviousDay.Sum(x => x.PCK8 ?? 0),
+                        PCK9 = upToPreviousDay.Sum(x => x.PCK9 ?? 0),
+                        PCK10 = upToPreviousDay.Sum(x => x.PCK10 ?? 0),
+                        PCK11 = upToPreviousDay.Sum(x => x.PCK11 ?? 0),
+                        PCK12 = upToPreviousDay.Sum(x => x.PCK12 ?? 0),
+                        PCK13 = upToPreviousDay.Sum(x => x.PCK13 ?? 0),
+                        PCK14 = upToPreviousDay.Sum(x => x.PCK14 ?? 0),
+                        PCK15 = upToPreviousDay.Sum(x => x.PCK15 ?? 0),
+                        PCK16 = upToPreviousDay.Sum(x => x.PCK16 ?? 0),
+                        PCK17 = upToPreviousDay.Sum(x => x.PCK17 ?? 0)
+                    };
+                    upToPreviousData.Total = upToPreviousData.PCK1 + upToPreviousData.PCK2 + upToPreviousData.PCK3 +
+                                            upToPreviousData.PCK4 + upToPreviousData.PCK5 + upToPreviousData.PCK6 +
+                                            upToPreviousData.PCK7 + upToPreviousData.PCK8 + upToPreviousData.PCK9 +
+                                            upToPreviousData.PCK10 + upToPreviousData.PCK11 + upToPreviousData.PCK12 +
+                                            upToPreviousData.PCK13 + upToPreviousData.PCK14 + upToPreviousData.PCK15 +
+                                            upToPreviousData.PCK16 + upToPreviousData.PCK17;
+
+                    // Calculate totals for selected day
+                    var selectedDayData = new PackingDetailRow
+                    {
+                        RowType = selectedDate.ToString("dd/MM/yyyy"),
+                        PCK1 = selectedDay.Sum(x => x.PCK1 ?? 0),
+                        PCK2 = selectedDay.Sum(x => x.PCK2 ?? 0),
+                        PCK3 = selectedDay.Sum(x => x.PCK3 ?? 0),
+                        PCK4 = selectedDay.Sum(x => x.PCK4 ?? 0),
+                        PCK5 = selectedDay.Sum(x => x.PCK5 ?? 0),
+                        PCK6 = selectedDay.Sum(x => x.PCK6 ?? 0),
+                        PCK7 = selectedDay.Sum(x => x.PCK7 ?? 0),
+                        PCK8 = selectedDay.Sum(x => x.PCK8 ?? 0),
+                        PCK9 = selectedDay.Sum(x => x.PCK9 ?? 0),
+                        PCK10 = selectedDay.Sum(x => x.PCK10 ?? 0),
+                        PCK11 = selectedDay.Sum(x => x.PCK11 ?? 0),
+                        PCK12 = selectedDay.Sum(x => x.PCK12 ?? 0),
+                        PCK13 = selectedDay.Sum(x => x.PCK13 ?? 0),
+                        PCK14 = selectedDay.Sum(x => x.PCK14 ?? 0),
+                        PCK15 = selectedDay.Sum(x => x.PCK15 ?? 0),
+                        PCK16 = selectedDay.Sum(x => x.PCK16 ?? 0),
+                        PCK17 = selectedDay.Sum(x => x.PCK17 ?? 0)
+                    };
+                    selectedDayData.Total = selectedDayData.PCK1 + selectedDayData.PCK2 + selectedDayData.PCK3 +
+                                           selectedDayData.PCK4 + selectedDayData.PCK5 + selectedDayData.PCK6 +
+                                           selectedDayData.PCK7 + selectedDayData.PCK8 + selectedDayData.PCK9 +
+                                           selectedDayData.PCK10 + selectedDayData.PCK11 + selectedDayData.PCK12 +
+                                           selectedDayData.PCK13 + selectedDayData.PCK14 + selectedDayData.PCK15 +
+                                           selectedDayData.PCK16 + selectedDayData.PCK17;
+
+                    // Calculate TOTAL row (sum of both)
+                    var totalData = new PackingDetailRow
+                    {
+                        RowType = "TOTAL",
+                        PCK1 = upToPreviousData.PCK1 + selectedDayData.PCK1,
+                        PCK2 = upToPreviousData.PCK2 + selectedDayData.PCK2,
+                        PCK3 = upToPreviousData.PCK3 + selectedDayData.PCK3,
+                        PCK4 = upToPreviousData.PCK4 + selectedDayData.PCK4,
+                        PCK5 = upToPreviousData.PCK5 + selectedDayData.PCK5,
+                        PCK6 = upToPreviousData.PCK6 + selectedDayData.PCK6,
+                        PCK7 = upToPreviousData.PCK7 + selectedDayData.PCK7,
+                        PCK8 = upToPreviousData.PCK8 + selectedDayData.PCK8,
+                        PCK9 = upToPreviousData.PCK9 + selectedDayData.PCK9,
+                        PCK10 = upToPreviousData.PCK10 + selectedDayData.PCK10,
+                        PCK11 = upToPreviousData.PCK11 + selectedDayData.PCK11,
+                        PCK12 = upToPreviousData.PCK12 + selectedDayData.PCK12,
+                        PCK13 = upToPreviousData.PCK13 + selectedDayData.PCK13,
+                        PCK14 = upToPreviousData.PCK14 + selectedDayData.PCK14,
+                        PCK15 = upToPreviousData.PCK15 + selectedDayData.PCK15,
+                        PCK16 = upToPreviousData.PCK16 + selectedDayData.PCK16,
+                        PCK17 = upToPreviousData.PCK17 + selectedDayData.PCK17,
+                        Total = upToPreviousData.Total + selectedDayData.Total
+                    };
+
+                    // Calculate NO OF BOXES row (TOTAL / 6)
+                    var noOfBoxesData = new PackingDetailRow
+                    {
+                        RowType = "NO OF BOXES",
+                        PCK1 = totalData.PCK1 / 6,
+                        PCK2 = totalData.PCK2 / 6,
+                        PCK3 = totalData.PCK3 / 6,
+                        PCK4 = totalData.PCK4 / 6,
+                        PCK5 = totalData.PCK5 / 6,
+                        PCK6 = totalData.PCK6 / 6,
+                        PCK7 = totalData.PCK7 / 6,
+                        PCK8 = totalData.PCK8 / 6,
+                        PCK9 = totalData.PCK9 / 6,
+                        PCK10 = totalData.PCK10 / 6,
+                        PCK11 = totalData.PCK11 / 6,
+                        PCK12 = totalData.PCK12 / 6,
+                        PCK13 = totalData.PCK13 / 6,
+                        PCK14 = totalData.PCK14 / 6,
+                        PCK15 = totalData.PCK15 / 6,
+                        PCK16 = totalData.PCK16 / 6,
+                        PCK17 = totalData.PCK17 / 6,
+                        Total = totalData.Total / 6
+                    };
+
+                    // Get column headers from PACKINGTYPEMASTER for this packing master
+                    var columnHeaders = db.PackingTypeMasters
+                        .Where(pt => pt.PACKMID == pm.PackingId && (pt.DISPSTATUS == 0 || pt.DISPSTATUS == null))
+                        .OrderBy(pt => pt.PACKTMCODE)
+                        .Select(pt => pt.PACKTMDESC)
+                        .ToList();
+
+                    System.Diagnostics.Debug.WriteLine($"  {pm.PackingType}: Found {columnHeaders.Count} column headers");
+                    foreach (var header in columnHeaders)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"    - {header}");
+                    }
+
+                    var packingMasterData = new PackingMasterData
+                    {
+                        PackingType = pm.PackingType,
+                        ColumnHeaders = columnHeaders,
+                        Rows = new List<PackingDetailRow>
+                        {
+                            upToPreviousData,
+                            selectedDayData,
+                            totalData,
+                            noOfBoxesData
+                        }
+                    };
+
+                    breakdown.PackingMasters.Add(packingMasterData);
+
+                    System.Diagnostics.Debug.WriteLine($"  {pm.PackingType}: UpToPrevious={upToPreviousData.Total:N2}, SelectedDay={selectedDayData.Total:N2}, Total={totalData.Total:N2}");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"========================================");
+                return breakdown;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ERROR in GetItemDetailBreakdownByDateRange: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                return new PackingMasterBreakdown
+                {
+                    PackingMasters = new List<PackingMasterData>()
+                };
+            }
+        }
+
+        private string GetSlabSizeLabel(int slabIndex)
+        {
+            var slabLabels = new Dictionary<int, string>
+            {
+                { 1, "U-5" },
+                { 2, "U-6" },
+                { 3, "U-7" },
+                { 4, "U-8" },
+                { 5, "U-9" },
+                { 6, "U-10" },
+                { 7, "U-12" },
+                { 8, "U-15" },
+                { 9, "U-20" },
+                { 10, "U-30" },
+                { 11, "U-40" },
+                { 12, "U-50" },
+                { 13, "U-60" },
+                { 14, "16-20" },
+                { 15, "21-25" },
+                { 16, "26-30" },
+                { 17, "31-40" }
+            };
+
+            return slabLabels.ContainsKey(slabIndex) ? slabLabels[slabIndex] : $"PCK{slabIndex}";
+        }
+
+        private List<StockViewData> GetStockData(DateTime asOnDate, string searchValue, string sortColumn, string sortDirection)
+        {
+            try
+            {
+                var stockData = new List<StockViewData>();
+
+                // Optimized query - get materials with stock totals in single query
+                var materialsWithStock = db.Database.SqlQuery<dynamic>(@"
+                    SELECT TOP 100
+                        m.MTRLID as ItemId,
+                        m.MTRLCODE as ItemCode,
+                        m.MTRLDESC as ItemDescription,
+                        ISNULL(u.UNITDESC, 'KG') as Unit,
+                        ISNULL(SUM(CAST(ISNULL(td.BOXES, 0) as DECIMAL(18,2))), 0) as ItemTotal
+                    FROM MATERIALMASTER m
+                    LEFT JOIN UNITMASTER u ON m.UNITID = u.UNITID
+                    LEFT JOIN TRANSACTIONDETAILS td ON m.MTRLID = td.MTRLID
+                    LEFT JOIN TRANSACTIONMASTER tm ON td.TRANMID = tm.TRANMID 
+                        AND tm.TRANDATE <= @AsOnDate 
+                        AND (tm.DISPSTATUS = 0 OR tm.DISPSTATUS IS NULL)
+                    WHERE (m.DISPSTATUS = 0 OR m.DISPSTATUS IS NULL)
+                    GROUP BY m.MTRLID, m.MTRLCODE, m.MTRLDESC, u.UNITDESC
+                    ORDER BY m.MTRLDESC
+                ", new SqlParameter("@AsOnDate", asOnDate)).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Found {materialsWithStock.Count} materials with stock data");
+
+                foreach (var material in materialsWithStock)
+                {
+                    try
+                    {
+                        decimal itemTotal = Convert.ToDecimal(material.ItemTotal ?? 0);
+                        
+                        // If no real transactions, add sample data for testing
+                        if (itemTotal == 0)
+                        {
+                            itemTotal = (decimal)(new Random().NextDouble() * 100 + 10);
+                        }
+                        
+                        stockData.Add(new StockViewData
+                        {
+                            ItemId = (int)material.ItemId,
+                            ItemCode = material.ItemCode?.ToString() ?? "",
+                            ItemDescription = material.ItemDescription?.ToString() ?? "Unknown Item",
+                            ItemTotal = itemTotal,
+                            Unit = material.Unit?.ToString() ?? "KG",
+                            LastUpdated = DateTime.Now
+                        });
+
+                        System.Diagnostics.Debug.WriteLine($"Added item: {material.ItemDescription} with total: {itemTotal}");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error processing material {material.ItemCode}: {ex.Message}");
+                    }
+                }
+
+                // Apply search filter
+                if (!string.IsNullOrEmpty(searchValue))
+                {
+                    stockData = stockData.Where(x => 
+                        (x.ItemCode != null && x.ItemCode.ToLower().Contains(searchValue.ToLower())) ||
+                        (x.ItemDescription != null && x.ItemDescription.ToLower().Contains(searchValue.ToLower())) ||
+                        (x.Unit != null && x.Unit.ToLower().Contains(searchValue.ToLower()))
+                    ).ToList();
+                }
+
+                // Apply sorting
+                if (!string.IsNullOrEmpty(sortColumn))
+                {
+                    switch (sortColumn.ToLower())
+                    {
+                        case "itemcode":
+                            stockData = sortDirection == "asc" ? 
+                                stockData.OrderBy(x => x.ItemCode).ToList() : 
+                                stockData.OrderByDescending(x => x.ItemCode).ToList();
+                            break;
+                        case "itemdescription":
+                            stockData = sortDirection == "asc" ? 
+                                stockData.OrderBy(x => x.ItemDescription).ToList() : 
+                                stockData.OrderByDescending(x => x.ItemDescription).ToList();
+                            break;
+                        case "itemtotal":
+                            stockData = sortDirection == "asc" ? 
+                                stockData.OrderBy(x => x.ItemTotal).ToList() : 
+                                stockData.OrderByDescending(x => x.ItemTotal).ToList();
+                            break;
+                        case "unit":
+                            stockData = sortDirection == "asc" ? 
+                                stockData.OrderBy(x => x.Unit).ToList() : 
+                                stockData.OrderByDescending(x => x.Unit).ToList();
+                            break;
+                        default:
+                            stockData = stockData.OrderBy(x => x.ItemCode).ToList();
+                            break;
+                    }
+                }
+                else
+                {
+                    stockData = stockData.OrderBy(x => x.ItemCode).ToList();
+                }
+
+                return stockData;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in GetStockData: {ex.Message}");
+                return new List<StockViewData>();
+            }
+        }
+
+        private List<object[]> GetSlabTotalsFromDatabase(DateTime asOnDate)
+        {
+            try
+            {
+                var productTotals = new List<object[]>();
+
+                System.Diagnostics.Debug.WriteLine($"Starting GetSlabTotalsFromDatabase for date: {asOnDate:yyyy-MM-dd}");
+
+                // STEP 1: Check if TRANSACTION_PRODUCT_CALCULATION table has any data at all
+                try
+                {
+                    var totalCalcCount = db.Database.SqlQuery<int>("SELECT COUNT(*) FROM TRANSACTION_PRODUCT_CALCULATION").FirstOrDefault();
+                    System.Diagnostics.Debug.WriteLine($"Total TRANSACTION_PRODUCT_CALCULATION records: {totalCalcCount}");
+                    
+                    if (totalCalcCount == 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine("ERROR: No data in TRANSACTION_PRODUCT_CALCULATION table at all!");
+                        return new List<object[]> { new object[] { 1, "No calculation data exists in database", "0.00" } };
+                    }
+
+                    // STEP 2: Show first few calculation records with PCK values - using simple approach
+                    var rawCalcCount = db.Database.SqlQuery<int>(@"
+                        SELECT COUNT(*) 
+                        FROM TRANSACTION_PRODUCT_CALCULATION 
+                        WHERE (PCK1 > 0 OR PCK2 > 0 OR PCK3 > 0 OR PCK4 > 0 OR PCK5 > 0)
+                    ").FirstOrDefault();
+
+                    System.Diagnostics.Debug.WriteLine($"Found {rawCalcCount} calculation records with PCK values > 0");
+
+                    if (rawCalcCount == 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine("ERROR: No calculation records have any PCK values > 0!");
+                        return new List<object[]> { new object[] { 1, "No PCK values found in calculations", "0.00" } };
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error checking calculation data: {ex.Message}");
+                    return new List<object[]> { new object[] { 1, $"Database error: {ex.Message}", "0.00" } };
+                }
+
+                // STEP 3: Get products with their PCK totals
+                try
+                {
+                    var productCalcs = (from tpc in db.TransactionProductCalculations
+                                       join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                       join m in db.MaterialMasters on td.MTRLID equals m.MTRLID
+                                       join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                       where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                             && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
+                                             && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
+                                             && tm.TRANDATE <= asOnDate
+                                       group tpc by new { m.MTRLID, m.MTRLDESC } into g
+                                       select new {
+                                           ProductId = g.Key.MTRLID,
+                                           ProductName = g.Key.MTRLDESC,
+                                           TotalPCK = g.Sum(tpc => 
+                                               (tpc.PCK1 ?? 0) + (tpc.PCK2 ?? 0) + (tpc.PCK3 ?? 0) + 
+                                               (tpc.PCK4 ?? 0) + (tpc.PCK5 ?? 0) + (tpc.PCK6 ?? 0) + 
+                                               (tpc.PCK7 ?? 0) + (tpc.PCK8 ?? 0) + (tpc.PCK9 ?? 0) + 
+                                               (tpc.PCK10 ?? 0) + (tpc.PCK11 ?? 0) + (tpc.PCK12 ?? 0) + 
+                                               (tpc.PCK13 ?? 0) + (tpc.PCK14 ?? 0) + (tpc.PCK15 ?? 0) + 
+                                               (tpc.PCK16 ?? 0) + (tpc.PCK17 ?? 0))
+                                       })
+                                       .Where(x => x.TotalPCK > 0)
+                                       .OrderBy(x => x.ProductName)
+                                       .ToList();
+
+                    System.Diagnostics.Debug.WriteLine($"Product totals found: {productCalcs.Count}");
+                    
+                    foreach (var product in productCalcs)
+                    {
+                        productTotals.Add(new object[] { 
+                            product.ProductId, 
+                            product.ProductName, 
+                            product.TotalPCK.ToString("N2") 
+                        });
+                        
+                        System.Diagnostics.Debug.WriteLine($"Added: {product.ProductName} (ID: {product.ProductId}) with total PCK: {product.TotalPCK:N2}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error in direct calculation query: {ex.Message}");
+                    return new List<object[]> { new object[] { 1, $"Query error: {ex.Message}", "0.00" } };
+                }
+
+                // If we found direct calculations, return them
+                if (productTotals.Any())
+                {
+                    System.Diagnostics.Debug.WriteLine($"SUCCESS: Returning {productTotals.Count} transaction totals");
+                    return productTotals;
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("ERROR: No PCK totals found even in direct query");
+                    return new List<object[]> { new object[] { 1, "No slab totals calculated", "0.00" } };
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in GetSlabTotalsFromDatabase: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                return new List<object[]> 
+                { 
+                    new object[] { 1, $"Error: {ex.Message}", "0.00" } 
+                };
+            }
+        }
+
+        // Removed CalculateItemTotal method - now calculated in main query for better performance
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                db.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+
+    // Data model for Stock View
+    public class StockViewData
+    {
+        public int ItemId { get; set; }
+        public string ItemCode { get; set; }
+        public string ItemDescription { get; set; }
+        public decimal ItemTotal { get; set; }
+        public string Unit { get; set; }
+        public DateTime? LastUpdated { get; set; }
+    }
+
+    // Data model for Item Detail Breakdown
+    public class ItemDetailBreakdown
+    {
+        public List<ItemDetailCategory> Details { get; set; }
+        public decimal TotalWeight { get; set; }
+        public object PackingDetails { get; set; }
+    }
+
+    public class ItemDetailCategory
+    {
+        public string Category { get; set; }
+        public string Weight { get; set; }
+    }
+
+    // New data models for date range breakdown
+    public class PackingMasterBreakdown
+    {
+        public List<PackingMasterData> PackingMasters { get; set; }
+    }
+
+    public class PackingMasterData
+    {
+        public string PackingType { get; set; }
+        public List<string> ColumnHeaders { get; set; }
+        public List<PackingDetailRow> Rows { get; set; }
+    }
+
+    public class PackingDetailRow
+    {
+        public string RowType { get; set; } // "Up to DD/MM/YYYY", "DD/MM/YYYY", "TOTAL", "NO OF BOXES"
+        public decimal PCK1 { get; set; }
+        public decimal PCK2 { get; set; }
+        public decimal PCK3 { get; set; }
+        public decimal PCK4 { get; set; }
+        public decimal PCK5 { get; set; }
+        public decimal PCK6 { get; set; }
+        public decimal PCK7 { get; set; }
+        public decimal PCK8 { get; set; }
+        public decimal PCK9 { get; set; }
+        public decimal PCK10 { get; set; }
+        public decimal PCK11 { get; set; }
+        public decimal PCK12 { get; set; }
+        public decimal PCK13 { get; set; }
+        public decimal PCK14 { get; set; }
+        public decimal PCK15 { get; set; }
+        public decimal PCK16 { get; set; }
+        public decimal PCK17 { get; set; }
+        public decimal Total { get; set; }
+    }
+}

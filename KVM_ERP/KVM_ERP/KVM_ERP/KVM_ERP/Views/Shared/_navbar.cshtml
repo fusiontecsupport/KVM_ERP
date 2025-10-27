@@ -276,7 +276,8 @@
                                         <i class="fa fa-truck-loading"></i> Raw Material Intake
                                     </a>
                                 </li>
-                                <li>
+                                @* Commented out other transaction menu items as requested *@
+                                @*<li>
                                     <a class="dropdown-item" href="@Url.Action("Index", "ComingSoon")">
                                         <i class="fa fa-flask"></i> Sampling & QC
                                     </a>
@@ -299,6 +300,11 @@
                                 <li>
                                     <a class="dropdown-item" href="@Url.Action("Index", "ComingSoon")">
                                         <i class="fa fa-file-invoice"></i> Purchase Invoice Generation
+                                    </a>
+                                </li>*@
+                                <li>
+                                    <a class="dropdown-item" href="@Url.Action("Index", "StockView")">
+                                        <i class="fa fa-chart-line"></i> Stock View
                                     </a>
                                 </li>
                             </ul>
@@ -324,7 +330,7 @@
                     }
 
                     @* Stock Menu *@
-                    @if (isAdmin)
+                    @*@if (isAdmin)
                     {
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="stockDropdown" role="button"
@@ -359,7 +365,7 @@
                                 </li>
                             </ul>
                         </li>
-                    }
+                    }*@
 
                     @*@if (Model != null && (links.Any(x => x.MenuGId == 5)))
                     {

@@ -226,6 +226,7 @@
     <Compile Include="Controllers\NavbarController.cs" />
     <Compile Include="Controllers\ReportsController.cs" />
     <Compile Include="Controllers\RawMaterialIntakeController.cs" />
+    <Compile Include="Controllers\StockViewController.cs" />
     <Compile Include="Controllers\RenewalApprovalController.cs" />
     <!-- Excluded per cleanup -->
     <!-- <Compile Include="Controllers\ProfileMasterController.cs" /> -->
@@ -1272,6 +1273,7 @@
     <Content Include="Views\PublicationBillReports\Index.cshtml" />
     <Content Include="Views\Estimate\Index.cshtml" />
     <Content Include="Views\Estimate\Form.cshtml" />
+    <Content Include="Views\StockView\Index.cshtml" />
     <!-- Excluded per cleanup -->
     <!-- <Content Include="Views\AnnouncementMaster\Index.cshtml" /> -->
     <!-- <Content Include="Views\AnnouncementMaster\Form.cshtml" /> -->
