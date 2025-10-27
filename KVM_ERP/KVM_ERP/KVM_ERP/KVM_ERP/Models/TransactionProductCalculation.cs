@@ -136,6 +136,18 @@ namespace KVM_ERP.Models
         [Column("CALCULATIONMODE")]
         public int? CALCULATIONMODE { get; set; }
 
+        [Column("GRADEID")]
+        public int? GRADEID { get; set; }
+
+        [Column("PCLRID")]
+        public int? PCLRID { get; set; }
+
+        [Column("RCVDTID")]
+        public int? RCVDTID { get; set; }
+
+        [Column("BKN")]
+        public decimal? BKN { get; set; }
+
         // [Column("CLIENTWGHT")]
         // public int? CLIENTWGHT { get; set; }  // Removed - column doesn't exist in database
     }

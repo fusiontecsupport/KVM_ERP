@@ -37,6 +37,9 @@ namespace KVM_ERP.Models
         public DbSet<TransactionQualityCheck> TransactionQualityChecks { get; set; }
         public DbSet<LaboratoryMaster> LaboratoryMasters { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
+        public DbSet<GradeMaster> GradeMasters { get; set; }
+        public DbSet<ProductionColourMaster> ProductionColourMasters { get; set; }
+        public DbSet<ReceivedTypeMaster> ReceivedTypeMasters { get; set; }
 
         new public virtual IDbSet<ApplicationRole> Roles { get; set; }
         public virtual IDbSet<Group> Groups { get; set; }
@@ -127,6 +130,7 @@ namespace KVM_ERP.Models
             modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.FACTORYWGT).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.FACAVGWGT).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.FACAVGCOUNT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.BKN).HasPrecision(18, 3);
 
             // Keep this:
             modelBuilder.Entity<IdentityUser>().ToTable("AspNetUsers");

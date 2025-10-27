@@ -1847,6 +1847,26 @@
                     console.log('No production date found in calculation data');
                 }
                 
+                // Populate dropdown fields
+                if (calculation.GRADEID !== null && calculation.GRADEID !== undefined) {
+                    $('#gradeId').val(calculation.GRADEID);
+                    console.log('Set Grade dropdown to:', calculation.GRADEID);
+                }
+                if (calculation.PCLRID !== null && calculation.PCLRID !== undefined) {
+                    $('#colourId').val(calculation.PCLRID);
+                    console.log('Set Production Colour dropdown to:', calculation.PCLRID);
+                }
+                if (calculation.RCVDTID !== null && calculation.RCVDTID !== undefined) {
+                    $('#receivedTypeId').val(calculation.RCVDTID);
+                    console.log('Set Received Type dropdown to:', calculation.RCVDTID);
+                }
+                
+                // Populate BKN field
+                if (calculation.BKN !== null && calculation.BKN !== undefined) {
+                    tabPane.find('.bkn-field').val(calculation.BKN);
+                    console.log('Set BKN field to:', calculation.BKN);
+                }
+                
                 console.log('Other fields populated');
                 
                 // Store the calculation ID for updates
@@ -2134,6 +2154,10 @@
                 WASTEWGT: parseFloat(tabPane.find('.wastage').val()) || 0,
                 PRODDATE: prodDate,  // Add production date
                 CalculationMode: calculationMode,  // Add calculation mode to form data
+                GRADEID: $('#gradeId').val() || null,  // Add Grade dropdown
+                PCLRID: $('#colourId').val() || null,  // Add Production Colour dropdown
+                RCVDTID: $('#receivedTypeId').val() || null,  // Add Received Type dropdown
+                BKN: parseFloat(tabPane.find('.bkn-field').val()) || null,  // Add BKN field
                 
                 // Add calculated values from display fields
                 TOPCK: parseFloat(tabPane.find('.total-counts').text()) || 0,
@@ -2958,6 +2982,26 @@
                         <div class="row mt-2">
                             <div class="col-md-4">
                                 <strong>Client Weight (KG):</strong> <span id="modal-client-weight"></span>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="gradeId" class="control-label"><strong>Grade:</strong></label>
+                                    @Html.DropDownList("GRADEID", ViewBag.Grades as List<SelectListItem>, new { @class = "form-control", id = "gradeId" })
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="colourId" class="control-label"><strong>Production Colour:</strong></label>
+                                    @Html.DropDownList("PCLRID", ViewBag.ProductionColours as List<SelectListItem>, new { @class = "form-control", id = "colourId" })
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="receivedTypeId" class="control-label"><strong>Received Type:</strong></label>
+                                    @Html.DropDownList("RCVDTID", ViewBag.ReceivedTypes as List<SelectListItem>, new { @class = "form-control", id = "receivedTypeId" })
+                                </div>
                             </div>
                         </div>
                         <div class="row mt-3">

@@ -37,6 +37,33 @@ namespace KVM_ERP.Controllers
                 .ToList();
             ViewBag.PackingMasters = packingMasters;
 
+            // Populate Grade dropdown (enabled only)
+            var grades = db.GradeMasters
+                .Where(g => g.DISPSTATUS == 0)
+                .OrderBy(g => g.GRADEDESC)
+                .Select(g => new SelectListItem { Text = g.GRADEDESC, Value = g.GRADEID.ToString() })
+                .ToList();
+            grades.Insert(0, new SelectListItem { Text = "-- Select Grade --", Value = "" });
+            ViewBag.Grades = grades;
+
+            // Populate Production Colour dropdown (enabled only)
+            var colours = db.ProductionColourMasters
+                .Where(c => c.DISPSTATUS == 0)
+                .OrderBy(c => c.PCLRDESC)
+                .Select(c => new SelectListItem { Text = c.PCLRDESC, Value = c.PCLRID.ToString() })
+                .ToList();
+            colours.Insert(0, new SelectListItem { Text = "-- Select Colour --", Value = "" });
+            ViewBag.ProductionColours = colours;
+
+            // Populate Received Type dropdown (enabled only)
+            var receivedTypes = db.ReceivedTypeMasters
+                .Where(r => r.DISPSTATUS == 0)
+                .OrderBy(r => r.RCVDTDESC)
+                .Select(r => new SelectListItem { Text = r.RCVDTDESC, Value = r.RCVDTID.ToString() })
+                .ToList();
+            receivedTypes.Insert(0, new SelectListItem { Text = "-- Select Type --", Value = "" });
+            ViewBag.ReceivedTypes = receivedTypes;
+
             // We'll build this list after we know if we're editing to set Selected
             List<SelectListItem> supplierListItems;
 
@@ -552,6 +579,10 @@ namespace KVM_ERP.Controllers
                             FACAVGCOUNT = calculation.FACAVGCOUNT,
                             PRODDATE = calculation.PRODDATE?.ToString("yyyy-MM-dd"), // Format date as string
                             CALCULATIONMODE = calculation.CALCULATIONMODE,
+                            GRADEID = calculation.GRADEID,
+                            PCLRID = calculation.PCLRID,
+                            RCVDTID = calculation.RCVDTID,
+                            BKN = calculation.BKN,
                             DISPSTATUS = calculation.DISPSTATUS,
                             CUSRID = calculation.CUSRID,
                             LMUSRID = calculation.LMUSRID,
@@ -825,6 +856,10 @@ namespace KVM_ERP.Controllers
             existing.FACAVGCOUNT = model.FACAVGCOUNT;
             existing.PRODDATE = model.PRODDATE;
             existing.CALCULATIONMODE = model.CALCULATIONMODE;
+            existing.GRADEID = model.GRADEID;
+            existing.PCLRID = model.PCLRID;
+            existing.RCVDTID = model.RCVDTID;
+            existing.BKN = model.BKN;
         }
 
         private TransactionProductCalculation ParseFormToModel(FormCollection form)
@@ -871,10 +906,18 @@ namespace KVM_ERP.Controllers
             var calculationModeString = form["CalculationMode"] ?? "packing";
             model.CALCULATIONMODE = calculationModeString == "gradeweight" ? 2 : 1; // 1=Packing, 2=Grade Weight
             
+            // Parse new dropdown fields (not required)
+            model.GRADEID = ParseNullableInt(form["GRADEID"]);
+            model.PCLRID = ParseNullableInt(form["PCLRID"]);
+            model.RCVDTID = ParseNullableInt(form["RCVDTID"]);
+            
             System.Diagnostics.Debug.WriteLine($"Parsed model - TRANDID: {model.TRANDID}, PACKMID: {model.PACKMID}");
             System.Diagnostics.Debug.WriteLine($"Parsed PCK1: '{form["PCK1"]}' -> {model.PCK1}");
             System.Diagnostics.Debug.WriteLine($"Parsed PCK2: '{form["PCK2"]}' -> {model.PCK2}");
             System.Diagnostics.Debug.WriteLine($"Parsed PCK3: '{form["PCK3"]}' -> {model.PCK3}");
+            System.Diagnostics.Debug.WriteLine($"Parsed GRADEID: '{form["GRADEID"]}' -> {model.GRADEID}");
+            System.Diagnostics.Debug.WriteLine($"Parsed PCLRID: '{form["PCLRID"]}' -> {model.PCLRID}");
+            System.Diagnostics.Debug.WriteLine($"Parsed RCVDTID: '{form["RCVDTID"]}' -> {model.RCVDTID}");
             
             return model;
         }
@@ -896,6 +939,17 @@ namespace KVM_ERP.Controllers
                 return null;
                 
             if (DateTime.TryParse(value, out DateTime result))
+                return result;
+                
+            return null;
+        }
+        
+        private int? ParseNullableInt(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+                
+            if (int.TryParse(value, out int result))
                 return result;
                 
             return null;
