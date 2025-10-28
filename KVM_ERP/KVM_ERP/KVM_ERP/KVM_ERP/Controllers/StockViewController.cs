@@ -264,6 +264,12 @@ namespace KVM_ERP.Controllers
                     PackingMasters = new List<PackingMasterData>()
                 };
 
+                // Special handling for BKN (itemId = -1)
+                if (itemId == -1)
+                {
+                    return GetBKNDetailBreakdownByDateRange(selectedDate);
+                }
+
                 // Step 1: Load all calculations for this product into memory with master descriptions
                 var allCalculations = (from tpc in db.TransactionProductCalculations
                                       join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
@@ -536,6 +542,190 @@ namespace KVM_ERP.Controllers
             }
         }
 
+        private PackingMasterBreakdown GetBKNDetailBreakdownByDateRange(DateTime selectedDate)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"========================================");
+                System.Diagnostics.Debug.WriteLine($"GetBKNDetailBreakdownByDateRange - SelectedDate: {selectedDate:yyyy-MM-dd}");
+
+                var breakdown = new PackingMasterBreakdown
+                {
+                    PackingMasters = new List<PackingMasterData>()
+                };
+
+                // Load all BKN data from calculations
+                var allBKNData = (from tpc in db.TransactionProductCalculations
+                                 join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                 join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                 join pm in db.PackingMasters on tpc.PACKMID equals pm.PACKMID
+                                 join m in db.MaterialMasters on td.MTRLID equals m.MTRLID
+                                 join pclr in db.ProductionColourMasters on tpc.PCLRID equals pclr.PCLRID into pclrJoin
+                                 from pclr in pclrJoin.DefaultIfEmpty()
+                                 join rcvdt in db.ReceivedTypeMasters on tpc.RCVDTID equals rcvdt.RCVDTID into rcvdtJoin
+                                 from rcvdt in rcvdtJoin.DefaultIfEmpty()
+                                 join grade in db.GradeMasters on tpc.GRADEID equals grade.GRADEID into gradeJoin
+                                 from grade in gradeJoin.DefaultIfEmpty()
+                                 where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                       && (pm.DISPSTATUS == 0 || pm.DISPSTATUS == null)
+                                       && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
+                                       && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
+                                       && tm.TRANDATE <= selectedDate
+                                       && tpc.BKN != null && tpc.BKN > 0
+                                 select new {
+                                     Calculation = tpc,
+                                     PackingType = pm.PACKMDESC,
+                                     PackingId = pm.PACKMID,
+                                     ProductName = m.MTRLDESC,
+                                     TranDate = tm.TRANDATE,
+                                     ColourDesc = pclr != null ? pclr.PCLRDESC : null,
+                                     ReceivedTypeDesc = rcvdt != null ? rcvdt.RCVDTDESC : null,
+                                     GradeDesc = grade != null ? grade.GRADEDESC : null
+                                 }).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Loaded {allBKNData.Count} BKN records");
+
+                // Group by Packing Master + KGWGT + Grade + Colour + Received Type + Product
+                var bknGroups = allBKNData
+                    .GroupBy(x => new {
+                        x.PackingId,
+                        x.PackingType,
+                        KGWGT = x.Calculation.KGWGT ?? 0,
+                        PCLRID = x.Calculation.PCLRID ?? 0,
+                        RCVDTID = x.Calculation.RCVDTID ?? 0,
+                        GRADEID = x.Calculation.GRADEID ?? 0,
+                        x.ProductName,
+                        x.ColourDesc,
+                        x.ReceivedTypeDesc,
+                        x.GradeDesc
+                    })
+                    .Select(g => {
+                        // Build display name
+                        string displayName = g.Key.PackingType;
+                        
+                        if (g.Key.KGWGT > 0)
+                            displayName += " 6 x " + g.Key.KGWGT.ToString("0.#");
+                        
+                        if (!string.IsNullOrEmpty(g.Key.ProductName))
+                            displayName += " - " + g.Key.ProductName;
+                        
+                        if (!string.IsNullOrEmpty(g.Key.GradeDesc))
+                            displayName += " - " + g.Key.GradeDesc;
+                        
+                        if (!string.IsNullOrEmpty(g.Key.ColourDesc))
+                            displayName += " - " + g.Key.ColourDesc;
+                        
+                        if (!string.IsNullOrEmpty(g.Key.ReceivedTypeDesc))
+                            displayName += " - " + g.Key.ReceivedTypeDesc;
+                        
+                        return new {
+                            PackingType = displayName,
+                            PackingId = g.Key.PackingId,
+                            KgWeight = g.Key.KGWGT,
+                            PclrId = g.Key.PCLRID,
+                            RcvdtId = g.Key.RCVDTID,
+                            GradeId = g.Key.GRADEID,
+                            ProductName = g.Key.ProductName
+                        };
+                    })
+                    .OrderBy(x => x.PackingId)
+                    .ThenBy(x => x.ProductName)
+                    .ThenBy(x => x.KgWeight)
+                    .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Found {bknGroups.Count} BKN group combinations");
+
+                // For each group, calculate BKN totals by date
+                foreach (var grp in bknGroups)
+                {
+                    var previousDate = selectedDate.AddDays(-1);
+
+                    // Filter BKN data for this specific group
+                    var upToPreviousDay = allBKNData
+                        .Where(x => x.PackingId == grp.PackingId
+                                   && (x.Calculation.KGWGT ?? 0) == grp.KgWeight
+                                   && (x.Calculation.GRADEID ?? 0) == grp.GradeId
+                                   && (x.Calculation.PCLRID ?? 0) == grp.PclrId
+                                   && (x.Calculation.RCVDTID ?? 0) == grp.RcvdtId
+                                   && x.ProductName == grp.ProductName
+                                   && x.TranDate <= previousDate)
+                        .Sum(x => x.Calculation.BKN ?? 0);
+
+                    var selectedDay = allBKNData
+                        .Where(x => x.PackingId == grp.PackingId
+                                   && (x.Calculation.KGWGT ?? 0) == grp.KgWeight
+                                   && (x.Calculation.GRADEID ?? 0) == grp.GradeId
+                                   && (x.Calculation.PCLRID ?? 0) == grp.PclrId
+                                   && (x.Calculation.RCVDTID ?? 0) == grp.RcvdtId
+                                   && x.ProductName == grp.ProductName
+                                   && x.TranDate == selectedDate)
+                        .Sum(x => x.Calculation.BKN ?? 0);
+
+                    var total = upToPreviousDay + selectedDay;
+
+                    // Create rows for this BKN group using PCK1 to store BKN value
+                    var upToPreviousData = new PackingDetailRow
+                    {
+                        RowType = $"Up to {previousDate:dd/MM/yyyy}",
+                        PCK1 = upToPreviousDay,
+                        Total = upToPreviousDay
+                    };
+
+                    var selectedDayData = new PackingDetailRow
+                    {
+                        RowType = selectedDate.ToString("dd/MM/yyyy"),
+                        PCK1 = selectedDay,
+                        Total = selectedDay
+                    };
+
+                    var totalData = new PackingDetailRow
+                    {
+                        RowType = "TOTAL",
+                        PCK1 = total,
+                        Total = total
+                    };
+
+                    var noOfBoxesData = new PackingDetailRow
+                    {
+                        RowType = "NO OF BOXES",
+                        PCK1 = CalculateBoxes(total),
+                        Total = CalculateBoxes(total)
+                    };
+
+                    // Create single column header for BKN
+                    var columnHeaders = new List<string> { "BKN (KG)" };
+
+                    var packingMasterData = new PackingMasterData
+                    {
+                        PackingType = grp.PackingType,
+                        ColumnHeaders = columnHeaders,
+                        Rows = new List<PackingDetailRow>
+                        {
+                            upToPreviousData,
+                            selectedDayData,
+                            totalData,
+                            noOfBoxesData
+                        }
+                    };
+
+                    breakdown.PackingMasters.Add(packingMasterData);
+                    System.Diagnostics.Debug.WriteLine($"  {grp.PackingType}: BKN Total={total:N2}");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"========================================");
+                return breakdown;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ERROR in GetBKNDetailBreakdownByDateRange: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                return new PackingMasterBreakdown
+                {
+                    PackingMasters = new List<PackingMasterData>()
+                };
+            }
+        }
+
         private string GetSlabSizeLabel(int slabIndex)
         {
             var slabLabels = new Dictionary<int, string>
@@ -753,6 +943,27 @@ namespace KVM_ERP.Controllers
                         });
                         
                         System.Diagnostics.Debug.WriteLine($"Added: {product.ProductName} (ID: {product.ProductId}) with total PCK: {product.TotalPCK:N2}");
+                    }
+                    
+                    // STEP 4: Add BKN as a separate virtual product
+                    var bknTotal = (from tpc in db.TransactionProductCalculations
+                                   join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                   join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                   where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                         && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
+                                         && tm.TRANDATE <= asOnDate
+                                         && tpc.BKN != null && tpc.BKN > 0
+                                   select tpc.BKN ?? 0).Sum();
+                    
+                    if (bknTotal > 0)
+                    {
+                        // Add BKN as virtual product with ID = -1
+                        productTotals.Add(new object[] { 
+                            -1, 
+                            "BKN (Broken)", 
+                            bknTotal.ToString("N2") 
+                        });
+                        System.Diagnostics.Debug.WriteLine($"Added: BKN (Broken) with total: {bknTotal:N2}");
                     }
                 }
                 catch (Exception ex)
