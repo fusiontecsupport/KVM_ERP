@@ -264,23 +264,88 @@ namespace KVM_ERP.Controllers
                     PackingMasters = new List<PackingMasterData>()
                 };
 
-                // Get all distinct packing masters for this product
-                var packingMasters = (from tpc in db.TransactionProductCalculations
-                                     join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
-                                     join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
-                                     join pm in db.PackingMasters on tpc.PACKMID equals pm.PACKMID
-                                     where td.MTRLID == itemId
-                                           && (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
-                                           && (pm.DISPSTATUS == 0 || pm.DISPSTATUS == null)
-                                           && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                           && tm.TRANDATE <= selectedDate
-                                     group tpc by new { pm.PACKMDESC, pm.PACKMID } into g
-                                     select new {
-                                         PackingType = g.Key.PACKMDESC,
-                                         PackingId = g.Key.PACKMID
-                                     }).OrderBy(x => x.PackingId).ToList();
+                // Step 1: Load all calculations for this product into memory with master descriptions
+                var allCalculations = (from tpc in db.TransactionProductCalculations
+                                      join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                      join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                      join pm in db.PackingMasters on tpc.PACKMID equals pm.PACKMID
+                                      join pclr in db.ProductionColourMasters on tpc.PCLRID equals pclr.PCLRID into pclrJoin
+                                      from pclr in pclrJoin.DefaultIfEmpty()
+                                      join rcvdt in db.ReceivedTypeMasters on tpc.RCVDTID equals rcvdt.RCVDTID into rcvdtJoin
+                                      from rcvdt in rcvdtJoin.DefaultIfEmpty()
+                                      join grade in db.GradeMasters on tpc.GRADEID equals grade.GRADEID into gradeJoin
+                                      from grade in gradeJoin.DefaultIfEmpty()
+                                      where td.MTRLID == itemId
+                                            && (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                            && (pm.DISPSTATUS == 0 || pm.DISPSTATUS == null)
+                                            && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
+                                            && tm.TRANDATE <= selectedDate
+                                      select new {
+                                          Calculation = tpc,
+                                          PackingType = pm.PACKMDESC,
+                                          PackingId = pm.PACKMID,
+                                          TranDate = tm.TRANDATE,
+                                          ColourDesc = pclr != null ? pclr.PCLRDESC : null,
+                                          ReceivedTypeDesc = rcvdt != null ? rcvdt.RCVDTDESC : null,
+                                          GradeDesc = grade != null ? grade.GRADEDESC : null
+                                      }).ToList();
 
-                System.Diagnostics.Debug.WriteLine($"Found {packingMasters.Count} packing masters");
+                System.Diagnostics.Debug.WriteLine($"Loaded {allCalculations.Count} total calculation records");
+
+                // Step 2: Group in memory by PackingId + KGWGT + PCLRID + RCVDTID + GRADEID
+                var packingMasters = allCalculations
+                    .GroupBy(x => new { 
+                        x.PackingId, 
+                        x.PackingType, 
+                        KGWGT = x.Calculation.KGWGT ?? 0,
+                        PCLRID = x.Calculation.PCLRID ?? 0,
+                        RCVDTID = x.Calculation.RCVDTID ?? 0,
+                        GRADEID = x.Calculation.GRADEID ?? 0,
+                        x.ColourDesc,
+                        x.ReceivedTypeDesc,
+                        x.GradeDesc
+                    })
+                    .Select(g => {
+                        // Build display name
+                        string displayName = g.Key.PackingType;
+                        
+                        // Add KGWGT if present
+                        if (g.Key.KGWGT > 0)
+                            displayName += " 6 x " + g.Key.KGWGT.ToString("0.#");
+                        
+                        // Add Grade if present
+                        if (!string.IsNullOrEmpty(g.Key.GradeDesc))
+                            displayName += " - " + g.Key.GradeDesc;
+                        
+                        // Add Colour if present
+                        if (!string.IsNullOrEmpty(g.Key.ColourDesc))
+                            displayName += " - " + g.Key.ColourDesc;
+                        
+                        // Add Received Type if present
+                        if (!string.IsNullOrEmpty(g.Key.ReceivedTypeDesc))
+                            displayName += " - " + g.Key.ReceivedTypeDesc;
+                        
+                        return new {
+                            PackingType = displayName,
+                            PackingId = g.Key.PackingId,
+                            KgWeight = g.Key.KGWGT,
+                            PclrId = g.Key.PCLRID,
+                            RcvdtId = g.Key.RCVDTID,
+                            GradeId = g.Key.GRADEID
+                        };
+                    })
+                    .OrderBy(x => x.PackingId)
+                    .ThenBy(x => x.KgWeight)
+                    .ThenBy(x => x.GradeId)
+                    .ThenBy(x => x.PclrId)
+                    .ThenBy(x => x.RcvdtId)
+                    .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Found {packingMasters.Count} packing master+KGWGT combinations");
+                foreach (var pm in packingMasters)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - {pm.PackingType} (PackingId: {pm.PackingId}, KgWeight: {pm.KgWeight})");
+                }
 
                 // For each packing master, get data split by date ranges
                 foreach (var pm in packingMasters)
@@ -289,27 +354,29 @@ namespace KVM_ERP.Controllers
 
                     var previousDate = selectedDate.AddDays(-1);
 
-                    // Get data up to previous day (cumulative)
-                    var upToPreviousDay = (from tpc in db.TransactionProductCalculations
-                                          join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
-                                          join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
-                                          where td.MTRLID == itemId
-                                                && tpc.PACKMID == pm.PackingId
-                                                && (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
-                                                && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                                && tm.TRANDATE <= previousDate
-                                          select tpc).ToList();
+                    // Filter from already loaded data in memory by PackingId, KGWGT, GRADEID, PCLRID, RCVDTID, and Date
+                    var upToPreviousDay = allCalculations
+                        .Where(x => x.PackingId == pm.PackingId 
+                                   && (x.Calculation.KGWGT ?? 0) == pm.KgWeight
+                                   && (x.Calculation.GRADEID ?? 0) == pm.GradeId
+                                   && (x.Calculation.PCLRID ?? 0) == pm.PclrId
+                                   && (x.Calculation.RCVDTID ?? 0) == pm.RcvdtId
+                                   && x.TranDate <= previousDate)
+                        .Select(x => x.Calculation)
+                        .ToList();
 
-                    // Get data for selected day only
-                    var selectedDay = (from tpc in db.TransactionProductCalculations
-                                      join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
-                                      join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
-                                      where td.MTRLID == itemId
-                                            && tpc.PACKMID == pm.PackingId
-                                            && (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
-                                            && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                            && tm.TRANDATE == selectedDate
-                                      select tpc).ToList();
+                    var selectedDay = allCalculations
+                        .Where(x => x.PackingId == pm.PackingId 
+                                   && (x.Calculation.KGWGT ?? 0) == pm.KgWeight
+                                   && (x.Calculation.GRADEID ?? 0) == pm.GradeId
+                                   && (x.Calculation.PCLRID ?? 0) == pm.PclrId
+                                   && (x.Calculation.RCVDTID ?? 0) == pm.RcvdtId
+                                   && x.TranDate == selectedDate)
+                        .Select(x => x.Calculation)
+                        .ToList();
+                    
+                    System.Diagnostics.Debug.WriteLine($"  Found {upToPreviousDay.Count} records up to previous day");
+                    System.Diagnostics.Debug.WriteLine($"  Found {selectedDay.Count} records for selected day");
 
                     // Calculate totals for up to previous day
                     var upToPreviousData = new PackingDetailRow
@@ -393,7 +460,7 @@ namespace KVM_ERP.Controllers
                         Total = upToPreviousData.Total + selectedDayData.Total
                     };
 
-                    // Calculate NO OF BOXES row (TOTAL / 6) - Floor to whole number, display only if >= 1
+                    // Calculate NO OF BOXES row (each column / 6) - Floor to whole number, display only if >= 1
                     var noOfBoxesData = new PackingDetailRow
                     {
                         RowType = "NO OF BOXES",
@@ -413,9 +480,16 @@ namespace KVM_ERP.Controllers
                         PCK14 = CalculateBoxes(totalData.PCK14),
                         PCK15 = CalculateBoxes(totalData.PCK15),
                         PCK16 = CalculateBoxes(totalData.PCK16),
-                        PCK17 = CalculateBoxes(totalData.PCK17),
-                        Total = CalculateBoxes(totalData.Total)
+                        PCK17 = CalculateBoxes(totalData.PCK17)
                     };
+                    
+                    // Total for NO OF BOXES = Sum of individual column boxes (not division of grand total)
+                    noOfBoxesData.Total = noOfBoxesData.PCK1 + noOfBoxesData.PCK2 + noOfBoxesData.PCK3 +
+                                         noOfBoxesData.PCK4 + noOfBoxesData.PCK5 + noOfBoxesData.PCK6 +
+                                         noOfBoxesData.PCK7 + noOfBoxesData.PCK8 + noOfBoxesData.PCK9 +
+                                         noOfBoxesData.PCK10 + noOfBoxesData.PCK11 + noOfBoxesData.PCK12 +
+                                         noOfBoxesData.PCK13 + noOfBoxesData.PCK14 + noOfBoxesData.PCK15 +
+                                         noOfBoxesData.PCK16 + noOfBoxesData.PCK17;
 
                     // Get column headers from PACKINGTYPEMASTER for this packing master
                     var columnHeaders = db.PackingTypeMasters
