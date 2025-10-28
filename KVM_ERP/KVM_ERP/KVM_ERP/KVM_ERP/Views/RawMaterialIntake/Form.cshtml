@@ -1222,9 +1222,9 @@
             const tabPane = $(this).closest('.tab-pane');
             const calculationMode = $('input[name="calculationMode"]:checked').val();
             
-            if (calculationMode === 'gradeweight' && $(this).hasClass('pck-field')) {
-                // INSTANT calculation for PCK fields in Grade Weight mode
-                console.log('PCK field changed in Grade Weight mode - INSTANT calculation');
+            if (calculationMode === 'gradeweight' && ($(this).hasClass('pck-field') || $(this).hasClass('bkn-field'))) {
+                // INSTANT calculation for PCK and BKN fields in Grade Weight mode
+                console.log('PCK/BKN field changed in Grade Weight mode - INSTANT calculation');
                 calculateGradeWeightMode(tabPane);
             } else {
                 console.log('Input changed, triggering calculation for:', tabPane.attr('id'));
@@ -1615,16 +1615,37 @@
 
         function renderPackingTypeFieldsForTab(fields, packingId) {
             let html = '';
+            let pckIndex = 1; // Track PCK index separately
+            
             fields.forEach(function(field, index) {
                 const colClass = fields.length <= 6 ? 'col-md-4' : 'col-md-3';
-                html += `
-                    <div class="${colClass} mb-3">
-                        <div class="form-group">
-                            <label for="pck${index + 1}_${packingId}">${field.label}:</label>
-                            <input type="number" class="form-control pck-field" id="pck${index + 1}_${packingId}" min="0" step="0.001" placeholder="0.000" data-multiplier="${getMultiplierFromLabel(field.label)}" data-pck-index="${index + 1}">
+                const fieldLabel = field.label.toUpperCase().trim();
+                
+                // Check if this field is BKN (Broken)
+                const isBKNField = fieldLabel === 'BKN' || fieldLabel === 'BROKEN' || fieldLabel.includes('BKN');
+                
+                if (isBKNField) {
+                    // Create BKN field with special class
+                    html += `
+                        <div class="${colClass} mb-3">
+                            <div class="form-group">
+                                <label for="bkn_${packingId}">${field.label}:</label>
+                                <input type="number" class="form-control bkn-field" id="bkn_${packingId}" min="0" step="0.001" placeholder="0.000" data-multiplier="${getMultiplierFromLabel(field.label)}">
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                } else {
+                    // Create regular PCK field
+                    html += `
+                        <div class="${colClass} mb-3">
+                            <div class="form-group">
+                                <label for="pck${pckIndex}_${packingId}">${field.label}:</label>
+                                <input type="number" class="form-control pck-field" id="pck${pckIndex}_${packingId}" min="0" step="0.001" placeholder="0.000" data-multiplier="${getMultiplierFromLabel(field.label)}" data-pck-index="${pckIndex}">
+                            </div>
+                        </div>
+                    `;
+                    pckIndex++; // Increment only for non-BKN fields
+                }
             });
             
             const container = $(`#pane-${packingId} .packing-fields-container`);
@@ -1646,7 +1667,7 @@
             
             // Also trigger calculation on input changes for this tab
             setTimeout(function() {
-                tabPane.find('.pck-field, .pounds-value, .yield-percent, .per-kg-weight, .wastage').on('input', function() {
+                tabPane.find('.pck-field, .bkn-field, .pounds-value, .yield-percent, .per-kg-weight, .wastage').on('input', function() {
                     calculateTabTotals(tabPane);
                 });
             }, 300);
@@ -2024,6 +2045,12 @@
                 slabValue += val;
             });
             
+            // Add BKN field to slab calculation
+            tabPane.find('.bkn-field').each(function() {
+                const val = parseFloat(this.value) || 0;
+                slabValue += val;
+            });
+            
             // Update Slab display immediately
             tabPane.find('.total-counts').text(slabValue.toFixed(3));
             
@@ -2045,7 +2072,7 @@
             console.log('=== CALCULATING PACKING MODE ===');
             console.log('Tab pane ID:', tabPane.attr('id'));
             
-            // Calculate TOPCK (sum of all PCK fields) for this tab
+            // Calculate TOPCK (sum of all PCK fields + BKN field) for this tab
             let topck = 0;
             const pckFields = tabPane.find('.pck-field');
             console.log('PCK fields found in packing mode:', pckFields.length);
@@ -2059,13 +2086,22 @@
                 }
             });
             
+            // Sum all PCK fields
             pckFields.each(function() {
                 const val = parseFloat($(this).val()) || 0;
                 topck += val;
                 console.log('PCK field:', $(this).attr('id'), 'Value:', val, 'Raw value:', $(this).val());
             });
             
-            console.log('Total PCK (TOPCK):', topck);
+            // Add BKN field to TOPCK calculation
+            const bknField = tabPane.find('.bkn-field');
+            if (bknField.length > 0) {
+                const bknVal = parseFloat(bknField.val()) || 0;
+                topck += bknVal;
+                console.log('BKN field:', bknField.attr('id'), 'Value:', bknVal, 'Raw value:', bknField.val());
+            }
+            
+            console.log('Total PCK + BKN (TOPCK):', topck);
             tabPane.find('.total-counts').text(topck.toFixed(3)); // Show 3 decimal places
 
             if (topck === 0) {
@@ -2076,7 +2112,16 @@
 
             // Calculate PCKLVALUE for this tab
             let pcklValue = 0;
+            // Include PCK fields
             tabPane.find('.pck-field').each(function() {
+                const val = parseFloat($(this).val()) || 0;
+                if (val > 0) {
+                    const multiplier = parseFloat($(this).attr('data-multiplier')) || 1;
+                    pcklValue += val * multiplier;
+                }
+            });
+            // Include BKN field
+            tabPane.find('.bkn-field').each(function() {
                 const val = parseFloat($(this).val()) || 0;
                 if (val > 0) {
                     const multiplier = parseFloat($(this).attr('data-multiplier')) || 1;

@@ -539,22 +539,40 @@
                                 // PCK1 to PCK[numColumns] - Use dynamic number of columns
                                 for (var i = 1; i <= numColumns; i++) {
                                     var pckValue = row['PCK' + i] || 0;
-                                    var displayValue = pckValue > 0 ? pckValue.toFixed(2) : '';
+                                    var displayValue = '';
+                                    
+                                    if (row.RowType === 'NO OF BOXES') {
+                                        // For NO OF BOXES: show whole number only if >= 1
+                                        if (pckValue >= 1) {
+                                            displayValue = Math.floor(pckValue).toString();
+                                        }
+                                    } else {
+                                        // For other rows: show 2 decimal places if > 0
+                                        displayValue = pckValue > 0 ? pckValue.toFixed(2) : '';
+                                    }
+                                    
                                     allTablesHtml += '<td style="' + cellStyle + '">' + displayValue + '</td>';
                                 }
                                 
                                 // Total column
                                 var totalValue = row.Total || 0;
                                 var totalBgColor = '';
+                                var totalDisplayValue = '';
+                                
                                 if (row.RowType === 'TOTAL') {
                                     totalBgColor = 'background-color: #28a745; color: white;';
+                                    totalDisplayValue = totalValue.toFixed(2);
                                 } else if (row.RowType === 'NO OF BOXES') {
                                     totalBgColor = 'background-color: #ffc107; color: black;';
+                                    // For NO OF BOXES total: show whole number only if >= 1
+                                    totalDisplayValue = totalValue >= 1 ? Math.floor(totalValue).toString() : '';
                                 } else {
                                     totalBgColor = 'background-color: #d4edda;';
+                                    totalDisplayValue = totalValue.toFixed(2);
                                 }
+                                
                                 allTablesHtml += '<td style="' + cellStyle + ' font-weight: bold; ' + totalBgColor + '">' + 
-                                               totalValue.toFixed(2) + '</td>';
+                                               totalDisplayValue + '</td>';
                                 allTablesHtml += '</tr>';
                             });
                             

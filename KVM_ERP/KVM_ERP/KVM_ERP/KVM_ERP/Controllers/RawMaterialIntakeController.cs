@@ -705,12 +705,12 @@ namespace KVM_ERP.Controllers
 
         private void CalculateProductValues(TransactionProductCalculation model)
         {
-            // Calculate TOPCK (sum of all PCK fields)
+            // Calculate TOPCK (sum of all PCK fields + BKN)
             model.TOPCK = (model.PCK1 ?? 0) + (model.PCK2 ?? 0) + (model.PCK3 ?? 0) + (model.PCK4 ?? 0) + 
                          (model.PCK5 ?? 0) + (model.PCK6 ?? 0) + (model.PCK7 ?? 0) + (model.PCK8 ?? 0) + 
                          (model.PCK9 ?? 0) + (model.PCK10 ?? 0) + (model.PCK11 ?? 0) + (model.PCK12 ?? 0) + 
                          (model.PCK13 ?? 0) + (model.PCK14 ?? 0) + (model.PCK15 ?? 0) + (model.PCK16 ?? 0) + 
-                         (model.PCK17 ?? 0);
+                         (model.PCK17 ?? 0) + (model.BKN ?? 0);
 
             // Check calculation mode to determine which calculations to perform
             bool isGradeWeightMode = model.CALCULATIONMODE == 2;
@@ -773,7 +773,7 @@ namespace KVM_ERP.Controllers
                                    model.PCK7, model.PCK8, model.PCK9, model.PCK10, model.PCK11, model.PCK12, 
                                    model.PCK13, model.PCK14, model.PCK15, model.PCK16, model.PCK17 };
 
-            // Get packing types for this packing master
+            // Get packing types for this packing master (excluding BKN)
             var packingTypes = db.PackingTypeMasters
                 .Where(pt => pt.PACKMID == model.PACKMID && pt.DISPSTATUS == 0)
                 .OrderBy(pt => pt.PACKTMCODE)
@@ -781,12 +781,32 @@ namespace KVM_ERP.Controllers
 
             if (packingTypes.Any())
             {
-                for (int i = 0; i < pckValues.Length && i < packingTypes.Count; i++)
+                int pckIndex = 0;
+                foreach (var packingType in packingTypes)
                 {
-                    if (pckValues[i].HasValue && pckValues[i] > 0)
+                    // Check if this is BKN field
+                    bool isBKN = packingType.PACKTMDESC.ToUpper().Trim() == "BKN" || 
+                                 packingType.PACKTMDESC.ToUpper().Trim() == "BROKEN" || 
+                                 packingType.PACKTMDESC.ToUpper().Contains("BKN");
+                    
+                    if (isBKN)
                     {
-                        decimal multiplier = ExtractMultiplierFromDescription(packingTypes[i].PACKTMDESC);
-                        pcklValue += pckValues[i].Value * multiplier;
+                        // Process BKN field separately
+                        if (model.BKN.HasValue && model.BKN > 0)
+                        {
+                            decimal multiplier = ExtractMultiplierFromDescription(packingType.PACKTMDESC);
+                            pcklValue += model.BKN.Value * multiplier;
+                        }
+                    }
+                    else
+                    {
+                        // Process regular PCK field
+                        if (pckIndex < pckValues.Length && pckValues[pckIndex].HasValue && pckValues[pckIndex] > 0)
+                        {
+                            decimal multiplier = ExtractMultiplierFromDescription(packingType.PACKTMDESC);
+                            pcklValue += pckValues[pckIndex].Value * multiplier;
+                        }
+                        pckIndex++;
                     }
                 }
             }
@@ -899,6 +919,9 @@ namespace KVM_ERP.Controllers
             model.FACAVGWGT = ParseNullableDecimal(form["FACAVGWGT"]);
             model.FACAVGCOUNT = ParseNullableDecimal(form["FACAVGCOUNT"]);
             
+            // Parse BKN field (Broken)
+            model.BKN = ParseNullableDecimal(form["BKN"]);
+            
             // Parse PRODDATE field
             model.PRODDATE = ParseNullableDateTime(form["PRODDATE"]);
             
@@ -915,6 +938,7 @@ namespace KVM_ERP.Controllers
             System.Diagnostics.Debug.WriteLine($"Parsed PCK1: '{form["PCK1"]}' -> {model.PCK1}");
             System.Diagnostics.Debug.WriteLine($"Parsed PCK2: '{form["PCK2"]}' -> {model.PCK2}");
             System.Diagnostics.Debug.WriteLine($"Parsed PCK3: '{form["PCK3"]}' -> {model.PCK3}");
+            System.Diagnostics.Debug.WriteLine($"Parsed BKN: '{form["BKN"]}' -> {model.BKN}");
             System.Diagnostics.Debug.WriteLine($"Parsed GRADEID: '{form["GRADEID"]}' -> {model.GRADEID}");
             System.Diagnostics.Debug.WriteLine($"Parsed PCLRID: '{form["PCLRID"]}' -> {model.PCLRID}");
             System.Diagnostics.Debug.WriteLine($"Parsed RCVDTID: '{form["RCVDTID"]}' -> {model.RCVDTID}");

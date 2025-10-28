@@ -88,6 +88,17 @@ namespace KVM_ERP.Controllers
             }
         }
 
+        // Helper method to calculate number of boxes
+        // Returns floor value (whole number) only if >= 1, otherwise returns 0
+        private decimal CalculateBoxes(decimal totalValue)
+        {
+            decimal boxes = totalValue / 6;
+            decimal floorValue = Math.Floor(boxes);
+            
+            // Only return value if >= 1, otherwise return 0
+            return floorValue >= 1 ? floorValue : 0;
+        }
+
         [HttpPost]
         public ActionResult GetItemDetails(int itemId, string asOnDate)
         {
@@ -382,28 +393,28 @@ namespace KVM_ERP.Controllers
                         Total = upToPreviousData.Total + selectedDayData.Total
                     };
 
-                    // Calculate NO OF BOXES row (TOTAL / 6)
+                    // Calculate NO OF BOXES row (TOTAL / 6) - Floor to whole number, display only if >= 1
                     var noOfBoxesData = new PackingDetailRow
                     {
                         RowType = "NO OF BOXES",
-                        PCK1 = totalData.PCK1 / 6,
-                        PCK2 = totalData.PCK2 / 6,
-                        PCK3 = totalData.PCK3 / 6,
-                        PCK4 = totalData.PCK4 / 6,
-                        PCK5 = totalData.PCK5 / 6,
-                        PCK6 = totalData.PCK6 / 6,
-                        PCK7 = totalData.PCK7 / 6,
-                        PCK8 = totalData.PCK8 / 6,
-                        PCK9 = totalData.PCK9 / 6,
-                        PCK10 = totalData.PCK10 / 6,
-                        PCK11 = totalData.PCK11 / 6,
-                        PCK12 = totalData.PCK12 / 6,
-                        PCK13 = totalData.PCK13 / 6,
-                        PCK14 = totalData.PCK14 / 6,
-                        PCK15 = totalData.PCK15 / 6,
-                        PCK16 = totalData.PCK16 / 6,
-                        PCK17 = totalData.PCK17 / 6,
-                        Total = totalData.Total / 6
+                        PCK1 = CalculateBoxes(totalData.PCK1),
+                        PCK2 = CalculateBoxes(totalData.PCK2),
+                        PCK3 = CalculateBoxes(totalData.PCK3),
+                        PCK4 = CalculateBoxes(totalData.PCK4),
+                        PCK5 = CalculateBoxes(totalData.PCK5),
+                        PCK6 = CalculateBoxes(totalData.PCK6),
+                        PCK7 = CalculateBoxes(totalData.PCK7),
+                        PCK8 = CalculateBoxes(totalData.PCK8),
+                        PCK9 = CalculateBoxes(totalData.PCK9),
+                        PCK10 = CalculateBoxes(totalData.PCK10),
+                        PCK11 = CalculateBoxes(totalData.PCK11),
+                        PCK12 = CalculateBoxes(totalData.PCK12),
+                        PCK13 = CalculateBoxes(totalData.PCK13),
+                        PCK14 = CalculateBoxes(totalData.PCK14),
+                        PCK15 = CalculateBoxes(totalData.PCK15),
+                        PCK16 = CalculateBoxes(totalData.PCK16),
+                        PCK17 = CalculateBoxes(totalData.PCK17),
+                        Total = CalculateBoxes(totalData.Total)
                     };
 
                     // Get column headers from PACKINGTYPEMASTER for this packing master
