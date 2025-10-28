@@ -498,8 +498,12 @@ namespace KVM_ERP.Controllers
                                          noOfBoxesData.PCK16 + noOfBoxesData.PCK17;
 
                     // Get column headers from PACKINGTYPEMASTER for this packing master
+                    // Exclude BKN column since it's now a separate product
                     var columnHeaders = db.PackingTypeMasters
-                        .Where(pt => pt.PACKMID == pm.PackingId && (pt.DISPSTATUS == 0 || pt.DISPSTATUS == null))
+                        .Where(pt => pt.PACKMID == pm.PackingId 
+                                  && (pt.DISPSTATUS == 0 || pt.DISPSTATUS == null)
+                                  && !pt.PACKTMDESC.ToUpper().Contains("BKN")
+                                  && !pt.PACKTMDESC.ToUpper().Contains("BROKEN"))
                         .OrderBy(pt => pt.PACKTMCODE)
                         .Select(pt => pt.PACKTMDESC)
                         .ToList();
