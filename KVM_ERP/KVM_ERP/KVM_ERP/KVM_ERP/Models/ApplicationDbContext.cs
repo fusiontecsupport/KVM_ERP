@@ -72,6 +72,9 @@ namespace KVM_ERP.Models
 
             //modelBuilder.Entity<TransactionMaster>().Property(d => d.TRANCRATE).HasPrecision(18, 4);
             
+            // Configure TransactionMaster decimal precision for TRANNAMT
+            modelBuilder.Entity<TransactionMaster>().Property(d => d.TRANNAMT).HasPrecision(18, 3);
+            
             // Configure CurrencyMaster decimal precision
             modelBuilder.Entity<CurrencyMaster>().Property(d => d.CURNAMT).HasPrecision(18, 2);
             

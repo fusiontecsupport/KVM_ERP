@@ -199,6 +199,13 @@ namespace KVM_ERP.Controllers
                         existing.DISPSTATUS = tab.DISPSTATUS;
                         existing.LMUSRID = User?.Identity?.Name ?? existing.LMUSRID;
                         existing.PRCSDATE = DateTime.Now; // treat as last modified for simplicity
+                        
+                        // Update TRANREFID if supplier changed
+                        if (SupplierId.HasValue && SupplierId.Value > 0)
+                        {
+                            existing.TRANREFID = SupplierId.Value;
+                        }
+                        
                         db.SaveChanges();
 
                         // Load existing details for this master
@@ -282,13 +289,39 @@ namespace KVM_ERP.Controllers
                 tab.CUSRID = User?.Identity?.Name ?? "System";
                 tab.LMUSRID = tab.CUSRID;
                 tab.PRCSDATE = DateTime.Now;
+                
+                // Get COMPYID from session
+                int compyId = Session["compyid"] != null ? Convert.ToInt32(Session["compyid"]) : 1;
+                
+                // Get next TRANNO (auto-increment)
+                var maxTranNo = db.Database.SqlQuery<int?>("SELECT MAX(TRANNO) FROM TRANSACTIONMASTER WHERE COMPYID = @p0", compyId).FirstOrDefault();
+                int nextTranNo = (maxTranNo ?? 0) + 1;
+                
+                // Generate TRANDNO as 000 + TRANNO
+                string tranDNo = "000" + nextTranNo.ToString();
+                
+                // Get supplier ID for TRANREFID
+                int tranRefId = SupplierId.HasValue && SupplierId.Value > 0 ? SupplierId.Value : 0;
+                
+                // Set new field values
+                tab.COMPYID = compyId;
+                tab.REGSTRID = 1; // Default value
+                tab.TRANNO = nextTranNo;
+                tab.TRANDNO = tranDNo;
+                tab.TRANREFID = tranRefId;
+                tab.TRANNAMT = 0.00m; // Default 0.00
+                tab.TRANAMTWRDS = "Nil"; // Default "Nil"
+                tab.TRANREFNO = "-"; // Default "-"
 
                 // Insert master and get new TRANMID
                 var newId = db.Database.SqlQuery<int>(@"
-                    INSERT INTO TRANSACTIONMASTER (TRANDATE, CATENAME, CATECODE, VECHNO, CLIENTWGHT, DISPSTATUS, CUSRID, LMUSRID, PRCSDATE)
-                    VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8); SELECT CAST(SCOPE_IDENTITY() AS INT);
+                    INSERT INTO TRANSACTIONMASTER (TRANDATE, CATENAME, CATECODE, VECHNO, CLIENTWGHT, DISPSTATUS, CUSRID, LMUSRID, PRCSDATE,
+                                                   COMPYID, REGSTRID, TRANNO, TRANDNO, TRANREFID, TRANNAMT, TRANAMTWRDS, TRANREFNO)
+                    VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16); 
+                    SELECT CAST(SCOPE_IDENTITY() AS INT);
                 ", tab.TRANDATE, tab.CATENAME ?? "", tab.CATECODE ?? "", tab.VECHNO ?? "",
-                   tab.CLIENTWGHT, tab.DISPSTATUS, tab.CUSRID, tab.LMUSRID, tab.PRCSDATE).FirstOrDefault();
+                   tab.CLIENTWGHT, tab.DISPSTATUS, tab.CUSRID, tab.LMUSRID, tab.PRCSDATE,
+                   tab.COMPYID, tab.REGSTRID, tab.TRANNO, tab.TRANDNO, tab.TRANREFID, tab.TRANNAMT, tab.TRANAMTWRDS, tab.TRANREFNO).FirstOrDefault();
 
                 // Insert details
                 foreach (var d in details)

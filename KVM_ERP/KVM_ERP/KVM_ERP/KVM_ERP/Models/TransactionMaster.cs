@@ -51,5 +51,39 @@ namespace KVM_ERP.Models
         [Required]
         [Column("PRCSDATE")]
         public DateTime PRCSDATE { get; set; }
+
+        // New columns
+        [Required]
+        [Column("COMPYID")]
+        public int COMPYID { get; set; }
+
+        [Required]
+        [Column("REGSTRID")]
+        public int REGSTRID { get; set; }
+
+        [Required]
+        [Column("TRANNO")]
+        public int TRANNO { get; set; }
+
+        [Required]
+        [MaxLength(50)]
+        [Column("TRANDNO")]
+        public string TRANDNO { get; set; }
+
+        [Required]
+        [Column("TRANREFID")]
+        public int TRANREFID { get; set; }
+
+        [Required]
+        [Column("TRANNAMT")]
+        public decimal TRANNAMT { get; set; }
+
+        [MaxLength(250)]
+        [Column("TRANAMTWRDS")]
+        public string TRANAMTWRDS { get; set; }
+
+        [MaxLength(100)]
+        [Column("TRANREFNO")]
+        public string TRANREFNO { get; set; }
     }
 }
