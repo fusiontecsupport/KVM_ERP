@@ -90,9 +90,9 @@ namespace KVM_ERP.Controllers
 
         // Helper method to calculate number of boxes
         // Returns floor value (whole number) only if >= 1, otherwise returns 0
-        private decimal CalculateBoxes(decimal totalValue)
+        private decimal CalculateBoxes(decimal? totalValue)
         {
-            decimal boxes = totalValue / 6;
+            decimal boxes = (totalValue ?? 0) / 6;
             decimal floorValue = Math.Floor(boxes);
             
             // Only return value if >= 1, otherwise return 0
@@ -406,12 +406,12 @@ namespace KVM_ERP.Controllers
                         PCK16 = upToPreviousDay.Sum(x => x.PCK16 ?? 0),
                         PCK17 = upToPreviousDay.Sum(x => x.PCK17 ?? 0)
                     };
-                    upToPreviousData.Total = upToPreviousData.PCK1 + upToPreviousData.PCK2 + upToPreviousData.PCK3 +
-                                            upToPreviousData.PCK4 + upToPreviousData.PCK5 + upToPreviousData.PCK6 +
-                                            upToPreviousData.PCK7 + upToPreviousData.PCK8 + upToPreviousData.PCK9 +
-                                            upToPreviousData.PCK10 + upToPreviousData.PCK11 + upToPreviousData.PCK12 +
-                                            upToPreviousData.PCK13 + upToPreviousData.PCK14 + upToPreviousData.PCK15 +
-                                            upToPreviousData.PCK16 + upToPreviousData.PCK17;
+                    upToPreviousData.Total = (upToPreviousData.PCK1 ?? 0) + (upToPreviousData.PCK2 ?? 0) + (upToPreviousData.PCK3 ?? 0) +
+                                            (upToPreviousData.PCK4 ?? 0) + (upToPreviousData.PCK5 ?? 0) + (upToPreviousData.PCK6 ?? 0) +
+                                            (upToPreviousData.PCK7 ?? 0) + (upToPreviousData.PCK8 ?? 0) + (upToPreviousData.PCK9 ?? 0) +
+                                            (upToPreviousData.PCK10 ?? 0) + (upToPreviousData.PCK11 ?? 0) + (upToPreviousData.PCK12 ?? 0) +
+                                            (upToPreviousData.PCK13 ?? 0) + (upToPreviousData.PCK14 ?? 0) + (upToPreviousData.PCK15 ?? 0) +
+                                            (upToPreviousData.PCK16 ?? 0) + (upToPreviousData.PCK17 ?? 0);
 
                     // Calculate totals for selected day
                     var selectedDayData = new PackingDetailRow
@@ -435,35 +435,35 @@ namespace KVM_ERP.Controllers
                         PCK16 = selectedDay.Sum(x => x.PCK16 ?? 0),
                         PCK17 = selectedDay.Sum(x => x.PCK17 ?? 0)
                     };
-                    selectedDayData.Total = selectedDayData.PCK1 + selectedDayData.PCK2 + selectedDayData.PCK3 +
-                                           selectedDayData.PCK4 + selectedDayData.PCK5 + selectedDayData.PCK6 +
-                                           selectedDayData.PCK7 + selectedDayData.PCK8 + selectedDayData.PCK9 +
-                                           selectedDayData.PCK10 + selectedDayData.PCK11 + selectedDayData.PCK12 +
-                                           selectedDayData.PCK13 + selectedDayData.PCK14 + selectedDayData.PCK15 +
-                                           selectedDayData.PCK16 + selectedDayData.PCK17;
+                    selectedDayData.Total = (selectedDayData.PCK1 ?? 0) + (selectedDayData.PCK2 ?? 0) + (selectedDayData.PCK3 ?? 0) +
+                                           (selectedDayData.PCK4 ?? 0) + (selectedDayData.PCK5 ?? 0) + (selectedDayData.PCK6 ?? 0) +
+                                           (selectedDayData.PCK7 ?? 0) + (selectedDayData.PCK8 ?? 0) + (selectedDayData.PCK9 ?? 0) +
+                                           (selectedDayData.PCK10 ?? 0) + (selectedDayData.PCK11 ?? 0) + (selectedDayData.PCK12 ?? 0) +
+                                           (selectedDayData.PCK13 ?? 0) + (selectedDayData.PCK14 ?? 0) + (selectedDayData.PCK15 ?? 0) +
+                                           (selectedDayData.PCK16 ?? 0) + (selectedDayData.PCK17 ?? 0);
 
                     // Calculate TOTAL row (sum of both)
                     var totalData = new PackingDetailRow
                     {
                         RowType = "TOTAL",
-                        PCK1 = upToPreviousData.PCK1 + selectedDayData.PCK1,
-                        PCK2 = upToPreviousData.PCK2 + selectedDayData.PCK2,
-                        PCK3 = upToPreviousData.PCK3 + selectedDayData.PCK3,
-                        PCK4 = upToPreviousData.PCK4 + selectedDayData.PCK4,
-                        PCK5 = upToPreviousData.PCK5 + selectedDayData.PCK5,
-                        PCK6 = upToPreviousData.PCK6 + selectedDayData.PCK6,
-                        PCK7 = upToPreviousData.PCK7 + selectedDayData.PCK7,
-                        PCK8 = upToPreviousData.PCK8 + selectedDayData.PCK8,
-                        PCK9 = upToPreviousData.PCK9 + selectedDayData.PCK9,
-                        PCK10 = upToPreviousData.PCK10 + selectedDayData.PCK10,
-                        PCK11 = upToPreviousData.PCK11 + selectedDayData.PCK11,
-                        PCK12 = upToPreviousData.PCK12 + selectedDayData.PCK12,
-                        PCK13 = upToPreviousData.PCK13 + selectedDayData.PCK13,
-                        PCK14 = upToPreviousData.PCK14 + selectedDayData.PCK14,
-                        PCK15 = upToPreviousData.PCK15 + selectedDayData.PCK15,
-                        PCK16 = upToPreviousData.PCK16 + selectedDayData.PCK16,
-                        PCK17 = upToPreviousData.PCK17 + selectedDayData.PCK17,
-                        Total = upToPreviousData.Total + selectedDayData.Total
+                        PCK1 = (upToPreviousData.PCK1 ?? 0) + (selectedDayData.PCK1 ?? 0),
+                        PCK2 = (upToPreviousData.PCK2 ?? 0) + (selectedDayData.PCK2 ?? 0),
+                        PCK3 = (upToPreviousData.PCK3 ?? 0) + (selectedDayData.PCK3 ?? 0),
+                        PCK4 = (upToPreviousData.PCK4 ?? 0) + (selectedDayData.PCK4 ?? 0),
+                        PCK5 = (upToPreviousData.PCK5 ?? 0) + (selectedDayData.PCK5 ?? 0),
+                        PCK6 = (upToPreviousData.PCK6 ?? 0) + (selectedDayData.PCK6 ?? 0),
+                        PCK7 = (upToPreviousData.PCK7 ?? 0) + (selectedDayData.PCK7 ?? 0),
+                        PCK8 = (upToPreviousData.PCK8 ?? 0) + (selectedDayData.PCK8 ?? 0),
+                        PCK9 = (upToPreviousData.PCK9 ?? 0) + (selectedDayData.PCK9 ?? 0),
+                        PCK10 = (upToPreviousData.PCK10 ?? 0) + (selectedDayData.PCK10 ?? 0),
+                        PCK11 = (upToPreviousData.PCK11 ?? 0) + (selectedDayData.PCK11 ?? 0),
+                        PCK12 = (upToPreviousData.PCK12 ?? 0) + (selectedDayData.PCK12 ?? 0),
+                        PCK13 = (upToPreviousData.PCK13 ?? 0) + (selectedDayData.PCK13 ?? 0),
+                        PCK14 = (upToPreviousData.PCK14 ?? 0) + (selectedDayData.PCK14 ?? 0),
+                        PCK15 = (upToPreviousData.PCK15 ?? 0) + (selectedDayData.PCK15 ?? 0),
+                        PCK16 = (upToPreviousData.PCK16 ?? 0) + (selectedDayData.PCK16 ?? 0),
+                        PCK17 = (upToPreviousData.PCK17 ?? 0) + (selectedDayData.PCK17 ?? 0),
+                        Total = (upToPreviousData.Total ?? 0) + (selectedDayData.Total ?? 0)
                     };
 
                     // Calculate NO OF BOXES row (each column / 6) - Floor to whole number, display only if >= 1
@@ -490,12 +490,12 @@ namespace KVM_ERP.Controllers
                     };
                     
                     // Total for NO OF BOXES = Sum of individual column boxes (not division of grand total)
-                    noOfBoxesData.Total = noOfBoxesData.PCK1 + noOfBoxesData.PCK2 + noOfBoxesData.PCK3 +
-                                         noOfBoxesData.PCK4 + noOfBoxesData.PCK5 + noOfBoxesData.PCK6 +
-                                         noOfBoxesData.PCK7 + noOfBoxesData.PCK8 + noOfBoxesData.PCK9 +
-                                         noOfBoxesData.PCK10 + noOfBoxesData.PCK11 + noOfBoxesData.PCK12 +
-                                         noOfBoxesData.PCK13 + noOfBoxesData.PCK14 + noOfBoxesData.PCK15 +
-                                         noOfBoxesData.PCK16 + noOfBoxesData.PCK17;
+                    noOfBoxesData.Total = (noOfBoxesData.PCK1 ?? 0) + (noOfBoxesData.PCK2 ?? 0) + (noOfBoxesData.PCK3 ?? 0) +
+                                         (noOfBoxesData.PCK4 ?? 0) + (noOfBoxesData.PCK5 ?? 0) + (noOfBoxesData.PCK6 ?? 0) +
+                                         (noOfBoxesData.PCK7 ?? 0) + (noOfBoxesData.PCK8 ?? 0) + (noOfBoxesData.PCK9 ?? 0) +
+                                         (noOfBoxesData.PCK10 ?? 0) + (noOfBoxesData.PCK11 ?? 0) + (noOfBoxesData.PCK12 ?? 0) +
+                                         (noOfBoxesData.PCK13 ?? 0) + (noOfBoxesData.PCK14 ?? 0) + (noOfBoxesData.PCK15 ?? 0) +
+                                         (noOfBoxesData.PCK16 ?? 0) + (noOfBoxesData.PCK17 ?? 0);
 
                     // Get column headers from PACKINGTYPEMASTER for this packing master
                     // Exclude BKN column since it's now a separate product
@@ -912,29 +912,56 @@ namespace KVM_ERP.Controllers
                 // STEP 3: Get products with their PCK totals
                 try
                 {
-                    var productCalcs = (from tpc in db.TransactionProductCalculations
-                                       join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
-                                       join m in db.MaterialMasters on td.MTRLID equals m.MTRLID
-                                       join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
-                                       where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
-                                             && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
-                                             && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                             && tm.TRANDATE <= asOnDate
-                                       group tpc by new { m.MTRLID, m.MTRLDESC } into g
-                                       select new {
-                                           ProductId = g.Key.MTRLID,
-                                           ProductName = g.Key.MTRLDESC,
-                                           TotalPCK = g.Sum(tpc => 
-                                               (tpc.PCK1 ?? 0) + (tpc.PCK2 ?? 0) + (tpc.PCK3 ?? 0) + 
-                                               (tpc.PCK4 ?? 0) + (tpc.PCK5 ?? 0) + (tpc.PCK6 ?? 0) + 
-                                               (tpc.PCK7 ?? 0) + (tpc.PCK8 ?? 0) + (tpc.PCK9 ?? 0) + 
-                                               (tpc.PCK10 ?? 0) + (tpc.PCK11 ?? 0) + (tpc.PCK12 ?? 0) + 
-                                               (tpc.PCK13 ?? 0) + (tpc.PCK14 ?? 0) + (tpc.PCK15 ?? 0) + 
-                                               (tpc.PCK16 ?? 0) + (tpc.PCK17 ?? 0))
-                                       })
-                                       .Where(x => x.TotalPCK > 0)
-                                       .OrderBy(x => x.ProductName)
-                                       .ToList();
+                    // Load data into memory first to avoid EF translation issues with nullable decimals
+                    var allCalcs = (from tpc in db.TransactionProductCalculations
+                                   join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                   join m in db.MaterialMasters on td.MTRLID equals m.MTRLID
+                                   join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                   where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                         && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
+                                         && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
+                                         && tm.TRANDATE <= asOnDate
+                                   select new {
+                                       ProductId = m.MTRLID,
+                                       ProductName = m.MTRLDESC,
+                                       PCK1 = tpc.PCK1,
+                                       PCK2 = tpc.PCK2,
+                                       PCK3 = tpc.PCK3,
+                                       PCK4 = tpc.PCK4,
+                                       PCK5 = tpc.PCK5,
+                                       PCK6 = tpc.PCK6,
+                                       PCK7 = tpc.PCK7,
+                                       PCK8 = tpc.PCK8,
+                                       PCK9 = tpc.PCK9,
+                                       PCK10 = tpc.PCK10,
+                                       PCK11 = tpc.PCK11,
+                                       PCK12 = tpc.PCK12,
+                                       PCK13 = tpc.PCK13,
+                                       PCK14 = tpc.PCK14,
+                                       PCK15 = tpc.PCK15,
+                                       PCK16 = tpc.PCK16,
+                                       PCK17 = tpc.PCK17
+                                   }).ToList();
+
+                    System.Diagnostics.Debug.WriteLine($"Loaded {allCalcs.Count} calculation records into memory");
+
+                    // Now perform grouping and summing in .NET (client-side)
+                    var productCalcs = allCalcs
+                        .GroupBy(x => new { x.ProductId, x.ProductName })
+                        .Select(g => new {
+                            ProductId = g.Key.ProductId,
+                            ProductName = g.Key.ProductName,
+                            TotalPCK = g.Sum(tpc =>
+                                (tpc.PCK1 ?? 0) + (tpc.PCK2 ?? 0) + (tpc.PCK3 ?? 0) +
+                                (tpc.PCK4 ?? 0) + (tpc.PCK5 ?? 0) + (tpc.PCK6 ?? 0) +
+                                (tpc.PCK7 ?? 0) + (tpc.PCK8 ?? 0) + (tpc.PCK9 ?? 0) +
+                                (tpc.PCK10 ?? 0) + (tpc.PCK11 ?? 0) + (tpc.PCK12 ?? 0) +
+                                (tpc.PCK13 ?? 0) + (tpc.PCK14 ?? 0) + (tpc.PCK15 ?? 0) +
+                                (tpc.PCK16 ?? 0) + (tpc.PCK17 ?? 0))
+                        })
+                        .Where(x => x.TotalPCK > 0)
+                        .OrderBy(x => x.ProductName)
+                        .ToList();
 
                     System.Diagnostics.Debug.WriteLine($"Product totals found: {productCalcs.Count}");
                     
@@ -950,14 +977,16 @@ namespace KVM_ERP.Controllers
                     }
                     
                     // STEP 4: Add BKN as a separate virtual product
-                    var bknTotal = (from tpc in db.TransactionProductCalculations
-                                   join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
-                                   join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
-                                   where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
-                                         && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                         && tm.TRANDATE <= asOnDate
-                                         && tpc.BKN != null && tpc.BKN > 0
-                                   select tpc.BKN ?? 0).Sum();
+                    var bknData = (from tpc in db.TransactionProductCalculations
+                                  join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                  join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                  where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                        && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
+                                        && tm.TRANDATE <= asOnDate
+                                        && tpc.BKN != null && tpc.BKN > 0
+                                  select tpc.BKN).ToList();
+                    
+                    var bknTotal = bknData.Sum(x => x ?? 0);
                     
                     if (bknTotal > 0)
                     {
@@ -1052,23 +1081,23 @@ namespace KVM_ERP.Controllers
     public class PackingDetailRow
     {
         public string RowType { get; set; } // "Up to DD/MM/YYYY", "DD/MM/YYYY", "TOTAL", "NO OF BOXES"
-        public decimal PCK1 { get; set; }
-        public decimal PCK2 { get; set; }
-        public decimal PCK3 { get; set; }
-        public decimal PCK4 { get; set; }
-        public decimal PCK5 { get; set; }
-        public decimal PCK6 { get; set; }
-        public decimal PCK7 { get; set; }
-        public decimal PCK8 { get; set; }
-        public decimal PCK9 { get; set; }
-        public decimal PCK10 { get; set; }
-        public decimal PCK11 { get; set; }
-        public decimal PCK12 { get; set; }
-        public decimal PCK13 { get; set; }
-        public decimal PCK14 { get; set; }
-        public decimal PCK15 { get; set; }
-        public decimal PCK16 { get; set; }
-        public decimal PCK17 { get; set; }
-        public decimal Total { get; set; }
+        public decimal? PCK1 { get; set; }
+        public decimal? PCK2 { get; set; }
+        public decimal? PCK3 { get; set; }
+        public decimal? PCK4 { get; set; }
+        public decimal? PCK5 { get; set; }
+        public decimal? PCK6 { get; set; }
+        public decimal? PCK7 { get; set; }
+        public decimal? PCK8 { get; set; }
+        public decimal? PCK9 { get; set; }
+        public decimal? PCK10 { get; set; }
+        public decimal? PCK11 { get; set; }
+        public decimal? PCK12 { get; set; }
+        public decimal? PCK13 { get; set; }
+        public decimal? PCK14 { get; set; }
+        public decimal? PCK15 { get; set; }
+        public decimal? PCK16 { get; set; }
+        public decimal? PCK17 { get; set; }
+        public decimal? Total { get; set; }
     }
 }

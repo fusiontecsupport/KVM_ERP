@@ -1,0 +1,355 @@
+@{
+    ViewBag.Title = "Invoice";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .main-container {
+        background: white;
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+
+    .content-wrapper {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin: 20px;
+        overflow: hidden;
+        border: 1px solid #e9ecef;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 25px 30px;
+        border-radius: 15px 15px 0 0;
+    }
+
+    .header-title {
+        font-size: 28px;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .table-container { padding: 30px; background: white; }
+
+    #invoiceTable {
+        border-collapse: separate;
+        border-spacing: 0;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        width: 100%;
+    }
+
+    #invoiceTable thead th {
+        background: #7f88e9; /* slight violet-blue */
+        color: white;
+        font-weight: 600;
+        padding: 15px 12px;
+        text-align: center;
+        border: none;
+        font-size: 14px;
+        border-right: 1px solid rgba(255,255,255,0.35);
+    }
+    #invoiceTable thead th:last-child { border-right: none; }
+
+    #invoiceTable tbody td {
+        padding: 12px;
+        border-bottom: 1px solid #f0f0f0;
+        vertical-align: middle;
+        text-align: center;
+    }
+
+    #invoiceTable tbody tr:hover { background-color: #f8f9ff; transition: all 0.2s ease; }
+
+    /* Date Filter Section Styling */
+    .date-filter-card {
+        background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%);
+        border: 1px solid #e3f2fd;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .form-label {
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+    
+    .form-control {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 10px 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus {
+        border-color: #4facfe;
+        box-shadow: 0 0 0 0.2rem rgba(79, 172, 254, 0.25);
+    }
+    
+    #filterBtn {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    #filterBtn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+    }
+    
+    #clearBtn {
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+        border: 2px solid #6c757d;
+        transition: all 0.3s ease;
+    }
+    
+    #clearBtn:hover {
+        background-color: #6c757d;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .amount-cell {
+        font-weight: 600;
+        color: #2ecc71;
+        font-size: 14px;
+    }
+</style>
+
+<div class="main-container">
+    <div class="content-wrapper">
+        <div class="header-section">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="header-title">
+                    <i class="fa fa-file-invoice"></i>
+                    Invoice
+                </h1>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <!-- Date Filter Section -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="row align-items-end">
+                                <div class="col-md-3">
+                                    <label for="fromDate" class="form-label fw-bold text-primary">
+                                        <i class="fa fa-calendar-alt"></i> From Date
+                                    </label>
+                                    <input type="date" id="fromDate" class="form-control border-2" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="toDate" class="form-label fw-bold text-primary">
+                                        <i class="fa fa-calendar-alt"></i> To Date
+                                    </label>
+                                    <input type="date" id="toDate" class="form-control border-2" />
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="button" id="filterBtn" class="btn btn-primary px-4">
+                                        <i class="fa fa-filter"></i> Filter
+                                    </button>
+                                    <button type="button" id="clearBtn" class="btn btn-outline-secondary px-4 ms-2">
+                                        <i class="fa fa-times"></i> Clear
+                                    </button>
+                                </div>
+                                <div class="col-md-3 text-end">
+                                    <div id="filterStatus" class="mb-2">
+                                        <small class="text-success fw-bold" style="display: none;">
+                                            <i class="fa fa-check-circle"></i> 
+                                            <span id="filterText"></span>
+                                        </small>
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="fa fa-info-circle"></i> 
+                                        Filter records by transaction date range
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <table id="invoiceTable" class="display table table-striped" cellspacing="0" width="100%">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>No</th>
+                        <th>Ref No</th>
+                        <th>Supplier Name</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tfoot>
+                    <tr>
+                        <th>Date</th>
+                        <th>No</th>
+                        <th>Ref No</th>
+                        <th>Supplier Name</th>
+                        <th>Amount</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="text/javascript">
+        $(document).ready(function() {
+            $.fn.dataTable.ext.errMode = 'console';
+
+            var table = $('#invoiceTable').DataTable({
+                ajax: {
+                    url: '@Url.Action("GetAjaxData", "RawMaterialInvoice")',
+                    type: 'GET',
+                    data: function(d) {
+                        // Add date filter parameters
+                        d.fromDate = $('#fromDate').val();
+                        d.toDate = $('#toDate').val();
+                    },
+                    dataSrc: function(json){
+                        if (json && Array.isArray(json.aaData)) return json.aaData;
+                        if (json && Array.isArray(json.data)) return json.data;
+                        if (Array.isArray(json)) return json;
+                        if (json && json.error) { console.error('Server error:', json.error); return []; }
+                        return [];
+                    },
+                    error: function(xhr, status, err){
+                        console.error('RawMaterialInvoice GetAjaxData error:', status, err, xhr && xhr.responseText);
+                        alert('Failed to load data. Please check console for details.');
+                    }
+                },
+                columns: [
+                    { 
+                        data: 'TRANDATE',
+                        render: function(data, type, row) {
+                            if (data && type === 'display') {
+                                // Parse the date and format as dd/mm/yyyy
+                                var date = new Date(data);
+                                if (!isNaN(date.getTime())) {
+                                    var day = String(date.getDate()).padStart(2, '0');
+                                    var month = String(date.getMonth() + 1).padStart(2, '0');
+                                    var year = date.getFullYear();
+                                    return day + '/' + month + '/' + year;
+                                }
+                            }
+                            return data;
+                        }
+                    },
+                    { data: 'TRANDNO' },
+                    { data: 'TRANREFNO' },
+                    { data: 'CATENAME' },
+                    { 
+                        data: 'TRANNAMT',
+                        render: function (data, type, row) {
+                            return '<span class="amount-cell">₹ ' + parseFloat(data).toFixed(2) + '</span>';
+                        }
+                    }
+                ],
+                dom: '<"row mb-3"<"col-md-6"l><"col-md-6"f>>rt<"row mt-3"<"col-md-6"i><"col-md-6"p>>',
+                responsive: true,
+                pageLength: 25,
+                order: [[0, 'desc']],
+                language: {
+                    search: "_INPUT_",
+                    searchPlaceholder: "Search..."
+                }
+            });
+
+            // Function to update filter status display
+            function updateFilterStatus() {
+                var fromDate = $('#fromDate').val();
+                var toDate = $('#toDate').val();
+                var statusDiv = $('#filterStatus small');
+                var textSpan = $('#filterText');
+                
+                if (fromDate || toDate) {
+                    var filterText = 'Filtered: ';
+                    if (fromDate && toDate) {
+                        filterText += fromDate + ' to ' + toDate;
+                    } else if (fromDate) {
+                        filterText += 'From ' + fromDate;
+                    } else if (toDate) {
+                        filterText += 'Until ' + toDate;
+                    }
+                    textSpan.text(filterText);
+                    statusDiv.show();
+                } else {
+                    statusDiv.hide();
+                }
+            }
+
+            // Date Filter Event Handlers
+            $('#filterBtn').on('click', function() {
+                var fromDate = $('#fromDate').val();
+                var toDate = $('#toDate').val();
+                
+                // Validate date range
+                if (fromDate && toDate && fromDate > toDate) {
+                    alert('From Date cannot be greater than To Date');
+                    return;
+                }
+                
+                // Show loading state
+                $(this).html('<i class="fa fa-spinner fa-spin"></i> Filtering...');
+                $(this).prop('disabled', true);
+                
+                // Reload table with new filters
+                table.ajax.reload(function() {
+                    // Reset button state
+                    $('#filterBtn').html('<i class="fa fa-filter"></i> Filter');
+                    $('#filterBtn').prop('disabled', false);
+                    updateFilterStatus();
+                });
+            });
+
+            $('#clearBtn').on('click', function() {
+                $('#fromDate').val('');
+                $('#toDate').val('');
+                updateFilterStatus();
+                
+                // Show loading state
+                $(this).html('<i class="fa fa-spinner fa-spin"></i> Clearing...');
+                $(this).prop('disabled', true);
+                
+                table.ajax.reload(function() {
+                    // Reset button state
+                    $('#clearBtn').html('<i class="fa fa-times"></i> Clear');
+                    $('#clearBtn').prop('disabled', false);
+                });
+            });
+
+            // Allow Enter key to trigger filter
+            $('#fromDate, #toDate').on('keypress', function(e) {
+                if (e.which === 13) { // Enter key
+                    $('#filterBtn').click();
+                }
+            });
+
+            // Set default date range (last 30 days) and update filter status
+            var today = new Date();
+            var thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            
+            $('#toDate').val(today.toISOString().split('T')[0]);
+            $('#fromDate').val(thirtyDaysAgo.toISOString().split('T')[0]);
+            
+            // Show initial filter status
+            updateFilterStatus();
+        });
+    </script>
+}
