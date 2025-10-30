@@ -180,30 +180,30 @@ namespace KVM_ERP.Controllers
                                        select new {
                                            PackingType = g.Key.PACKMDESC,
                                            PackingId = g.Key.PACKMID,
-                                           PCK1 = g.Sum(tpc => tpc.PCK1 ?? 0),
-                                           PCK2 = g.Sum(tpc => tpc.PCK2 ?? 0),
-                                           PCK3 = g.Sum(tpc => tpc.PCK3 ?? 0),
-                                           PCK4 = g.Sum(tpc => tpc.PCK4 ?? 0),
-                                           PCK5 = g.Sum(tpc => tpc.PCK5 ?? 0),
-                                           PCK6 = g.Sum(tpc => tpc.PCK6 ?? 0),
-                                           PCK7 = g.Sum(tpc => tpc.PCK7 ?? 0),
-                                           PCK8 = g.Sum(tpc => tpc.PCK8 ?? 0),
-                                           PCK9 = g.Sum(tpc => tpc.PCK9 ?? 0),
-                                           PCK10 = g.Sum(tpc => tpc.PCK10 ?? 0),
-                                           PCK11 = g.Sum(tpc => tpc.PCK11 ?? 0),
-                                           PCK12 = g.Sum(tpc => tpc.PCK12 ?? 0),
-                                           PCK13 = g.Sum(tpc => tpc.PCK13 ?? 0),
-                                           PCK14 = g.Sum(tpc => tpc.PCK14 ?? 0),
-                                           PCK15 = g.Sum(tpc => tpc.PCK15 ?? 0),
-                                           PCK16 = g.Sum(tpc => tpc.PCK16 ?? 0),
-                                           PCK17 = g.Sum(tpc => tpc.PCK17 ?? 0),
+                                           PCK1 = g.Sum(tpc => tpc.PCK1),
+                                           PCK2 = g.Sum(tpc => tpc.PCK2),
+                                           PCK3 = g.Sum(tpc => tpc.PCK3),
+                                           PCK4 = g.Sum(tpc => tpc.PCK4),
+                                           PCK5 = g.Sum(tpc => tpc.PCK5),
+                                           PCK6 = g.Sum(tpc => tpc.PCK6),
+                                           PCK7 = g.Sum(tpc => tpc.PCK7),
+                                           PCK8 = g.Sum(tpc => tpc.PCK8),
+                                           PCK9 = g.Sum(tpc => tpc.PCK9),
+                                           PCK10 = g.Sum(tpc => tpc.PCK10),
+                                           PCK11 = g.Sum(tpc => tpc.PCK11),
+                                           PCK12 = g.Sum(tpc => tpc.PCK12),
+                                           PCK13 = g.Sum(tpc => tpc.PCK13),
+                                           PCK14 = g.Sum(tpc => tpc.PCK14),
+                                           PCK15 = g.Sum(tpc => tpc.PCK15),
+                                           PCK16 = g.Sum(tpc => tpc.PCK16),
+                                           PCK17 = g.Sum(tpc => tpc.PCK17),
                                            Total = g.Sum(tpc => 
-                                               (tpc.PCK1 ?? 0) + (tpc.PCK2 ?? 0) + (tpc.PCK3 ?? 0) + 
-                                               (tpc.PCK4 ?? 0) + (tpc.PCK5 ?? 0) + (tpc.PCK6 ?? 0) + 
-                                               (tpc.PCK7 ?? 0) + (tpc.PCK8 ?? 0) + (tpc.PCK9 ?? 0) + 
-                                               (tpc.PCK10 ?? 0) + (tpc.PCK11 ?? 0) + (tpc.PCK12 ?? 0) + 
-                                               (tpc.PCK13 ?? 0) + (tpc.PCK14 ?? 0) + (tpc.PCK15 ?? 0) + 
-                                               (tpc.PCK16 ?? 0) + (tpc.PCK17 ?? 0))
+                                               tpc.PCK1 + tpc.PCK2 + tpc.PCK3 + 
+                                               tpc.PCK4 + tpc.PCK5 + tpc.PCK6 + 
+                                               tpc.PCK7 + tpc.PCK8 + tpc.PCK9 + 
+                                               tpc.PCK10 + tpc.PCK11 + tpc.PCK12 + 
+                                               tpc.PCK13 + tpc.PCK14 + tpc.PCK15 + 
+                                               tpc.PCK16 + tpc.PCK17)
                                        })
                                        .Where(x => x.Total > 0)
                                        .OrderBy(x => x.PackingId) // Order by PackingId to keep consistent order
@@ -303,10 +303,10 @@ namespace KVM_ERP.Controllers
                     .GroupBy(x => new { 
                         x.PackingId, 
                         x.PackingType, 
-                        KGWGT = x.Calculation.KGWGT ?? 0,
-                        PCLRID = x.Calculation.PCLRID ?? 0,
-                        RCVDTID = x.Calculation.RCVDTID ?? 0,
-                        GRADEID = x.Calculation.GRADEID ?? 0,
+                        KGWGT = x.Calculation.KGWGT,
+                        PCLRID = x.Calculation.PCLRID,
+                        RCVDTID = x.Calculation.RCVDTID,
+                        GRADEID = x.Calculation.GRADEID,
                         x.ColourDesc,
                         x.ReceivedTypeDesc,
                         x.GradeDesc
@@ -363,20 +363,20 @@ namespace KVM_ERP.Controllers
                     // Filter from already loaded data in memory by PackingId, KGWGT, GRADEID, PCLRID, RCVDTID, and Date
                     var upToPreviousDay = allCalculations
                         .Where(x => x.PackingId == pm.PackingId 
-                                   && (x.Calculation.KGWGT ?? 0) == pm.KgWeight
-                                   && (x.Calculation.GRADEID ?? 0) == pm.GradeId
-                                   && (x.Calculation.PCLRID ?? 0) == pm.PclrId
-                                   && (x.Calculation.RCVDTID ?? 0) == pm.RcvdtId
+                                   && x.Calculation.KGWGT == pm.KgWeight
+                                   && x.Calculation.GRADEID == pm.GradeId
+                                   && x.Calculation.PCLRID == pm.PclrId
+                                   && x.Calculation.RCVDTID == pm.RcvdtId
                                    && x.TranDate <= previousDate)
                         .Select(x => x.Calculation)
                         .ToList();
 
                     var selectedDay = allCalculations
                         .Where(x => x.PackingId == pm.PackingId 
-                                   && (x.Calculation.KGWGT ?? 0) == pm.KgWeight
-                                   && (x.Calculation.GRADEID ?? 0) == pm.GradeId
-                                   && (x.Calculation.PCLRID ?? 0) == pm.PclrId
-                                   && (x.Calculation.RCVDTID ?? 0) == pm.RcvdtId
+                                   && x.Calculation.KGWGT == pm.KgWeight
+                                   && x.Calculation.GRADEID == pm.GradeId
+                                   && x.Calculation.PCLRID == pm.PclrId
+                                   && x.Calculation.RCVDTID == pm.RcvdtId
                                    && x.TranDate == selectedDate)
                         .Select(x => x.Calculation)
                         .ToList();
@@ -388,23 +388,23 @@ namespace KVM_ERP.Controllers
                     var upToPreviousData = new PackingDetailRow
                     {
                         RowType = $"Up to {previousDate:dd/MM/yyyy}",
-                        PCK1 = upToPreviousDay.Sum(x => x.PCK1 ?? 0),
-                        PCK2 = upToPreviousDay.Sum(x => x.PCK2 ?? 0),
-                        PCK3 = upToPreviousDay.Sum(x => x.PCK3 ?? 0),
-                        PCK4 = upToPreviousDay.Sum(x => x.PCK4 ?? 0),
-                        PCK5 = upToPreviousDay.Sum(x => x.PCK5 ?? 0),
-                        PCK6 = upToPreviousDay.Sum(x => x.PCK6 ?? 0),
-                        PCK7 = upToPreviousDay.Sum(x => x.PCK7 ?? 0),
-                        PCK8 = upToPreviousDay.Sum(x => x.PCK8 ?? 0),
-                        PCK9 = upToPreviousDay.Sum(x => x.PCK9 ?? 0),
-                        PCK10 = upToPreviousDay.Sum(x => x.PCK10 ?? 0),
-                        PCK11 = upToPreviousDay.Sum(x => x.PCK11 ?? 0),
-                        PCK12 = upToPreviousDay.Sum(x => x.PCK12 ?? 0),
-                        PCK13 = upToPreviousDay.Sum(x => x.PCK13 ?? 0),
-                        PCK14 = upToPreviousDay.Sum(x => x.PCK14 ?? 0),
-                        PCK15 = upToPreviousDay.Sum(x => x.PCK15 ?? 0),
-                        PCK16 = upToPreviousDay.Sum(x => x.PCK16 ?? 0),
-                        PCK17 = upToPreviousDay.Sum(x => x.PCK17 ?? 0)
+                        PCK1 = upToPreviousDay.Sum(x => x.PCK1),
+                        PCK2 = upToPreviousDay.Sum(x => x.PCK2),
+                        PCK3 = upToPreviousDay.Sum(x => x.PCK3),
+                        PCK4 = upToPreviousDay.Sum(x => x.PCK4),
+                        PCK5 = upToPreviousDay.Sum(x => x.PCK5),
+                        PCK6 = upToPreviousDay.Sum(x => x.PCK6),
+                        PCK7 = upToPreviousDay.Sum(x => x.PCK7),
+                        PCK8 = upToPreviousDay.Sum(x => x.PCK8),
+                        PCK9 = upToPreviousDay.Sum(x => x.PCK9),
+                        PCK10 = upToPreviousDay.Sum(x => x.PCK10),
+                        PCK11 = upToPreviousDay.Sum(x => x.PCK11),
+                        PCK12 = upToPreviousDay.Sum(x => x.PCK12),
+                        PCK13 = upToPreviousDay.Sum(x => x.PCK13),
+                        PCK14 = upToPreviousDay.Sum(x => x.PCK14),
+                        PCK15 = upToPreviousDay.Sum(x => x.PCK15),
+                        PCK16 = upToPreviousDay.Sum(x => x.PCK16),
+                        PCK17 = upToPreviousDay.Sum(x => x.PCK17)
                     };
                     upToPreviousData.Total = (upToPreviousData.PCK1 ?? 0) + (upToPreviousData.PCK2 ?? 0) + (upToPreviousData.PCK3 ?? 0) +
                                             (upToPreviousData.PCK4 ?? 0) + (upToPreviousData.PCK5 ?? 0) + (upToPreviousData.PCK6 ?? 0) +
@@ -417,23 +417,23 @@ namespace KVM_ERP.Controllers
                     var selectedDayData = new PackingDetailRow
                     {
                         RowType = selectedDate.ToString("dd/MM/yyyy"),
-                        PCK1 = selectedDay.Sum(x => x.PCK1 ?? 0),
-                        PCK2 = selectedDay.Sum(x => x.PCK2 ?? 0),
-                        PCK3 = selectedDay.Sum(x => x.PCK3 ?? 0),
-                        PCK4 = selectedDay.Sum(x => x.PCK4 ?? 0),
-                        PCK5 = selectedDay.Sum(x => x.PCK5 ?? 0),
-                        PCK6 = selectedDay.Sum(x => x.PCK6 ?? 0),
-                        PCK7 = selectedDay.Sum(x => x.PCK7 ?? 0),
-                        PCK8 = selectedDay.Sum(x => x.PCK8 ?? 0),
-                        PCK9 = selectedDay.Sum(x => x.PCK9 ?? 0),
-                        PCK10 = selectedDay.Sum(x => x.PCK10 ?? 0),
-                        PCK11 = selectedDay.Sum(x => x.PCK11 ?? 0),
-                        PCK12 = selectedDay.Sum(x => x.PCK12 ?? 0),
-                        PCK13 = selectedDay.Sum(x => x.PCK13 ?? 0),
-                        PCK14 = selectedDay.Sum(x => x.PCK14 ?? 0),
-                        PCK15 = selectedDay.Sum(x => x.PCK15 ?? 0),
-                        PCK16 = selectedDay.Sum(x => x.PCK16 ?? 0),
-                        PCK17 = selectedDay.Sum(x => x.PCK17 ?? 0)
+                        PCK1 = selectedDay.Sum(x => x.PCK1),
+                        PCK2 = selectedDay.Sum(x => x.PCK2),
+                        PCK3 = selectedDay.Sum(x => x.PCK3),
+                        PCK4 = selectedDay.Sum(x => x.PCK4),
+                        PCK5 = selectedDay.Sum(x => x.PCK5),
+                        PCK6 = selectedDay.Sum(x => x.PCK6),
+                        PCK7 = selectedDay.Sum(x => x.PCK7),
+                        PCK8 = selectedDay.Sum(x => x.PCK8),
+                        PCK9 = selectedDay.Sum(x => x.PCK9),
+                        PCK10 = selectedDay.Sum(x => x.PCK10),
+                        PCK11 = selectedDay.Sum(x => x.PCK11),
+                        PCK12 = selectedDay.Sum(x => x.PCK12),
+                        PCK13 = selectedDay.Sum(x => x.PCK13),
+                        PCK14 = selectedDay.Sum(x => x.PCK14),
+                        PCK15 = selectedDay.Sum(x => x.PCK15),
+                        PCK16 = selectedDay.Sum(x => x.PCK16),
+                        PCK17 = selectedDay.Sum(x => x.PCK17)
                     };
                     selectedDayData.Total = (selectedDayData.PCK1 ?? 0) + (selectedDayData.PCK2 ?? 0) + (selectedDayData.PCK3 ?? 0) +
                                            (selectedDayData.PCK4 ?? 0) + (selectedDayData.PCK5 ?? 0) + (selectedDayData.PCK6 ?? 0) +
@@ -594,10 +594,10 @@ namespace KVM_ERP.Controllers
                     .GroupBy(x => new {
                         x.PackingId,
                         x.PackingType,
-                        KGWGT = x.Calculation.KGWGT ?? 0,
-                        PCLRID = x.Calculation.PCLRID ?? 0,
-                        RCVDTID = x.Calculation.RCVDTID ?? 0,
-                        GRADEID = x.Calculation.GRADEID ?? 0,
+                        KGWGT = x.Calculation.KGWGT,
+                        PCLRID = x.Calculation.PCLRID,
+                        RCVDTID = x.Calculation.RCVDTID,
+                        GRADEID = x.Calculation.GRADEID,
                         x.ProductName,
                         x.ColourDesc,
                         x.ReceivedTypeDesc,
@@ -647,23 +647,23 @@ namespace KVM_ERP.Controllers
                     // Filter BKN data for this specific group
                     var upToPreviousDay = allBKNData
                         .Where(x => x.PackingId == grp.PackingId
-                                   && (x.Calculation.KGWGT ?? 0) == grp.KgWeight
-                                   && (x.Calculation.GRADEID ?? 0) == grp.GradeId
-                                   && (x.Calculation.PCLRID ?? 0) == grp.PclrId
-                                   && (x.Calculation.RCVDTID ?? 0) == grp.RcvdtId
+                                   && x.Calculation.KGWGT == grp.KgWeight
+                                   && x.Calculation.GRADEID == grp.GradeId
+                                   && x.Calculation.PCLRID == grp.PclrId
+                                   && x.Calculation.RCVDTID == grp.RcvdtId
                                    && x.ProductName == grp.ProductName
                                    && x.TranDate <= previousDate)
-                        .Sum(x => x.Calculation.BKN ?? 0);
+                        .Sum(x => x.Calculation.BKN);
 
                     var selectedDay = allBKNData
                         .Where(x => x.PackingId == grp.PackingId
-                                   && (x.Calculation.KGWGT ?? 0) == grp.KgWeight
-                                   && (x.Calculation.GRADEID ?? 0) == grp.GradeId
-                                   && (x.Calculation.PCLRID ?? 0) == grp.PclrId
-                                   && (x.Calculation.RCVDTID ?? 0) == grp.RcvdtId
+                                   && x.Calculation.KGWGT == grp.KgWeight
+                                   && x.Calculation.GRADEID == grp.GradeId
+                                   && x.Calculation.PCLRID == grp.PclrId
+                                   && x.Calculation.RCVDTID == grp.RcvdtId
                                    && x.ProductName == grp.ProductName
                                    && x.TranDate == selectedDate)
-                        .Sum(x => x.Calculation.BKN ?? 0);
+                        .Sum(x => x.Calculation.BKN);
 
                     var total = upToPreviousDay + selectedDay;
 
@@ -952,12 +952,12 @@ namespace KVM_ERP.Controllers
                             ProductId = g.Key.ProductId,
                             ProductName = g.Key.ProductName,
                             TotalPCK = g.Sum(tpc =>
-                                (tpc.PCK1 ?? 0) + (tpc.PCK2 ?? 0) + (tpc.PCK3 ?? 0) +
-                                (tpc.PCK4 ?? 0) + (tpc.PCK5 ?? 0) + (tpc.PCK6 ?? 0) +
-                                (tpc.PCK7 ?? 0) + (tpc.PCK8 ?? 0) + (tpc.PCK9 ?? 0) +
-                                (tpc.PCK10 ?? 0) + (tpc.PCK11 ?? 0) + (tpc.PCK12 ?? 0) +
-                                (tpc.PCK13 ?? 0) + (tpc.PCK14 ?? 0) + (tpc.PCK15 ?? 0) +
-                                (tpc.PCK16 ?? 0) + (tpc.PCK17 ?? 0))
+                                tpc.PCK1 + tpc.PCK2 + tpc.PCK3 +
+                                tpc.PCK4 + tpc.PCK5 + tpc.PCK6 +
+                                tpc.PCK7 + tpc.PCK8 + tpc.PCK9 +
+                                tpc.PCK10 + tpc.PCK11 + tpc.PCK12 +
+                                tpc.PCK13 + tpc.PCK14 + tpc.PCK15 +
+                                tpc.PCK16 + tpc.PCK17)
                         })
                         .Where(x => x.TotalPCK > 0)
                         .OrderBy(x => x.ProductName)
@@ -983,10 +983,10 @@ namespace KVM_ERP.Controllers
                                   where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
                                         && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
                                         && tm.TRANDATE <= asOnDate
-                                        && tpc.BKN != null && tpc.BKN > 0
+                                        && tpc.BKN > 0
                                   select tpc.BKN).ToList();
                     
-                    var bknTotal = bknData.Sum(x => x ?? 0);
+                    var bknTotal = bknData.Sum();
                     
                     if (bknTotal > 0)
                     {

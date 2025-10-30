@@ -658,8 +658,8 @@ namespace KVM_ERP.Controllers
                 var pckValues = new[] { model.PCK1, model.PCK2, model.PCK3, model.PCK4, model.PCK5, model.PCK6, 
                                        model.PCK7, model.PCK8, model.PCK9, model.PCK10, model.PCK11, model.PCK12, 
                                        model.PCK13, model.PCK14, model.PCK15, model.PCK16, model.PCK17 };
-                var nonNullPcks = pckValues.Where(p => p.HasValue && p.Value > 0).ToArray();
-                System.Diagnostics.Debug.WriteLine($"Non-null PCK values: {nonNullPcks.Length}");
+                var nonNullPcks = pckValues.Where(p => p > 0).ToArray();
+                System.Diagnostics.Debug.WriteLine($"Non-zero PCK values: {nonNullPcks.Length}");
                 
                 if (nonNullPcks.Length == 0)
                 {
@@ -739,11 +739,11 @@ namespace KVM_ERP.Controllers
         private void CalculateProductValues(TransactionProductCalculation model)
         {
             // Calculate TOPCK (sum of all PCK fields + BKN)
-            model.TOPCK = (model.PCK1 ?? 0) + (model.PCK2 ?? 0) + (model.PCK3 ?? 0) + (model.PCK4 ?? 0) + 
-                         (model.PCK5 ?? 0) + (model.PCK6 ?? 0) + (model.PCK7 ?? 0) + (model.PCK8 ?? 0) + 
-                         (model.PCK9 ?? 0) + (model.PCK10 ?? 0) + (model.PCK11 ?? 0) + (model.PCK12 ?? 0) + 
-                         (model.PCK13 ?? 0) + (model.PCK14 ?? 0) + (model.PCK15 ?? 0) + (model.PCK16 ?? 0) + 
-                         (model.PCK17 ?? 0) + (model.BKN ?? 0);
+            model.TOPCK = model.PCK1 + model.PCK2 + model.PCK3 + model.PCK4 + 
+                         model.PCK5 + model.PCK6 + model.PCK7 + model.PCK8 + 
+                         model.PCK9 + model.PCK10 + model.PCK11 + model.PCK12 + 
+                         model.PCK13 + model.PCK14 + model.PCK15 + model.PCK16 + 
+                         model.PCK17 + model.BKN;
 
             // Check calculation mode to determine which calculations to perform
             bool isGradeWeightMode = model.CALCULATIONMODE == 2;
@@ -755,7 +755,7 @@ namespace KVM_ERP.Controllers
                 // TOPCK is already calculated above (Slab value)
                 
                 // Factory Weight = Slab + Peeled (TOPCK + WASTEWGT)
-                model.FACTORYWGT = model.TOPCK + (model.WASTEWGT ?? 0);
+                model.FACTORYWGT = model.TOPCK + model.WASTEWGT;
                 
                 // Clear other calculated fields for Grade Weight mode
                 model.PCKLVALUE = 0;
@@ -777,7 +777,7 @@ namespace KVM_ERP.Controllers
                 model.AVGPCKVALUE = model.PCKLVALUE / model.TOPCK;
 
                 // Calculate TOTALPNDS
-                model.TOTALPNDS = model.AVGPCKVALUE * (model.PNDSVALUE ?? 0);
+                model.TOTALPNDS = model.AVGPCKVALUE * model.PNDSVALUE;
 
                 // Calculate TOTALYELDCOUNTS
                 if (model.YELDPERCENT > 0)
@@ -786,10 +786,10 @@ namespace KVM_ERP.Controllers
                 }
 
                 // Calculate PCKKGWGT
-                model.PCKKGWGT = (model.KGWGT ?? 0) * model.TOPCK;
+                model.PCKKGWGT = model.KGWGT * model.TOPCK;
 
                 // Calculate WASTEPWGT
-                model.WASTEPWGT = model.PCKKGWGT + (model.WASTEWGT ?? 0);
+                model.WASTEPWGT = model.PCKKGWGT + model.WASTEWGT;
 
                 // Calculate FACTORYWGT (Packing mode formula)
                 if (model.YELDPERCENT > 0)
@@ -825,19 +825,19 @@ namespace KVM_ERP.Controllers
                     if (isBKN)
                     {
                         // Process BKN field separately
-                        if (model.BKN.HasValue && model.BKN > 0)
+                        if (model.BKN > 0)
                         {
                             decimal multiplier = ExtractMultiplierFromDescription(packingType.PACKTMDESC);
-                            pcklValue += model.BKN.Value * multiplier;
+                            pcklValue += model.BKN * multiplier;
                         }
                     }
                     else
                     {
                         // Process regular PCK field
-                        if (pckIndex < pckValues.Length && pckValues[pckIndex].HasValue && pckValues[pckIndex] > 0)
+                        if (pckIndex < pckValues.Length && pckValues[pckIndex] > 0)
                         {
                             decimal multiplier = ExtractMultiplierFromDescription(packingType.PACKTMDESC);
-                            pcklValue += pckValues[pckIndex].Value * multiplier;
+                            pcklValue += pckValues[pckIndex] * multiplier;
                         }
                         pckIndex++;
                     }
@@ -925,35 +925,35 @@ namespace KVM_ERP.Controllers
             if (int.TryParse(form["TRANMID"], out int tranmid)) model.TRANMID = tranmid;
             if (int.TryParse(form["PACKMID"], out int packmid)) model.PACKMID = packmid;
             
-            // Parse PCK fields - convert empty strings to null
-            model.PCK1 = ParseNullableDecimal(form["PCK1"]);
-            model.PCK2 = ParseNullableDecimal(form["PCK2"]);
-            model.PCK3 = ParseNullableDecimal(form["PCK3"]);
-            model.PCK4 = ParseNullableDecimal(form["PCK4"]);
-            model.PCK5 = ParseNullableDecimal(form["PCK5"]);
-            model.PCK6 = ParseNullableDecimal(form["PCK6"]);
-            model.PCK7 = ParseNullableDecimal(form["PCK7"]);
-            model.PCK8 = ParseNullableDecimal(form["PCK8"]);
-            model.PCK9 = ParseNullableDecimal(form["PCK9"]);
-            model.PCK10 = ParseNullableDecimal(form["PCK10"]);
-            model.PCK11 = ParseNullableDecimal(form["PCK11"]);
-            model.PCK12 = ParseNullableDecimal(form["PCK12"]);
-            model.PCK13 = ParseNullableDecimal(form["PCK13"]);
-            model.PCK14 = ParseNullableDecimal(form["PCK14"]);
-            model.PCK15 = ParseNullableDecimal(form["PCK15"]);
-            model.PCK16 = ParseNullableDecimal(form["PCK16"]);
-            model.PCK17 = ParseNullableDecimal(form["PCK17"]);
+            // Parse PCK fields - default to 0 for non-nullable decimals
+            model.PCK1 = ParseNullableDecimal(form["PCK1"]) ?? 0;
+            model.PCK2 = ParseNullableDecimal(form["PCK2"]) ?? 0;
+            model.PCK3 = ParseNullableDecimal(form["PCK3"]) ?? 0;
+            model.PCK4 = ParseNullableDecimal(form["PCK4"]) ?? 0;
+            model.PCK5 = ParseNullableDecimal(form["PCK5"]) ?? 0;
+            model.PCK6 = ParseNullableDecimal(form["PCK6"]) ?? 0;
+            model.PCK7 = ParseNullableDecimal(form["PCK7"]) ?? 0;
+            model.PCK8 = ParseNullableDecimal(form["PCK8"]) ?? 0;
+            model.PCK9 = ParseNullableDecimal(form["PCK9"]) ?? 0;
+            model.PCK10 = ParseNullableDecimal(form["PCK10"]) ?? 0;
+            model.PCK11 = ParseNullableDecimal(form["PCK11"]) ?? 0;
+            model.PCK12 = ParseNullableDecimal(form["PCK12"]) ?? 0;
+            model.PCK13 = ParseNullableDecimal(form["PCK13"]) ?? 0;
+            model.PCK14 = ParseNullableDecimal(form["PCK14"]) ?? 0;
+            model.PCK15 = ParseNullableDecimal(form["PCK15"]) ?? 0;
+            model.PCK16 = ParseNullableDecimal(form["PCK16"]) ?? 0;
+            model.PCK17 = ParseNullableDecimal(form["PCK17"]) ?? 0;
             
-            // Parse other decimal fields
-            model.PNDSVALUE = ParseNullableDecimal(form["PNDSVALUE"]);
-            model.YELDPERCENT = ParseNullableDecimal(form["YELDPERCENT"]);
-            model.KGWGT = ParseNullableDecimal(form["KGWGT"]);
-            model.WASTEWGT = ParseNullableDecimal(form["WASTEWGT"]);
-            model.FACAVGWGT = ParseNullableDecimal(form["FACAVGWGT"]);
-            model.FACAVGCOUNT = ParseNullableDecimal(form["FACAVGCOUNT"]);
+            // Parse other decimal fields - default to 0 for non-nullable decimals
+            model.PNDSVALUE = ParseNullableDecimal(form["PNDSVALUE"]) ?? 0;
+            model.YELDPERCENT = ParseNullableDecimal(form["YELDPERCENT"]) ?? 0;
+            model.KGWGT = ParseNullableDecimal(form["KGWGT"]) ?? 0;
+            model.WASTEWGT = ParseNullableDecimal(form["WASTEWGT"]) ?? 0;
+            model.FACAVGWGT = ParseNullableDecimal(form["FACAVGWGT"]) ?? 0;
+            model.FACAVGCOUNT = ParseNullableDecimal(form["FACAVGCOUNT"]) ?? 0;
             
-            // Parse BKN field (Broken)
-            model.BKN = ParseNullableDecimal(form["BKN"]);
+            // Parse BKN field (Broken) - default to 0 for non-nullable decimal
+            model.BKN = ParseNullableDecimal(form["BKN"]) ?? 0;
             
             // Parse PRODDATE field
             model.PRODDATE = ParseNullableDateTime(form["PRODDATE"]);
@@ -962,10 +962,10 @@ namespace KVM_ERP.Controllers
             var calculationModeString = form["CalculationMode"] ?? "packing";
             model.CALCULATIONMODE = calculationModeString == "gradeweight" ? 2 : 1; // 1=Packing, 2=Grade Weight
             
-            // Parse new dropdown fields (not required)
-            model.GRADEID = ParseNullableInt(form["GRADEID"]);
-            model.PCLRID = ParseNullableInt(form["PCLRID"]);
-            model.RCVDTID = ParseNullableInt(form["RCVDTID"]);
+            // Parse new dropdown fields (not required, default to 0)
+            model.GRADEID = ParseNullableInt(form["GRADEID"]) ?? 0;
+            model.PCLRID = ParseNullableInt(form["PCLRID"]) ?? 0;
+            model.RCVDTID = ParseNullableInt(form["RCVDTID"]) ?? 0;
             
             System.Diagnostics.Debug.WriteLine($"Parsed model - TRANDID: {model.TRANDID}, PACKMID: {model.PACKMID}");
             System.Diagnostics.Debug.WriteLine($"Parsed PCK1: '{form["PCK1"]}' -> {model.PCK1}");
@@ -1017,23 +1017,8 @@ namespace KVM_ERP.Controllers
             // Ensure all PCK values are properly null if they are zero or invalid
             // This prevents EntityCommandExecutionException when saving to database
             
-            if (model.PCK1.HasValue && model.PCK1.Value == 0) model.PCK1 = null;
-            if (model.PCK2.HasValue && model.PCK2.Value == 0) model.PCK2 = null;
-            if (model.PCK3.HasValue && model.PCK3.Value == 0) model.PCK3 = null;
-            if (model.PCK4.HasValue && model.PCK4.Value == 0) model.PCK4 = null;
-            if (model.PCK5.HasValue && model.PCK5.Value == 0) model.PCK5 = null;
-            if (model.PCK6.HasValue && model.PCK6.Value == 0) model.PCK6 = null;
-            if (model.PCK7.HasValue && model.PCK7.Value == 0) model.PCK7 = null;
-            if (model.PCK8.HasValue && model.PCK8.Value == 0) model.PCK8 = null;
-            if (model.PCK9.HasValue && model.PCK9.Value == 0) model.PCK9 = null;
-            if (model.PCK10.HasValue && model.PCK10.Value == 0) model.PCK10 = null;
-            if (model.PCK11.HasValue && model.PCK11.Value == 0) model.PCK11 = null;
-            if (model.PCK12.HasValue && model.PCK12.Value == 0) model.PCK12 = null;
-            if (model.PCK13.HasValue && model.PCK13.Value == 0) model.PCK13 = null;
-            if (model.PCK14.HasValue && model.PCK14.Value == 0) model.PCK14 = null;
-            if (model.PCK15.HasValue && model.PCK15.Value == 0) model.PCK15 = null;
-            if (model.PCK16.HasValue && model.PCK16.Value == 0) model.PCK16 = null;
-            if (model.PCK17.HasValue && model.PCK17.Value == 0) model.PCK17 = null;
+            // PCK fields are now non-nullable with default value 0
+            // No need to convert 0 to null anymore
             
             // Don't convert these to null as they might legitimately be 0
             // Only convert if they are exactly 0 and we want to store null instead
@@ -1735,7 +1720,7 @@ namespace KVM_ERP.Controllers
 
                     for (int i = 0; i < pckValues.Length && i < packingFields.Count; i++)
                     {
-                        if (pckValues[i].HasValue && pckValues[i] > 0)
+                        if (pckValues[i] > 0)
                         {
                             html += $@"
                     <tr><td>{packingFields[i]}</td><td class='value'>{pckValues[i]:F3}</td></tr>";
@@ -1922,7 +1907,7 @@ namespace KVM_ERP.Controllers
 
                         for (int i = 0; i < pckValues.Length && i < packingFields.Count; i++)
                         {
-                            if (pckValues[i].HasValue && pckValues[i] > 0)
+                            if (pckValues[i] > 0)
                             {
                                 html += $@"
                     <tr><td>{packingFields[i]}</td><td class='value'>{pckValues[i]:F3}</td></tr>";
@@ -2207,7 +2192,7 @@ namespace KVM_ERP.Controllers
                 
                 System.Diagnostics.Debug.WriteLine($"[GetFactoryWeight] Found {calculations.Count} calculations for TRANDID {trandid}");
                 
-                var totalFactoryWeight = calculations.Sum(calc => calc.FACTORYWGT ?? 0);
+                var totalFactoryWeight = calculations.Sum(calc => calc.FACTORYWGT);
                 
                 System.Diagnostics.Debug.WriteLine($"[GetFactoryWeight] Total factory weight: {totalFactoryWeight}");
                 

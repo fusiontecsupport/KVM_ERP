@@ -24,100 +24,94 @@ namespace KVM_ERP.Models
         public int PACKMID { get; set; }
 
         [Column("PCK1")]
-        public decimal? PCK1 { get; set; }
+        public decimal PCK1 { get; set; } = 0;
 
         [Column("PCK2")]
-        public decimal? PCK2 { get; set; }
+        public decimal PCK2 { get; set; } = 0;
 
         [Column("PCK3")]
-        public decimal? PCK3 { get; set; }
+        public decimal PCK3 { get; set; } = 0;
 
         [Column("PCK4")]
-        public decimal? PCK4 { get; set; }
+        public decimal PCK4 { get; set; } = 0;
 
         [Column("PCK5")]
-        public decimal? PCK5 { get; set; }
+        public decimal PCK5 { get; set; } = 0;
 
         [Column("PCK6")]
-        public decimal? PCK6 { get; set; }
+        public decimal PCK6 { get; set; } = 0;
 
         [Column("PCK7")]
-        public decimal? PCK7 { get; set; }
+        public decimal PCK7 { get; set; } = 0;
 
         [Column("PCK8")]
-        public decimal? PCK8 { get; set; }
+        public decimal PCK8 { get; set; } = 0;
 
         [Column("PCK9")]
-        public decimal? PCK9 { get; set; }
+        public decimal PCK9 { get; set; } = 0;
 
         [Column("PCK10")]
-        public decimal? PCK10 { get; set; }
+        public decimal PCK10 { get; set; } = 0;
 
         [Column("PCK11")]
-        public decimal? PCK11 { get; set; }
+        public decimal PCK11 { get; set; } = 0;
 
         [Column("PCK12")]
-        public decimal? PCK12 { get; set; }
+        public decimal PCK12 { get; set; } = 0;
 
         [Column("PCK13")]
-        public decimal? PCK13 { get; set; }
+        public decimal PCK13 { get; set; } = 0;
 
         [Column("PCK14")]
-        public decimal? PCK14 { get; set; }
+        public decimal PCK14 { get; set; } = 0;
 
         [Column("PCK15")]
-        public decimal? PCK15 { get; set; }
+        public decimal PCK15 { get; set; } = 0;
 
         [Column("PCK16")]
-        public decimal? PCK16 { get; set; }
+        public decimal PCK16 { get; set; } = 0;
 
         [Column("PCK17")]
-        public decimal? PCK17 { get; set; }
+        public decimal PCK17 { get; set; } = 0;
 
         [Column("TOPCK")]
-        public decimal? TOPCK { get; set; }
+        public decimal TOPCK { get; set; } = 0;
 
         [Column("PCKLVALUE")]
-        public decimal? PCKLVALUE { get; set; }
+        public decimal PCKLVALUE { get; set; } = 0;
 
         [Column("AVGPCKVALUE")]
-        public decimal? AVGPCKVALUE { get; set; }
+        public decimal AVGPCKVALUE { get; set; } = 0;
 
         [Column("PNDSVALUE")]
-        public decimal? PNDSVALUE { get; set; }
+        public decimal PNDSVALUE { get; set; } = 0;
 
         [Column("TOTALPNDS")]
-        public decimal? TOTALPNDS { get; set; }
+        public decimal TOTALPNDS { get; set; } = 0;
 
         [Column("YELDPERCENT")]
-        public decimal? YELDPERCENT { get; set; }
+        public decimal YELDPERCENT { get; set; } = 0;
 
         [Column("TOTALYELDCOUNTS")]
-        public decimal? TOTALYELDCOUNTS { get; set; }
+        public decimal TOTALYELDCOUNTS { get; set; } = 0;
 
         [Column("KGWGT")]
-        public decimal? KGWGT { get; set; }
+        public decimal KGWGT { get; set; } = 0;
 
         [Column("PCKKGWGT")]
-        public decimal? PCKKGWGT { get; set; }
+        public decimal PCKKGWGT { get; set; } = 0;
 
         [Column("WASTEWGT")]
-        public decimal? WASTEWGT { get; set; }
+        public decimal WASTEWGT { get; set; } = 0;
 
         [Column("WASTEPWGT")]
-        public decimal? WASTEPWGT { get; set; }
+        public decimal WASTEPWGT { get; set; } = 0;
 
         [Column("FACTORYWGT")]
-        public decimal? FACTORYWGT { get; set; }
-
-        [Column("FACAVGWGT")]
-        public decimal? FACAVGWGT { get; set; }
-
-        [Column("FACAVGCOUNT")]
-        public decimal? FACAVGCOUNT { get; set; }
+        public decimal FACTORYWGT { get; set; } = 0;
 
         [Column("DISPSTATUS")]
-        public short? DISPSTATUS { get; set; }
+        public short DISPSTATUS { get; set; } = 0;
 
         [MaxLength(100)]
         [Column("CUSRID")]
@@ -134,21 +128,27 @@ namespace KVM_ERP.Models
         public DateTime? PRODDATE { get; set; }
 
         [Column("CALCULATIONMODE")]
-        public int? CALCULATIONMODE { get; set; }
+        public int CALCULATIONMODE { get; set; } = 0;
 
-        [Column("GRADEID")]
-        public int? GRADEID { get; set; }
+        [Column("FACAVGWGT")]
+        public decimal FACAVGWGT { get; set; } = 0;
 
-        [Column("PCLRID")]
-        public int? PCLRID { get; set; }
-
-        [Column("RCVDTID")]
-        public int? RCVDTID { get; set; }
+        [Column("FACAVGCOUNT")]
+        public decimal FACAVGCOUNT { get; set; } = 0;
 
         [Column("BKN")]
-        public decimal? BKN { get; set; }
+        public decimal BKN { get; set; } = 0;
 
-        // [Column("CLIENTWGHT")]
-        // public int? CLIENTWGHT { get; set; }  // Removed - column doesn't exist in database
+        [Column("GRADEID")]
+        public int GRADEID { get; set; } = 0;
+
+        [Column("PCLRID")]
+        public int PCLRID { get; set; } = 0;
+
+        [Column("RCVDTID")]
+        public int RCVDTID { get; set; } = 0;
+
+        [Column("ATRANDID")]
+        public int ATRANDID { get; set; } = 0;
     }
 }

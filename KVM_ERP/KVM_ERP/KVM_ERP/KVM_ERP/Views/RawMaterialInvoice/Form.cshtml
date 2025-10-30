@@ -1,0 +1,860 @@
+@{
+    ViewBag.Title = "Raw Material Invoice Form";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+<style>
+    .main-container {
+        background: white;
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+
+    .content-wrapper {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin: 20px;
+        overflow: hidden;
+        border: 1px solid #e9ecef;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 25px 30px;
+        border-radius: 15px 15px 0 0;
+    }
+
+    .header-title {
+        font-size: 28px;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .back-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .back-btn:hover {
+        background: white;
+        color: #4facfe;
+        transform: translateY(-2px);
+        text-decoration: none;
+    }
+
+    .form-container {
+        padding: 30px;
+    }
+
+    .form-section {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+        border: 1px solid #e9ecef;
+    }
+
+    .form-section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #4facfe;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+
+    .form-control:disabled, .form-control[readonly] {
+        background-color: #e9ecef;
+        cursor: not-allowed;
+    }
+
+    .items-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .items-table thead th {
+        background: #7f88e9;
+        color: white;
+        font-weight: 600;
+        padding: 12px;
+        text-align: center;
+        font-size: 14px;
+        border-right: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .items-table thead th:last-child {
+        border-right: none;
+    }
+
+    .items-table tbody td {
+        padding: 10px;
+        border-bottom: 1px solid #e9ecef;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .items-table tbody tr:hover {
+        background-color: #f8f9ff;
+    }
+
+    .items-table input[type="text"], .items-table input[type="number"] {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        text-align: center;
+    }
+
+    .items-table input[readonly] {
+        background-color: #f8f9fa;
+        cursor: not-allowed;
+    }
+
+    .save-btn {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border: none;
+        padding: 12px 30px;
+        border-radius: 25px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+    }
+
+    .save-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
+    }
+
+    .btn-actions {
+        text-align: center;
+        padding: 20px;
+        border-top: 2px solid #e9ecef;
+        margin-top: 20px;
+    }
+
+    /* Select2 Custom Styling - Increased height and width */
+    .select2-container {
+        width: 100% !important;
+    }
+
+    .select2-container--default .select2-selection--single {
+        height: 46px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        padding: 0 15px;
+        background: white;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+    }
+
+    .select2-container--default .select2-selection--single:hover {
+        border-color: #4facfe;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 44px;
+        color: #495057;
+        font-size: 16px;
+        padding-left: 0;
+        padding-right: 35px;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__placeholder {
+        color: #6c757d;
+        line-height: 44px;
+        font-size: 16px;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 44px;
+        right: 10px;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow b {
+        border-color: #495057 transparent transparent transparent;
+        border-width: 6px 5px 0 5px;
+    }
+
+    .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+        border-color: transparent transparent #495057 transparent;
+        border-width: 0 5px 6px 5px;
+    }
+
+    /* Dropdown Styling */
+    .select2-dropdown {
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        margin-top: 2px;
+        background: white;
+    }
+
+    .select2-container--default .select2-search--dropdown {
+        padding: 8px;
+        background: white;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-size: 1rem;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    /* Results Styling */
+    .select2-container--default .select2-results__option {
+        padding: 8px 12px;
+        font-size: 1rem;
+    }
+
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+
+    .select2-container--default .select2-results__option[aria-selected=true] {
+        background-color: #e7f3ff;
+        color: #495057;
+    }
+
+    /* Clear Button Styling */
+    .select2-container--default .select2-selection--single .select2-selection__clear {
+        color: #6c757d;
+        font-size: 20px;
+        margin-right: 5px;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+        color: #dc3545;
+    }
+</style>
+
+<div class="main-container">
+    <div class="content-wrapper">
+        <div class="header-section">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="header-title">
+                    <i class="fa fa-file-invoice"></i>
+                    Raw Material Invoice
+                </h1>
+                <a href="@Url.Action("Index", "RawMaterialInvoice")" class="btn back-btn">
+                    <i class="fa fa-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+
+        <div class="form-container">
+            <!-- Basic Information Section -->
+            <div class="form-section">
+                <h3 class="form-section-title">
+                    <i class="fa fa-info-circle"></i> Basic Information
+                </h3>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Date <span class="text-danger">*</span></label>
+                            <input type="date" id="invoiceDate" class="form-control" value="@ViewBag.InvoiceDate" required />
+                        </div>
+                    </div>
+                    <!-- Hidden No field - kept for backend processing -->
+                    <div class="col-md-3" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">No</label>
+                            <input type="text" id="invoiceNo" class="form-control" readonly value="@ViewBag.InvoiceNo" placeholder="Auto Generated" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Ref No</label>
+                            <input type="text" id="refNo" class="form-control" value="@ViewBag.RefNo" placeholder="Enter Reference Number" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select id="status" class="form-control">
+                                <option value="0">Active</option>
+                                <option value="1">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supplier Details Section -->
+            <div class="form-section">
+                <h3 class="form-section-title">
+                    <i class="fa fa-truck"></i> Supplier Details
+                </h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Supplier Name <span class="text-danger">*</span></label>
+                            <select id="supplierName" class="form-control">
+                                <option value="">-- Select Supplier --</option>
+                                @foreach (var supplier in (List<SelectListItem>)ViewBag.Suppliers)
+                                {
+                                    <option value="@supplier.Value" @(ViewBag.SupplierId != null && ViewBag.SupplierId.ToString() == supplier.Value ? "selected" : "")>@supplier.Text</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label class="form-label">Supplier Code</label>
+                            <input type="text" id="supplierCode" class="form-control" readonly />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label class="form-label">State</label>
+                            <input type="text" id="state" class="form-control" readonly />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label class="form-label">Location</label>
+                            <input type="text" id="location" class="form-control" readonly />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Section -->
+            <div class="form-section">
+                <h3 class="form-section-title">
+                    <i class="fa fa-boxes"></i> Items (Auto-populated from Raw Material Intake)
+                </h3>
+                <div class="table-responsive">
+                    <table class="items-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="selectAll" title="Select All" /></th>
+                                <th>S.No</th>
+                                <th>Item</th>
+                                <th>Grade</th>
+                                <th>Production Colour</th>
+                                <th>Received Type</th>
+                                <th>Actual Weight (KG)</th>
+                                <th>Net Weight (KG)</th>
+                                <th>Rate (₹/KG)</th>
+                                <th>Amount (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTableBody">
+                            <tr>
+                                <td colspan="10" class="text-center text-muted">
+                                    Please select a supplier to load items
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Gross Amount Section -->
+            <div class="form-section">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-success" id="taxBtn" onclick="openTaxModal()">
+                            <i class="fa fa-calculator"></i> TAX
+                        </button>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <h4 class="mb-3">
+                            <strong>Gross Amount: </strong>
+                            <span id="grossAmount" class="text-success" style="font-size: 24px; font-weight: bold;">₹ 0.00</span>
+                        </h4>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="btn-actions">
+                <button type="button" class="btn save-btn" onclick="saveInvoice()">
+                    <i class="fa fa-save"></i> Save Invoice
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tax Modal -->
+<div class="modal fade" id="taxModal" tabindex="-1" role="dialog" aria-labelledby="taxModalLabel" aria-hidden="true" data-backdrop="static">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="taxModalLabel">
+                    <i class="fa fa-calculator"></i> Tax Calculation
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="addTaxRow()">
+                            <i class="fa fa-plus"></i> Add Row
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="taxTable">
+                        <thead class="bg-light">
+                            <tr>
+                                <th width="5%">
+                                    <button type="button" class="btn btn-danger btn-sm" title="Delete">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </th>
+                                <th width="30%">Cost Factor</th>
+                                <th width="20%">Expression</th>
+                                <th width="15%">Mode</th>
+                                <th width="15%">Value</th>
+                                <th width="15%">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="taxTableBody">
+                            <!-- Tax rows will be added here -->
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-light">
+                                <td colspan="5" class="text-end"><strong>Total Tax Amount:</strong></td>
+                                <td><strong id="totalTaxAmount">₹ 0.00</strong></td>
+                            </tr>
+                            <tr class="bg-success text-white">
+                                <td colspan="5" class="text-end"><strong>Grand Total (Gross + Tax):</strong></td>
+                                <td><strong id="grandTotal">₹ 0.00</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fa fa-times"></i> Close
+                </button>
+                <button type="button" class="btn btn-success" onclick="applyTaxCalculation()">
+                    <i class="fa fa-check"></i> Apply
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Select2 JS from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    
+    <script type="text/javascript">
+        var itemsData = [];
+
+        $(document).ready(function () {
+            // Set default date to today if not set
+            if (!$('#invoiceDate').val()) {
+                const today = new Date().toISOString().split('T')[0];
+                $('#invoiceDate').val(today);
+            }
+
+            // Initialize Select2 on Supplier dropdown with search functionality
+            $('#supplierName').select2({
+                placeholder: '-- Select Supplier --',
+                allowClear: true,
+                width: '100%'
+            });
+            
+            console.log('Select2 initialized on supplier dropdown');
+
+            // Supplier dropdown change event
+            $('#supplierName').on('change', function () {
+                const supplierId = $(this).val();
+
+                if (!supplierId) {
+                    // Clear fields if no supplier selected
+                    clearSupplierDetails();
+                    clearItemsTable();
+                    return;
+                }
+
+                // Load supplier details
+                loadSupplierDetails(supplierId);
+
+                // Load items for the supplier
+                loadSupplierItems(supplierId);
+            });
+
+            // Initialize form for edit mode
+            @if (ViewBag.Status != null)
+            {
+                <text>
+                $('#status').val('@ViewBag.Status');
+                </text>
+            }
+
+            // Load supplier details and items if editing
+            @if (ViewBag.SupplierId != null)
+            {
+                <text>
+                // Trigger change event to load supplier details and items
+                setTimeout(function() {
+                    $('#supplierName').trigger('change');
+                }, 100);
+                </text>
+            }
+
+            // Select All checkbox functionality
+            $(document).on('change', '#selectAll', function() {
+                var isChecked = $(this).prop('checked');
+                $('.row-checkbox').prop('checked', isChecked);
+                calculateGrossAmount();
+            });
+
+            // Update Select All checkbox state when individual checkboxes change
+            $(document).on('change', '.row-checkbox', function() {
+                var totalCheckboxes = $('.row-checkbox').length;
+                var checkedCheckboxes = $('.row-checkbox:checked').length;
+                $('#selectAll').prop('checked', totalCheckboxes === checkedCheckboxes);
+            });
+        });
+
+        function loadSupplierDetails(supplierId) {
+            $.ajax({
+                url: '@Url.Action("GetSupplierDetails", "RawMaterialInvoice")',
+                type: 'POST',
+                data: { supplierId: supplierId },
+                success: function (response) {
+                    if (response.success) {
+                        $('#supplierCode').val(response.data.Code);
+                        $('#state').val(response.data.State);
+                        $('#location').val(response.data.Location);
+                    } else {
+                        alert('Error loading supplier details: ' + response.message);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error loading supplier details:', error);
+                    alert('Failed to load supplier details');
+                }
+            });
+        }
+
+        function loadSupplierItems(supplierId) {
+            $.ajax({
+                url: '@Url.Action("GetSupplierItems", "RawMaterialInvoice")',
+                type: 'POST',
+                data: { supplierId: supplierId },
+                beforeSend: function () {
+                    $('#itemsTableBody').html('<tr><td colspan="10" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading items...</td></tr>');
+                },
+                success: function (response) {
+                    if (response.success && response.data && response.data.length > 0) {
+                        itemsData = response.data;
+                        renderItemsTable();
+                    } else {
+                        $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-muted">No items found for this supplier</td></tr>');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error loading items:', error);
+                    $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-danger">Failed to load items</td></tr>');
+                }
+            });
+        }
+
+        function renderItemsTable() {
+            var html = '';
+            itemsData.forEach(function (item, index) {
+                html += '<tr>';
+                html += '<td><input type="checkbox" class="row-checkbox" data-index="' + index + '" /></td>';
+                html += '<td>' + (index + 1) + '</td>';
+                html += '<td><input type="text" readonly value="' + (item.ItemName || '') + '" /></td>';
+                html += '<td><input type="text" readonly value="' + (item.Grade || '') + '" /></td>';
+                html += '<td><input type="text" readonly value="' + (item.ProductionColour || '') + '" /></td>';
+                html += '<td><input type="text" readonly value="' + (item.ReceivedType || '') + '" /></td>';
+                html += '<td><input type="text" readonly value="' + (item.ActualWeight || 0).toFixed(2) + '" /></td>';
+                html += '<td><input type="number" step="0.01" class="net-weight" data-index="' + index + '" placeholder="0.00" /></td>';
+                html += '<td><input type="number" step="0.01" class="rate" data-index="' + index + '" placeholder="0.00" /></td>';
+                html += '<td><input type="text" readonly class="amount" data-index="' + index + '" value="0.00" /></td>';
+                html += '</tr>';
+            });
+            $('#itemsTableBody').html(html);
+
+            // Add event listeners for calculation
+            $('.net-weight, .rate').on('input', function () {
+                var index = $(this).data('index');
+                calculateAmount(index);
+            });
+
+            // Add event listener for row checkbox
+            $('.row-checkbox').on('change', function () {
+                calculateGrossAmount();
+            });
+        }
+
+        function calculateAmount(index) {
+            var netWeight = parseFloat($('.net-weight[data-index="' + index + '"]').val()) || 0;
+            var rate = parseFloat($('.rate[data-index="' + index + '"]').val()) || 0;
+            var amount = (netWeight * rate).toFixed(2);
+            $('.amount[data-index="' + index + '"]').val(amount);
+            
+            // Recalculate gross amount after amount changes
+            calculateGrossAmount();
+        }
+
+        // Calculate Gross Amount from selected rows
+        function calculateGrossAmount() {
+            var grossAmount = 0;
+            $('.row-checkbox:checked').each(function() {
+                var index = $(this).data('index');
+                var amount = parseFloat($('.amount[data-index="' + index + '"]').val()) || 0;
+                grossAmount += amount;
+            });
+            $('#grossAmount').text('₹ ' + grossAmount.toFixed(2));
+        }
+
+        function clearSupplierDetails() {
+            $('#supplierCode').val('');
+            $('#state').val('');
+            $('#location').val('');
+        }
+
+        function clearItemsTable() {
+            itemsData = [];
+            $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-muted">Please select a supplier to load items</td></tr>');
+            $('#selectAll').prop('checked', false);
+            $('#grossAmount').text('₹ 0.00');
+        }
+
+        // Tax Modal Functions
+        var costFactorsData = [];
+        var taxRowIndex = 0;
+        var taxRows = [];
+
+        function openTaxModal() {
+            // Load cost factors
+            $.ajax({
+                url: '@Url.Action("GetCostFactors", "RawMaterialInvoice")',
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        costFactorsData = response.data;
+                        $('#taxModal').modal('show');
+                        updateTaxTotals();
+                    } else {
+                        alert('Error loading cost factors: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('Failed to load cost factors');
+                }
+            });
+        }
+
+        function addTaxRow() {
+            var rowId = taxRowIndex++;
+            var html = '<tr data-row-id="' + rowId + '">';
+            html += '<td><button type="button" class="btn btn-danger btn-sm" onclick="deleteTaxRow(' + rowId + ')"><i class="fa fa-trash"></i></button></td>';
+            
+            // Cost Factor dropdown
+            html += '<td><select class="form-control form-control-sm cost-factor" data-row-id="' + rowId + '">';
+            html += '<option value="">-- Select Cost Factor --</option>';
+            costFactorsData.forEach(function(cf) {
+                html += '<option value="' + cf.CFID + '" data-mode="' + cf.CFMODE + '" data-expr="' + cf.CFEXPR + '">' + cf.CFDESC + '</option>';
+            });
+            html += '</select></td>';
+            
+            // Expression dropdown
+            html += '<td><select class="form-control form-control-sm expression" data-row-id="' + rowId + '">';
+            html += '<option value="Value">Value</option>';
+            html += '<option value="Percentage">Percentage</option>';
+            html += '</select></td>';
+            
+            // Mode dropdown
+            html += '<td><select class="form-control form-control-sm mode" data-row-id="' + rowId + '">';
+            html += '<option value="+">+</option>';
+            html += '<option value="-">-</option>';
+            html += '</select></td>';
+            
+            // Value input
+            html += '<td><input type="number" step="0.01" class="form-control form-control-sm value-input" data-row-id="' + rowId + '" value="0.00" /></td>';
+            
+            // Amount (readonly)
+            html += '<td><input type="text" readonly class="form-control form-control-sm amount-output" data-row-id="' + rowId + '" value="0.00" /></td>';
+            
+            html += '</tr>';
+            
+            $('#taxTableBody').append(html);
+            
+            // Add event listeners
+            $('[data-row-id="' + rowId + '"]').on('change input', function() {
+                calculateTaxRow(rowId);
+            });
+        }
+
+        function deleteTaxRow(rowId) {
+            $('tr[data-row-id="' + rowId + '"]').remove();
+            updateTaxTotals();
+        }
+
+        function calculateTaxRow(rowId) {
+            var grossAmount = parseFloat($('#grossAmount').text().replace('₹ ', '').replace(',', '')) || 0;
+            var expression = $('.expression[data-row-id="' + rowId + '"]').val();
+            var mode = $('.mode[data-row-id="' + rowId + '"]').val();
+            var value = parseFloat($('.value-input[data-row-id="' + rowId + '"]').val()) || 0;
+            
+            var amount = 0;
+            if (expression === 'Value') {
+                amount = value;
+            } else if (expression === 'Percentage') {
+                amount = (grossAmount * value) / 100;
+            }
+            
+            // Apply mode (+ or -)
+            if (mode === '-') {
+                amount = -amount;
+            }
+            
+            $('.amount-output[data-row-id="' + rowId + '"]').val(amount.toFixed(2));
+            updateTaxTotals();
+        }
+
+        function updateTaxTotals() {
+            var totalTax = 0;
+            $('.amount-output').each(function() {
+                totalTax += parseFloat($(this).val()) || 0;
+            });
+            
+            var grossAmount = parseFloat($('#grossAmount').text().replace('₹ ', '').replace(',', '')) || 0;
+            var grandTotal = grossAmount + totalTax;
+            
+            $('#totalTaxAmount').text('₹ ' + totalTax.toFixed(2));
+            $('#grandTotal').text('₹ ' + grandTotal.toFixed(2));
+        }
+
+        function applyTaxCalculation() {
+            // Close modal
+            $('#taxModal').modal('hide');
+            alert('Tax calculation applied successfully!');
+        }
+
+        function saveInvoice() {
+            // Validation
+            if (!$('#invoiceDate').val()) {
+                alert('Please select a date');
+                return;
+            }
+
+            if (!$('#supplierName').val()) {
+                alert('Please select a supplier');
+                return;
+            }
+
+            if (itemsData.length === 0) {
+                alert('No items to save');
+                return;
+            }
+
+            // Collect invoice data
+            var invoiceData = {
+                InvoiceDate: $('#invoiceDate').val(),
+                RefNo: $('#refNo').val(),
+                Status: $('#status').val(),
+                SupplierId: $('#supplierName').val(),
+                Items: []
+            };
+
+            // Collect items data
+            itemsData.forEach(function (item, index) {
+                var netWeight = parseFloat($('.net-weight[data-index="' + index + '"]').val()) || 0;
+                var rate = parseFloat($('.rate[data-index="' + index + '"]').val()) || 0;
+                var amount = parseFloat($('.amount[data-index="' + index + '"]').val()) || 0;
+
+                if (netWeight > 0 || rate > 0) {
+                    invoiceData.Items.push({
+                        ItemId: item.ItemId,
+                        NetWeight: netWeight,
+                        Rate: rate,
+                        Amount: amount
+                    });
+                }
+            });
+
+            if (invoiceData.Items.length === 0) {
+                alert('Please enter net weight and rate for at least one item');
+                return;
+            }
+
+            console.log('Invoice Data:', invoiceData);
+
+            // Save invoice via AJAX
+            $.ajax({
+                url: '@Url.Action("SaveInvoice", "RawMaterialInvoice")',
+                type: 'POST',
+                data: JSON.stringify(invoiceData),
+                contentType: 'application/json',
+                beforeSend: function() {
+                    $('.save-btn').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Saving...');
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // Update the invoice number field with generated TRANNO
+                        $('#invoiceNo').val(response.tranNo);
+                        
+                        alert('Invoice saved successfully!\n\nInvoice No: ' + response.tranNo + '\nDocument No: ' + response.tranDNo);
+                        
+                        // Redirect to index page
+                        window.location.href = '@Url.Action("Index", "RawMaterialInvoice")';
+                    } else {
+                        alert('Error: ' + response.message);
+                        $('.save-btn').prop('disabled', false).html('<i class="fa fa-save"></i> Save Invoice');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error saving invoice:', error);
+                    alert('Failed to save invoice. Please try again.');
+                    $('.save-btn').prop('disabled', false).html('<i class="fa fa-save"></i> Save Invoice');
+                }
+            });
+        }
+    </script>
+}
