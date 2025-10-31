@@ -37,10 +37,12 @@ namespace KVM_ERP.Controllers
             {
                 System.Diagnostics.Debug.WriteLine($"GetAjaxData called - FromDate: {fromDate}, ToDate: {toDate}");
                 
-                // Build SQL query with date filtering
-                var sql = @"SELECT TRANMID, TRANDATE, TRANNO, TRANDNO, TRANREFNO, CATENAME, TRANNAMT, DISPSTATUS
-                           FROM TRANSACTIONMASTER
-                           WHERE REGSTRID = 2";
+                // Build SQL query with date filtering - calculate total from TRANSACTIONDETAIL
+                var sql = @"SELECT tm.TRANMID, tm.TRANDATE, tm.TRANNO, tm.TRANDNO, tm.TRANREFNO, tm.CATENAME, 
+                           ISNULL((SELECT SUM(TRANDAMT) FROM TRANSACTIONDETAIL WHERE TRANMID = tm.TRANMID), 0) as TRANNAMT,
+                           tm.DISPSTATUS
+                           FROM TRANSACTIONMASTER tm
+                           WHERE tm.REGSTRID = 2";
                 
                 var parameters = new List<object>();
                 
@@ -192,6 +194,8 @@ namespace KVM_ERP.Controllers
                         ViewBag.RefNo = invoice.TRANREFNO;
                         ViewBag.Status = invoice.DISPSTATUS;
                         ViewBag.SupplierId = invoice.TRANREFID;
+                        ViewBag.IsEdit = true;
+                        ViewBag.EditId = id.Value;
                     }
                 }
                 else
@@ -296,10 +300,14 @@ namespace KVM_ERP.Controllers
                     SELECT DISTINCT
                         m.MTRLID as ItemId,
                         m.MTRLDESC as ItemName,
+                        td.MTRLGID as MaterialGroupId,
+                        ISNULL(tpc.GRADEID, 0) as GradeId,
                         g.GRADEDESC as Grade,
+                        ISNULL(tpc.PCLRID, 0) as ProductionColourId,
                         pcm.PCLRDESC as ProductionColour,
+                        ISNULL(tpc.RCVDTID, 0) as ReceivedTypeId,
                         rt.RCVDTDESC as ReceivedType,
-                        tpc.FACTORYWGT as ActualWeight
+                        ISNULL(tpc.FACTORYWGT, 0) as ActualWeight
                     FROM TRANSACTIONMASTER tm
                     INNER JOIN TRANSACTIONDETAIL td ON tm.TRANMID = td.TRANMID
                     INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
@@ -328,13 +336,61 @@ namespace KVM_ERP.Controllers
             }
         }
 
+        // Get invoice items for editing
+        [HttpPost]
+        public JsonResult GetInvoiceItems(int invoiceId)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"GetInvoiceItems called for invoiceId: {invoiceId}");
+                
+                var items = context.Database.SqlQuery<InvoiceItemEditViewModel>(@"
+                    SELECT 
+                        td.TRANDID,
+                        td.MTRLID as ItemId,
+                        m.MTRLDESC as ItemName,
+                        td.MTRLGID as MaterialGroupId,
+                        td.GRADEID as GradeId,
+                        g.GRADEDESC as Grade,
+                        td.PCLRID as ProductionColourId,
+                        pcm.PCLRDESC as ProductionColour,
+                        td.RCVDTID as ReceivedTypeId,
+                        rt.RCVDTDESC as ReceivedType,
+                        td.TRANAQTY as ActualWeight,
+                        td.TRANDQTY as NetWeight,
+                        td.TRANDRATE as Rate,
+                        td.TRANDAMT as Amount
+                    FROM TRANSACTIONDETAIL td
+                    INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
+                    LEFT JOIN GRADEMASTER g ON td.GRADEID = g.GRADEID
+                    LEFT JOIN PRODUCTIONCOLOURMASTER pcm ON td.PCLRID = pcm.PCLRID
+                    LEFT JOIN RECEIVEDTYPEMASTER rt ON td.RCVDTID = rt.RCVDTID
+                    WHERE td.TRANMID = @p0
+                        AND (td.DISPSTATUS = 0 OR td.DISPSTATUS IS NULL)
+                    ORDER BY td.TRANDID
+                ", invoiceId).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Found {items.Count} items for invoice {invoiceId}");
+                return Json(new { success = true, data = items });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting invoice items: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                }
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
         // Save Invoice to TRANSACTIONMASTER
         [HttpPost]
         public JsonResult SaveInvoice(InvoiceSaveModel model)
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"SaveInvoice called for supplier: {model.SupplierId}");
+                System.Diagnostics.Debug.WriteLine($"SaveInvoice called. InvoiceId: {model.InvoiceId}, SupplierId: {model.SupplierId}");
 
                 // Get supplier details
                 var supplier = context.SupplierMasters
@@ -349,70 +405,187 @@ namespace KVM_ERP.Controllers
                 // Get COMPYID from session or default
                 int compyId = Session["CompyId"] != null ? Convert.ToInt32(Session["CompyId"]) : 1;
                 int regstrId = 2; // Default for Raw Material Invoice (Raw Material Intake uses 1)
-
-                // Generate TRANNO - Get next number for this COMPYID and REGSTRID
-                var maxTranNo = context.Database.SqlQuery<int?>(@"
-                    SELECT MAX(TRANNO) 
-                    FROM TRANSACTIONMASTER 
-                    WHERE COMPYID = @p0 AND REGSTRID = @p1
-                ", compyId, regstrId).FirstOrDefault();
-
-                int newTranNo = (maxTranNo ?? 0) + 1;
-
-                // Generate TRANDNO based on TRANNO (format: 0001, 0002, etc.)
-                string tranDNo = newTranNo.ToString("D4");
-
-                // Set total amount to 0.00 (default value)
-                decimal totalAmount = 0.00m;
-
+                
                 // Parse invoice date
                 DateTime invoiceDate = DateTime.Parse(model.InvoiceDate);
 
                 // Get current user
                 string currentUser = User?.Identity?.Name ?? "System";
 
-                // Insert into TRANSACTIONMASTER
-                var sql = @"
-                    INSERT INTO TRANSACTIONMASTER (
-                        TRANDATE, CATENAME, CATECODE, VECHNO, DISPSTATUS, 
-                        CUSRID, LMUSRID, PRCSDATE, CLIENTWGHT, COMPYID, 
-                        REGSTRID, TRANNO, TRANDNO, TRANREFID, TRANNAMT, 
-                        TRANAMTWRDS, TRANREFNO
-                    ) VALUES (
-                        @p0, @p1, @p2, @p3, @p4, 
-                        @p5, @p6, @p7, @p8, @p9, 
-                        @p10, @p11, @p12, @p13, @p14, 
-                        @p15, @p16
+                int tranMId;
+                int tranNo;
+                string tranDNo;
+
+                // Check if this is an UPDATE (edit) or INSERT (new)
+                if (model.InvoiceId.HasValue && model.InvoiceId.Value > 0)
+                {
+                    // UPDATE existing invoice
+                    tranMId = model.InvoiceId.Value;
+                    
+                    // Get existing TRANNO and TRANDNO
+                    var existingData = context.Database.SqlQuery<ExistingInvoiceData>(@"
+                        SELECT TRANNO, TRANDNO 
+                        FROM TRANSACTIONMASTER 
+                        WHERE TRANMID = @p0
+                    ", tranMId).FirstOrDefault();
+                    
+                    if (existingData == null)
+                    {
+                        return Json(new { success = false, message = "Invoice not found for editing" });
+                    }
+                    
+                    tranNo = existingData.TRANNO;
+                    tranDNo = existingData.TRANDNO;
+
+                    // Update TRANSACTIONMASTER
+                    var updateSql = @"
+                        UPDATE TRANSACTIONMASTER SET
+                            TRANDATE = @p0,
+                            CATENAME = @p1,
+                            CATECODE = @p2,
+                            DISPSTATUS = @p3,
+                            LMUSRID = @p4,
+                            PRCSDATE = @p5,
+                            TRANREFID = @p6,
+                            TRANREFNO = @p7
+                        WHERE TRANMID = @p8";
+
+                    context.Database.ExecuteSqlCommand(updateSql,
+                        invoiceDate,                    // TRANDATE
+                        supplier.CATENAME,              // CATENAME (Supplier Name)
+                        supplier.CATECODE,              // CATECODE (Supplier Code)
+                        model.Status,                   // DISPSTATUS (0=Active, 1=Inactive)
+                        currentUser,                    // LMUSRID
+                        DateTime.Now,                   // PRCSDATE
+                        model.SupplierId,               // TRANREFID (Supplier ID)
+                        model.RefNo,                    // TRANREFNO (Reference Number)
+                        tranMId                         // TRANMID (WHERE clause)
                     );
-                    SELECT CAST(SCOPE_IDENTITY() as int)";
 
-                var newTranMId = context.Database.SqlQuery<int>(sql,
-                    invoiceDate,                    // TRANDATE
-                    supplier.CATENAME,              // CATENAME (Supplier Name)
-                    supplier.CATECODE,              // CATECODE (Supplier Code)
-                    "",                             // VECHNO (empty for invoice)
-                    model.Status,                   // DISPSTATUS (0=Active, 1=Inactive)
-                    currentUser,                    // CUSRID
-                    currentUser,                    // LMUSRID
-                    DateTime.Now,                   // PRCSDATE
-                    0,                              // CLIENTWGHT (not used for invoice)
-                    compyId,                        // COMPYID
-                    regstrId,                       // REGSTRID (2 for invoice)
-                    newTranNo,                      // TRANNO
-                    tranDNo,                        // TRANDNO
-                    model.SupplierId,               // TRANREFID (Supplier ID)
-                    totalAmount,                    // TRANNAMT
-                    null,                           // TRANAMTWRDS (amount in words - can be added later)
-                    model.RefNo                     // TRANREFNO (Reference Number)
-                ).FirstOrDefault();
+                    // Delete existing items
+                    context.Database.ExecuteSqlCommand(@"
+                        DELETE FROM TRANSACTIONDETAIL WHERE TRANMID = @p0
+                    ", tranMId);
 
-                System.Diagnostics.Debug.WriteLine($"Invoice saved successfully. TRANMID: {newTranMId}, TRANNO: {newTranNo}");
+                    System.Diagnostics.Debug.WriteLine($"Invoice updated successfully. TRANMID: {tranMId}, TRANNO: {tranNo}");
+                }
+                else
+                {
+                    // INSERT new invoice
+                    // Generate TRANNO - Get next number for this COMPYID and REGSTRID
+                    var maxTranNo = context.Database.SqlQuery<int?>(@"
+                        SELECT MAX(TRANNO) 
+                        FROM TRANSACTIONMASTER 
+                        WHERE COMPYID = @p0 AND REGSTRID = @p1
+                    ", compyId, regstrId).FirstOrDefault();
+
+                    tranNo = (maxTranNo ?? 0) + 1;
+                    tranDNo = tranNo.ToString("D4");
+
+                    // Set total amount to 0.00 (default value)
+                    decimal totalAmount = 0.00m;
+
+                    // Insert into TRANSACTIONMASTER
+                    var sql = @"
+                        INSERT INTO TRANSACTIONMASTER (
+                            TRANDATE, CATENAME, CATECODE, VECHNO, DISPSTATUS, 
+                            CUSRID, LMUSRID, PRCSDATE, CLIENTWGHT, COMPYID, 
+                            REGSTRID, TRANNO, TRANDNO, TRANREFID, TRANNAMT, 
+                            TRANAMTWRDS, TRANREFNO
+                        ) VALUES (
+                            @p0, @p1, @p2, @p3, @p4, 
+                            @p5, @p6, @p7, @p8, @p9, 
+                            @p10, @p11, @p12, @p13, @p14, 
+                            @p15, @p16
+                        );
+                        SELECT CAST(SCOPE_IDENTITY() as int)";
+
+                    tranMId = context.Database.SqlQuery<int>(sql,
+                        invoiceDate,                    // TRANDATE
+                        supplier.CATENAME,              // CATENAME (Supplier Name)
+                        supplier.CATECODE,              // CATECODE (Supplier Code)
+                        "",                             // VECHNO (empty for invoice)
+                        model.Status,                   // DISPSTATUS (0=Active, 1=Inactive)
+                        currentUser,                    // CUSRID
+                        currentUser,                    // LMUSRID
+                        DateTime.Now,                   // PRCSDATE
+                        0,                              // CLIENTWGHT (not used for invoice)
+                        compyId,                        // COMPYID
+                        regstrId,                       // REGSTRID (2 for invoice)
+                        tranNo,                         // TRANNO
+                        tranDNo,                        // TRANDNO
+                        model.SupplierId,               // TRANREFID (Supplier ID)
+                        totalAmount,                    // TRANNAMT
+                        null,                           // TRANAMTWRDS (amount in words - can be added later)
+                        model.RefNo                     // TRANREFNO (Reference Number)
+                    ).FirstOrDefault();
+
+                    System.Diagnostics.Debug.WriteLine($"Invoice created successfully. TRANMID: {tranMId}, TRANNO: {tranNo}");
+                }
+
+                // Save invoice items to TRANSACTIONDETAIL
+                if (model.Items != null && model.Items.Count > 0)
+                {
+                    foreach (var item in model.Items)
+                    {
+                        var itemSql = @"
+                            INSERT INTO TRANSACTIONDETAIL (
+                                TRANMID, MTRLGID, MTRLID, MTRLNBOX, MTRLCOUNTS,
+                                GRADEID, PCLRID, RCVDTID, HSNID,
+                                TRANAQTY, TRANDQTY, TRANDRATE, TRANDAMT,
+                                TRANDDISCEXPRN, TRANDDISCAMT, TRANDGAMT,
+                                TRANDCGSTEXPRN, TRANDSGSTEXPRN, TRANDIGSTEXPRN,
+                                CGSTA, SGSTA, IGSTAMT, TRANDNAMT, TRANDAID,
+                                CUSRID, LMUSRID, DISPSTATUS, PRCSDATE
+                            ) VALUES (
+                                @p0, @p1, @p2, @p3, @p4,
+                                @p5, @p6, @p7, @p8,
+                                @p9, @p10, @p11, @p12,
+                                @p13, @p14, @p15,
+                                @p16, @p17, @p18,
+                                @p19, @p20, @p21, @p22, @p23,
+                                @p24, @p25, @p26, @p27
+                            )";
+
+                        context.Database.ExecuteSqlCommand(itemSql,
+                            tranMId,                 // TRANMID
+                            item.MaterialGroupId,    // MTRLGID
+                            item.ItemId,             // MTRLID
+                            0,                       // MTRLNBOX (default 0)
+                            0,                       // MTRLCOUNTS (default 0)
+                            item.GradeId,            // GRADEID
+                            item.ProductionColourId, // PCLRID
+                            item.ReceivedTypeId,     // RCVDTID
+                            1,                       // HSNID (default 1)
+                            item.ActualWeight,       // TRANAQTY
+                            item.NetWeight,          // TRANDQTY
+                            item.Rate,               // TRANDRATE
+                            item.Amount,             // TRANDAMT
+                            0.00m,                   // TRANDDISCEXPRN (default 0.00)
+                            0.00m,                   // TRANDDISCAMT (default 0.00)
+                            0.00m,                   // TRANDGAMT (default 0.00)
+                            0.00m,                   // TRANDCGSTEXPRN (default 0.00)
+                            0.00m,                   // TRANDSGSTEXPRN (default 0.00)
+                            0.00m,                   // TRANDIGSTEXPRN (default 0.00)
+                            0.00m,                   // CGSTA (default 0.00)
+                            0.00m,                   // SGSTA (default 0.00)
+                            0.00m,                   // IGSTAMT (default 0.00)
+                            0.00m,                   // TRANDNAMT (default 0.00)
+                            0.00m,                   // TRANDAID (default 0.00)
+                            currentUser,             // CUSRID
+                            currentUser,             // LMUSRID
+                            0,                       // DISPSTATUS (0=Active)
+                            DateTime.Now             // PRCSDATE
+                        );
+                    }
+                    System.Diagnostics.Debug.WriteLine($"Saved {model.Items.Count} items to TRANSACTIONDETAIL");
+                }
 
                 return Json(new { 
                     success = true, 
                     message = "Invoice saved successfully!",
-                    tranmId = newTranMId,
-                    tranNo = newTranNo,
+                    tranmId = tranMId,
+                    tranNo = tranNo,
                     tranDNo = tranDNo
                 });
             }
@@ -446,15 +619,20 @@ namespace KVM_ERP.Controllers
     {
         public int ItemId { get; set; }
         public string ItemName { get; set; }
+        public int MaterialGroupId { get; set; }
+        public int GradeId { get; set; }
         public string Grade { get; set; }
+        public int ProductionColourId { get; set; }
         public string ProductionColour { get; set; }
+        public int ReceivedTypeId { get; set; }
         public string ReceivedType { get; set; }
-        public decimal? ActualWeight { get; set; }
+        public decimal ActualWeight { get; set; }
     }
 
     // Model for saving invoice
     public class InvoiceSaveModel
     {
+        public int? InvoiceId { get; set; }  // TRANMID - null for new, value for edit
         public string InvoiceDate { get; set; }
         public string RefNo { get; set; }
         public int Status { get; set; }
@@ -465,10 +643,15 @@ namespace KVM_ERP.Controllers
     // Model for invoice items
     public class InvoiceItemModel
     {
-        public int ItemId { get; set; }
-        public decimal NetWeight { get; set; }
-        public decimal Rate { get; set; }
-        public decimal Amount { get; set; }
+        public int ItemId { get; set; }          // MTRLID
+        public int MaterialGroupId { get; set; }  // MTRLGID
+        public int GradeId { get; set; }          // GRADEID
+        public int ProductionColourId { get; set; } // PCLRID
+        public int ReceivedTypeId { get; set; }   // RCVDTID
+        public decimal ActualWeight { get; set; } // TRANAQTY
+        public decimal NetWeight { get; set; }    // TRANDQTY
+        public decimal Rate { get; set; }         // TRANDRATE
+        public decimal Amount { get; set; }       // TRANDAMT
     }
 
     // Model for editing invoice
@@ -484,5 +667,31 @@ namespace KVM_ERP.Controllers
         public short DISPSTATUS { get; set; }
         public int TRANREFID { get; set; }
         public string CATECODE { get; set; }
+    }
+
+    // ViewModel for Invoice Item Editing
+    public class InvoiceItemEditViewModel
+    {
+        public int TRANDID { get; set; }
+        public int ItemId { get; set; }
+        public string ItemName { get; set; }
+        public int MaterialGroupId { get; set; }
+        public int GradeId { get; set; }
+        public string Grade { get; set; }
+        public int ProductionColourId { get; set; }
+        public string ProductionColour { get; set; }
+        public int ReceivedTypeId { get; set; }
+        public string ReceivedType { get; set; }
+        public decimal ActualWeight { get; set; }
+        public decimal NetWeight { get; set; }
+        public decimal Rate { get; set; }
+        public decimal Amount { get; set; }
+    }
+
+    // Helper class for retrieving existing invoice data
+    public class ExistingInvoiceData
+    {
+        public int TRANNO { get; set; }
+        public string TRANDNO { get; set; }
     }
 }

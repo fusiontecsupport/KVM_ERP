@@ -32,6 +32,82 @@ namespace KVM_ERP.Models
         public int MTRLCOUNTS { get; set; }
 
         [Required]
+        [Column("GRADEID")]
+        public int GRADEID { get; set; }
+
+        [Required]
+        [Column("PCLRID")]
+        public int PCLRID { get; set; }
+
+        [Required]
+        [Column("RCVDTID")]
+        public int RCVDTID { get; set; }
+
+        [Required]
+        [Column("HSNID")]
+        public int HSNID { get; set; }
+
+        [Required]
+        [Column("TRANAQTY")]
+        public decimal TRANAQTY { get; set; }
+
+        [Required]
+        [Column("TRANDQTY")]
+        public decimal TRANDQTY { get; set; }
+
+        [Required]
+        [Column("TRANDRATE")]
+        public decimal TRANDRATE { get; set; }
+
+        [Required]
+        [Column("TRANDAMT")]
+        public decimal TRANDAMT { get; set; }
+
+        [Required]
+        [Column("TRANDDISCEXPRN")]
+        public decimal TRANDDISCEXPRN { get; set; }
+
+        [Required]
+        [Column("TRANDDISCAMT")]
+        public decimal TRANDDISCAMT { get; set; }
+
+        [Required]
+        [Column("TRANDGAMT")]
+        public decimal TRANDGAMT { get; set; }
+
+        [Required]
+        [Column("TRANDCGSTEXPRN")]
+        public decimal TRANDCGSTEXPRN { get; set; }
+
+        [Required]
+        [Column("TRANDSGSTEXPRN")]
+        public decimal TRANDSGSTEXPRN { get; set; }
+
+        [Required]
+        [Column("TRANDIGSTEXPRN")]
+        public decimal TRANDIGSTEXPRN { get; set; }
+
+        [Required]
+        [Column("CGSTA")]
+        public decimal CGSTA { get; set; }
+
+        [Required]
+        [Column("SGSTA")]
+        public decimal SGSTA { get; set; }
+
+        [Required]
+        [Column("IGSTAMT")]
+        public decimal IGSTAMT { get; set; }
+
+        [Required]
+        [Column("TRANDNAMT")]
+        public decimal TRANDNAMT { get; set; }
+
+        [Required]
+        [Column("TRANDAID")]
+        public decimal TRANDAID { get; set; }
+
+        [Required]
         [MaxLength(100)]
         [Column("CUSRID")]
         public string CUSRID { get; set; }

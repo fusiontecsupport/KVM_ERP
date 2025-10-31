@@ -130,7 +130,14 @@
     }
 
     .items-table input[readonly] {
-        background-color: #f8f9fa;
+        background-color: #e9ecef;
+        cursor: not-allowed;
+        border-color: #ced4da;
+    }
+    
+    /* Readonly fields styling - match supplier code */
+    input[readonly].form-control {
+        background-color: #e9ecef;
         cursor: not-allowed;
     }
 
@@ -157,20 +164,40 @@
         margin-top: 20px;
     }
 
+    /* Back to List Button Styling */
+    .btn-secondary {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+        border: none;
+        padding: 12px 30px;
+        border-radius: 25px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+    }
+
+    .btn-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(108, 117, 125, 0.6);
+        color: white;
+        text-decoration: none;
+    }
+
     /* Select2 Custom Styling - Increased height and width */
     .select2-container {
         width: 100% !important;
     }
 
     .select2-container--default .select2-selection--single {
-        height: 46px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
+        height: 50px;
+        border: 2px solid #ced4da;
+        border-radius: 6px;
         padding: 0 15px;
         background: white;
         transition: all 0.3s ease;
         display: flex;
         align-items: center;
+        overflow: hidden;
     }
 
     .select2-container--default .select2-selection--single:hover {
@@ -185,22 +212,29 @@
     }
 
     .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 44px;
         color: #495057;
         font-size: 16px;
         padding-left: 0;
-        padding-right: 35px;
+        padding-right: 40px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: flex;
+        align-items: center;
+        height: 100%;
     }
 
     .select2-container--default .select2-selection--single .select2-selection__placeholder {
         color: #6c757d;
-        line-height: 44px;
         font-size: 16px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 44px;
-        right: 10px;
+        height: 48px;
+        right: 15px;
     }
 
     .select2-container--default .select2-selection--single .select2-selection__arrow b {
@@ -271,15 +305,10 @@
 <div class="main-container">
     <div class="content-wrapper">
         <div class="header-section">
-            <div class="d-flex justify-content-between align-items-center">
-                <h1 class="header-title">
-                    <i class="fa fa-file-invoice"></i>
-                    Raw Material Invoice
-                </h1>
-                <a href="@Url.Action("Index", "RawMaterialInvoice")" class="btn back-btn">
-                    <i class="fa fa-arrow-left"></i> Back to List
-                </a>
-            </div>
+            <h1 class="header-title">
+                <i class="fa fa-file-invoice"></i>
+                Raw Material Invoice
+            </h1>
         </div>
 
         <div class="form-container">
@@ -304,8 +333,8 @@
                     </div>
                     <div class="col-md-4">
                         <div class="mb-3">
-                            <label class="form-label">Ref No</label>
-                            <input type="text" id="refNo" class="form-control" value="@ViewBag.RefNo" placeholder="Enter Reference Number" />
+                            <label class="form-label">Ref No <span class="text-danger">*</span></label>
+                            <input type="text" id="refNo" class="form-control" value="@ViewBag.RefNo" placeholder="Enter Reference Number" required />
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -362,7 +391,7 @@
             <!-- Items Section -->
             <div class="form-section">
                 <h3 class="form-section-title">
-                    <i class="fa fa-boxes"></i> Items (Auto-populated from Raw Material Intake)
+                    <i class="fa fa-boxes"></i> Items
                 </h3>
                 <div class="table-responsive">
                     <table class="items-table">
@@ -391,17 +420,17 @@
                 </div>
             </div>
 
-            <!-- Gross Amount Section -->
+            <!-- Total Amount Section -->
             <div class="form-section">
                 <div class="row align-items-center">
-                    <div class="col-md-6">
+                    <!-- <div class="col-md-6">
                         <button type="button" class="btn btn-success" id="taxBtn" onclick="openTaxModal()">
                             <i class="fa fa-calculator"></i> TAX
                         </button>
-                    </div>
-                    <div class="col-md-6 text-end">
+                    </div> -->
+                    <div class="col-md-12 text-end">
                         <h4 class="mb-3">
-                            <strong>Gross Amount: </strong>
+                            <strong>Total: </strong>
                             <span id="grossAmount" class="text-success" style="font-size: 24px; font-weight: bold;">₹ 0.00</span>
                         </h4>
                     </div>
@@ -410,9 +439,14 @@
 
             <!-- Action Buttons -->
             <div class="btn-actions">
-                <button type="button" class="btn save-btn" onclick="saveInvoice()">
-                    <i class="fa fa-save"></i> Save Invoice
-                </button>
+                <div class="d-flex justify-content-between">
+                    <a href="@Url.Action("Index", "RawMaterialInvoice")" class="btn btn-secondary">
+                        <i class="fa fa-arrow-left"></i> Back to List
+                    </a>
+                    <button type="button" class="btn save-btn" onclick="saveInvoice()">
+                        <i class="fa fa-save"></i> Save Invoice
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -535,9 +569,26 @@
             @if (ViewBag.SupplierId != null)
             {
                 <text>
-                // Trigger change event to load supplier details and items
+                var isEditMode = @(ViewBag.IsEdit != null ? "true" : "false");
+                var editId = @(ViewBag.EditId ?? 0);
+                
+                // Trigger change event to load supplier details
                 setTimeout(function() {
-                    $('#supplierName').trigger('change');
+                    var supplierId = $('#supplierName').val();
+                    if (supplierId) {
+                        // Load supplier details first
+                        loadSupplierDetails(supplierId);
+                    }
+                    
+                    if (isEditMode && editId > 0) {
+                        // Load saved invoice items for editing
+                        loadInvoiceItems(editId);
+                    } else {
+                        // Load supplier items from Raw Material Intake
+                        if (supplierId) {
+                            loadSupplierItems(supplierId);
+                        }
+                    }
                 }, 100);
                 </text>
             }
@@ -601,9 +652,42 @@
             });
         }
 
+        function loadInvoiceItems(invoiceId) {
+            $.ajax({
+                url: '@Url.Action("GetInvoiceItems", "RawMaterialInvoice")',
+                type: 'POST',
+                data: { invoiceId: invoiceId },
+                beforeSend: function () {
+                    $('#itemsTableBody').html('<tr><td colspan="10" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading saved items...</td></tr>');
+                },
+                success: function (response) {
+                    if (response.success && response.data && response.data.length > 0) {
+                        itemsData = response.data;
+                        renderItemsTable();
+                        
+                        // Populate Net Weight and Rate for saved items
+                        response.data.forEach(function(item, index) {
+                            $('.net-weight[data-index="' + index + '"]').val(item.NetWeight.toFixed(2));
+                            $('.rate[data-index="' + index + '"]').val(item.Rate.toFixed(2));
+                            $('.amount[data-index="' + index + '"]').val(item.Amount.toFixed(2));
+                        });
+                        
+                        calculateGrossAmount();
+                    } else {
+                        $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-muted">No items found for this invoice</td></tr>');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error loading invoice items:', error);
+                    $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-danger">Failed to load invoice items</td></tr>');
+                }
+            });
+        }
+
         function renderItemsTable() {
             var html = '';
             itemsData.forEach(function (item, index) {
+                var actualWeight = (item.ActualWeight || 0).toFixed(2);
                 html += '<tr>';
                 html += '<td><input type="checkbox" class="row-checkbox" data-index="' + index + '" /></td>';
                 html += '<td>' + (index + 1) + '</td>';
@@ -611,8 +695,8 @@
                 html += '<td><input type="text" readonly value="' + (item.Grade || '') + '" /></td>';
                 html += '<td><input type="text" readonly value="' + (item.ProductionColour || '') + '" /></td>';
                 html += '<td><input type="text" readonly value="' + (item.ReceivedType || '') + '" /></td>';
-                html += '<td><input type="text" readonly value="' + (item.ActualWeight || 0).toFixed(2) + '" /></td>';
-                html += '<td><input type="number" step="0.01" class="net-weight" data-index="' + index + '" placeholder="0.00" /></td>';
+                html += '<td><input type="text" readonly value="' + actualWeight + '" /></td>';
+                html += '<td><input type="number" step="0.01" class="net-weight" data-index="' + index + '" value="' + actualWeight + '" /></td>';
                 html += '<td><input type="number" step="0.01" class="rate" data-index="' + index + '" placeholder="0.00" /></td>';
                 html += '<td><input type="text" readonly class="amount" data-index="' + index + '" value="0.00" /></td>';
                 html += '</tr>';
@@ -641,12 +725,11 @@
             calculateGrossAmount();
         }
 
-        // Calculate Gross Amount from selected rows
+        // Calculate Total Amount from all rows
         function calculateGrossAmount() {
             var grossAmount = 0;
-            $('.row-checkbox:checked').each(function() {
-                var index = $(this).data('index');
-                var amount = parseFloat($('.amount[data-index="' + index + '"]').val()) || 0;
+            $('.amount').each(function() {
+                var amount = parseFloat($(this).val()) || 0;
                 grossAmount += amount;
             });
             $('#grossAmount').text('₹ ' + grossAmount.toFixed(2));
@@ -784,6 +867,11 @@
                 return;
             }
 
+            if (!$('#refNo').val()) {
+                alert('Please enter Reference Number');
+                return;
+            }
+
             if (!$('#supplierName').val()) {
                 alert('Please select a supplier');
                 return;
@@ -796,6 +884,7 @@
 
             // Collect invoice data
             var invoiceData = {
+                InvoiceId: @(ViewBag.EditId ?? 0),  // Pass EditId for UPDATE, 0 for INSERT
                 InvoiceDate: $('#invoiceDate').val(),
                 RefNo: $('#refNo').val(),
                 Status: $('#status').val(),
@@ -812,6 +901,11 @@
                 if (netWeight > 0 || rate > 0) {
                     invoiceData.Items.push({
                         ItemId: item.ItemId,
+                        MaterialGroupId: item.MaterialGroupId || 0,
+                        GradeId: item.GradeId || 0,
+                        ProductionColourId: item.ProductionColourId || 0,
+                        ReceivedTypeId: item.ReceivedTypeId || 0,
+                        ActualWeight: item.ActualWeight || 0,
                         NetWeight: netWeight,
                         Rate: rate,
                         Amount: amount

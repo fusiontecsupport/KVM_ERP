@@ -135,6 +135,23 @@ namespace KVM_ERP.Models
             modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.FACAVGCOUNT).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.BKN).HasPrecision(18, 3);
 
+            // Configure TransactionDetail decimal precision for all decimal fields
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANAQTY).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDQTY).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDRATE).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDAMT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDDISCEXPRN).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDDISCAMT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDGAMT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDCGSTEXPRN).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDSGSTEXPRN).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDIGSTEXPRN).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.CGSTA).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.SGSTA).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.IGSTAMT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDNAMT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDAID).HasPrecision(18, 3);
+
             // Keep this:
             modelBuilder.Entity<IdentityUser>().ToTable("AspNetUsers");
 
