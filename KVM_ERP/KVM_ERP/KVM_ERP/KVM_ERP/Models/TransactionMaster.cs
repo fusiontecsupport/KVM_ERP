@@ -85,5 +85,30 @@ namespace KVM_ERP.Models
         [MaxLength(100)]
         [Column("TRANREFNO")]
         public string TRANREFNO { get; set; }
+
+        // GST Columns
+        [Required]
+        [Column("TRANCGSTAMT")]
+        public decimal TRANCGSTAMT { get; set; }
+
+        [Required]
+        [Column("TRANSGSTAMT")]
+        public decimal TRANSGSTAMT { get; set; }
+
+        [Required]
+        [Column("TRANIGSTAMT")]
+        public decimal TRANIGSTAMT { get; set; }
+
+        [Required]
+        [Column("TRANCGSTEXPRN")]
+        public decimal TRANCGSTEXPRN { get; set; }
+
+        [Required]
+        [Column("TRANSGSTEXPRN")]
+        public decimal TRANSGSTEXPRN { get; set; }
+
+        [Required]
+        [Column("TRANIGSTEXPRN")]
+        public decimal TRANIGSTEXPRN { get; set; }
     }
 }

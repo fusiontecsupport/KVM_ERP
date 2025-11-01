@@ -37,9 +37,10 @@ namespace KVM_ERP.Controllers
             {
                 System.Diagnostics.Debug.WriteLine($"GetAjaxData called - FromDate: {fromDate}, ToDate: {toDate}");
                 
-                // Build SQL query with date filtering - calculate total from TRANSACTIONDETAIL
+                // Build SQL query with date filtering - calculate GRAND TOTAL (Subtotal + Tax)
                 var sql = @"SELECT tm.TRANMID, tm.TRANDATE, tm.TRANNO, tm.TRANDNO, tm.TRANREFNO, tm.CATENAME, 
-                           ISNULL((SELECT SUM(TRANDAMT) FROM TRANSACTIONDETAIL WHERE TRANMID = tm.TRANMID), 0) as TRANNAMT,
+                           (ISNULL((SELECT SUM(TRANDAMT) FROM TRANSACTIONDETAIL WHERE TRANMID = tm.TRANMID), 0) +
+                            ISNULL((SELECT SUM(DEDVALUE) FROM TRANSACTIONMASTERFACTOR WHERE TRANMID = tm.TRANMID), 0)) as TRANNAMT,
                            tm.DISPSTATUS
                            FROM TRANSACTIONMASTER tm
                            WHERE tm.REGSTRID = 2";
@@ -63,6 +64,12 @@ namespace KVM_ERP.Controllers
                 
                 // Get invoice data from TRANSACTIONMASTER
                 var invoices = context.Database.SqlQuery<RawMaterialInvoiceViewModel>(sql, parameters.ToArray()).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"SQL Query: {sql}");
+                foreach (var invoice in invoices.Take(3))  // Log first 3 for debugging
+                {
+                    System.Diagnostics.Debug.WriteLine($"Invoice {invoice.TRANDNO}: TRANNAMT (Grand Total) = ₹{invoice.TRANNAMT:F2}");
+                }
 
                 // Format data for DataTables
                 var allInvoices = invoices.Select(i => new {
@@ -105,7 +112,12 @@ namespace KVM_ERP.Controllers
                         CFDESC = cf.CFDESC,
                         CFMODE = cf.CFMODE,
                         CFEXPR = cf.CFEXPR,
-                        CFTYPE = cf.CFTYPE
+                        CFTYPE = cf.CFTYPE,
+                        CFOPTN = cf.CFOPTN,
+                        DORDRID = cf.DORDRID,
+                        CGSTEXPRN = 0,  // Default 0, can be configured later
+                        SGSTEXPRN = 0,  // Default 0, can be configured later
+                        IGSTEXPRN = 0   // Default 0, can be configured later
                     })
                     .ToList();
 
@@ -139,14 +151,53 @@ namespace KVM_ERP.Controllers
                     return Json(new { success = false, message = "Invoice not found" });
                 }
 
-                // Delete the invoice
+                // STEP 1: Get TRANDAID values from invoice BEFORE deleting
+                var trandaidValues = context.Database.SqlQuery<int>(
+                    @"SELECT DISTINCT TRANDAID 
+                      FROM TRANSACTIONDETAIL 
+                      WHERE TRANMID = @p0 AND TRANDAID > 0",
+                    id
+                ).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Found {trandaidValues.Count} TRANDAID values to reset: {string.Join(", ", trandaidValues)}");
+
+                // STEP 2: Reset TRANDAID in Raw Material Intake records (make items available again)
+                if (trandaidValues.Any())
+                {
+                    foreach (var tranpid in trandaidValues)
+                    {
+                        var resetSql = @"
+                            UPDATE td
+                            SET td.TRANDAID = 0
+                            FROM TRANSACTIONDETAIL td
+                            INNER JOIN TRANSACTION_PRODUCT_CALCULATION tpc ON td.TRANDID = tpc.TRANDID
+                            WHERE tpc.TRANPID = @p0 AND td.TRANDAID > 0";
+                        
+                        int rowsReset = context.Database.ExecuteSqlCommand(resetSql, tranpid);
+                        System.Diagnostics.Debug.WriteLine($"  Reset TRANDAID=0 for TRANPID={tranpid}, rows affected: {rowsReset}");
+                    }
+                }
+
+                // STEP 3: Delete tax factors
+                context.Database.ExecuteSqlCommand(
+                    "DELETE FROM TRANSACTIONMASTERFACTOR WHERE TRANMID = @p0",
+                    id
+                );
+
+                // STEP 4: Delete invoice items
+                context.Database.ExecuteSqlCommand(
+                    "DELETE FROM TRANSACTIONDETAIL WHERE TRANMID = @p0",
+                    id
+                );
+
+                // STEP 5: Delete the invoice header
                 context.Database.ExecuteSqlCommand(
                     "DELETE FROM TRANSACTIONMASTER WHERE TRANMID = @p0 AND REGSTRID = 2",
                     id
                 );
 
-                System.Diagnostics.Debug.WriteLine($"Invoice {id} deleted successfully");
-                return Json(new { success = true, message = "Invoice deleted successfully" });
+                System.Diagnostics.Debug.WriteLine($"Invoice {id} deleted successfully. {trandaidValues.Count} items are now available for re-invoicing");
+                return Json(new { success = true, message = $"Invoice deleted successfully. {trandaidValues.Count} item(s) are now available for new invoices." });
             }
             catch (Exception ex)
             {
@@ -307,7 +358,8 @@ namespace KVM_ERP.Controllers
                         pcm.PCLRDESC as ProductionColour,
                         ISNULL(tpc.RCVDTID, 0) as ReceivedTypeId,
                         rt.RCVDTDESC as ReceivedType,
-                        ISNULL(tpc.FACTORYWGT, 0) as ActualWeight
+                        ISNULL(tpc.FACTORYWGT, 0) as ActualWeight,
+                        ISNULL(tpc.TRANPID, 0) as TRANPID
                     FROM TRANSACTIONMASTER tm
                     INNER JOIN TRANSACTIONDETAIL td ON tm.TRANMID = td.TRANMID
                     INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
@@ -319,6 +371,7 @@ namespace KVM_ERP.Controllers
                         AND tm.REGSTRID = 1
                         AND (tm.DISPSTATUS = 0 OR tm.DISPSTATUS IS NULL)
                         AND (td.DISPSTATUS = 0 OR td.DISPSTATUS IS NULL)
+                        AND (td.TRANDAID IS NULL OR td.TRANDAID = 0)  -- Only show items NOT yet invoiced
                     ORDER BY m.MTRLDESC
                 ", supplierCode).ToList();
 
@@ -359,7 +412,8 @@ namespace KVM_ERP.Controllers
                         td.TRANAQTY as ActualWeight,
                         td.TRANDQTY as NetWeight,
                         td.TRANDRATE as Rate,
-                        td.TRANDAMT as Amount
+                        td.TRANDAMT as Amount,
+                        ISNULL(td.TRANDAID, 0) as TRANPID
                     FROM TRANSACTIONDETAIL td
                     INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
                     LEFT JOIN GRADEMASTER g ON td.GRADEID = g.GRADEID
@@ -371,6 +425,11 @@ namespace KVM_ERP.Controllers
                 ", invoiceId).ToList();
 
                 System.Diagnostics.Debug.WriteLine($"Found {items.Count} items for invoice {invoiceId}");
+                foreach (var item in items)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  Item: {item.ItemName}, TRANPID={item.TRANPID} (checkbox will be " + (item.TRANPID > 0 ? "CHECKED" : "UNCHECKED") + ")");
+                }
+                
                 return Json(new { success = true, data = items });
             }
             catch (Exception ex)
@@ -381,6 +440,194 @@ namespace KVM_ERP.Controllers
                     System.Diagnostics.Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
                 }
                 return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // Get invoice tax factors for editing
+        [HttpPost]
+        public JsonResult GetInvoiceTaxFactors(int invoiceId)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"GetInvoiceTaxFactors called for invoiceId: {invoiceId}");
+                
+                var taxFactors = context.Database.SqlQuery<TaxFactorEditViewModel>(@"
+                    SELECT 
+                        tmf.CFID,
+                        cf.CFDESC,
+                        ISNULL(tmf.DEDEXPRN, 0) as CFEXPR,
+                        ISNULL(CAST(tmf.DEDMODE AS INT), 0) as CFMODE,
+                        ISNULL(CAST(tmf.DEDTYPE AS INT), 0) as CFTYPE,
+                        ISNULL(tmf.DEDVALUE, 0) as DEDVALUE,
+                        ISNULL(CAST(tmf.CFOPTN AS INT), 0) as CFOPTN,
+                        ISNULL(CAST(tmf.DORDRID AS INT), 0) as DORDRID,
+                        ISNULL(tmf.TRANCFCGSTEXPRN, 0) as CGSTEXPRN,
+                        ISNULL(tmf.TRANCFSGSTEXPRN, 0) as SGSTEXPRN,
+                        ISNULL(tmf.TRANCFIGSTEXPRN, 0) as IGSTEXPRN
+                    FROM TRANSACTIONMASTERFACTOR tmf
+                    LEFT JOIN COSTFACTORMASTER cf ON tmf.CFID = cf.CFID
+                    WHERE tmf.TRANMID = @p0
+                    ORDER BY tmf.DEDORDR
+                ", invoiceId).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Found {taxFactors.Count} tax factors for invoice {invoiceId}");
+                return Json(new { success = true, data = taxFactors });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting tax factors: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Inner stack trace: {ex.InnerException.StackTrace}");
+                }
+                
+                // Return empty data on error to prevent UI breaking
+                return Json(new { success = true, data = new List<TaxFactorEditViewModel>() });
+            }
+        }
+
+        // Helper method to convert number to words
+        private string ConvertAmountToWords(decimal amount)
+        {
+            try
+            {
+                string[] ones = { "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine" };
+                string[] teens = { "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen" };
+                string[] tens = { "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety" };
+
+                if (amount == 0) return "Zero Rupees Only";
+
+                int rupees = (int)amount;
+                int paise = (int)((amount - rupees) * 100);
+
+                string words = "";
+
+                if (rupees >= 10000000) // Crores
+                {
+                    words += ConvertNumberToWords(rupees / 10000000, ones, teens, tens) + " Crore ";
+                    rupees %= 10000000;
+                }
+                if (rupees >= 100000) // Lakhs
+                {
+                    words += ConvertNumberToWords(rupees / 100000, ones, teens, tens) + " Lakh ";
+                    rupees %= 100000;
+                }
+                if (rupees >= 1000) // Thousands
+                {
+                    words += ConvertNumberToWords(rupees / 1000, ones, teens, tens) + " Thousand ";
+                    rupees %= 1000;
+                }
+                if (rupees >= 100) // Hundreds
+                {
+                    words += ConvertNumberToWords(rupees / 100, ones, teens, tens) + " Hundred ";
+                    rupees %= 100;
+                }
+                if (rupees > 0)
+                {
+                    words += ConvertNumberToWords(rupees, ones, teens, tens);
+                }
+
+                words = words.Trim() + " Rupees";
+
+                if (paise > 0)
+                {
+                    words += " and " + ConvertNumberToWords(paise, ones, teens, tens) + " Paise";
+                }
+
+                return words + " Only";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private string ConvertNumberToWords(int number, string[] ones, string[] teens, string[] tens)
+        {
+            if (number < 10) return ones[number];
+            else if (number < 20) return teens[number - 10];
+            else if (number < 100) return tens[number / 10] + " " + ones[number % 10];
+            return "";
+        }
+
+        // Get HSN-based GST calculation for selected items (for live display)
+        [HttpPost]
+        public JsonResult GetMaterialHSNGST(ItemGSTRequest request)
+        {
+            try
+            {
+                using (var context = new ApplicationDbContext())
+                {
+                    decimal totalCGST = 0;
+                    decimal totalSGST = 0;
+                    decimal totalIGST = 0;
+                    decimal cgstRate = 0;
+                    decimal sgstRate = 0;
+                    decimal igstRate = 0;
+                    bool hasGST = false;
+
+                    if (request.items != null && request.items.Count > 0)
+                    {
+                        foreach (var item in request.items)
+                        {
+                            // Get Material Master to find HSNID
+                            var material = context.MaterialMasters
+                                .Where(m => m.MTRLID == item.itemId)
+                                .FirstOrDefault();
+
+                            if (material != null && material.HSNID > 0)
+                            {
+                                // Get HSN Code Master to find GST rates
+                                var hsnCode = context.HSNCodeMasters
+                                    .Where(h => h.HSNID == material.HSNID)
+                                    .FirstOrDefault();
+
+                                if (hsnCode != null)
+                                {
+                                    hasGST = true;
+
+                                    // Calculate GST based on supplier state
+                                    if (request.isTamilNadu)
+                                    {
+                                        // Tamil Nadu: CGST + SGST
+                                        cgstRate = hsnCode.CGSTEXPRN;
+                                        sgstRate = hsnCode.SGSTEXPRN;
+                                        totalCGST += Math.Round((item.amount * cgstRate) / 100, 2);
+                                        totalSGST += Math.Round((item.amount * sgstRate) / 100, 2);
+                                    }
+                                    else
+                                    {
+                                        // Other State: IGST only
+                                        igstRate = hsnCode.IGSTEXPRN;
+                                        totalIGST += Math.Round((item.amount * igstRate) / 100, 2);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    return Json(new
+                    {
+                        success = true,
+                        gstData = new
+                        {
+                            totalCGST = totalCGST,
+                            totalSGST = totalSGST,
+                            totalIGST = totalIGST,
+                            cgstRate = cgstRate,
+                            sgstRate = sgstRate,
+                            igstRate = igstRate,
+                            hasGST = hasGST
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in GetMaterialHSNGST: {ex.Message}");
+                return Json(new { success = false, message = "Error calculating GST: " + ex.Message });
             }
         }
 
@@ -402,6 +649,17 @@ namespace KVM_ERP.Controllers
                     return Json(new { success = false, message = "Supplier not found" });
                 }
 
+                // Get supplier state to determine GST type (CGST+SGST for Tamil Nadu, IGST for others)
+                var supplierState = context.StateMasters
+                    .Where(s => s.STATEID == supplier.STATEID)
+                    .FirstOrDefault();
+
+                bool isTamilNadu = supplierState != null && 
+                    (supplierState.STATEDESC.ToUpper().Contains("TAMIL NADU") || 
+                     supplierState.STATEDESC.ToUpper().Contains("TAMILNADU"));
+
+                System.Diagnostics.Debug.WriteLine($"Supplier State: {supplierState?.STATEDESC}, Is Tamil Nadu: {isTamilNadu}");
+
                 // Get COMPYID from session or default
                 int compyId = Session["CompyId"] != null ? Convert.ToInt32(Session["CompyId"]) : 1;
                 int regstrId = 2; // Default for Raw Material Invoice (Raw Material Intake uses 1)
@@ -416,28 +674,63 @@ namespace KVM_ERP.Controllers
                 int tranNo;
                 string tranDNo;
 
+                // Declare GST total variables at method scope
+                decimal totalAmount = 0.00m;
+                decimal totalCGST = 0.00m;
+                decimal totalSGST = 0.00m;
+                decimal totalIGST = 0.00m;
+                string amountInWords = "";
+
                 // Check if this is an UPDATE (edit) or INSERT (new)
                 if (model.InvoiceId.HasValue && model.InvoiceId.Value > 0)
                 {
                     // UPDATE existing invoice
                     tranMId = model.InvoiceId.Value;
                     
-                    // Get existing TRANNO and TRANDNO
+                    // Get existing TRANNO and TRANDNO - ensure it's a Raw Material Invoice (REGSTRID=2)
                     var existingData = context.Database.SqlQuery<ExistingInvoiceData>(@"
                         SELECT TRANNO, TRANDNO 
                         FROM TRANSACTIONMASTER 
-                        WHERE TRANMID = @p0
+                        WHERE TRANMID = @p0 AND REGSTRID = 2
                     ", tranMId).FirstOrDefault();
                     
                     if (existingData == null)
                     {
-                        return Json(new { success = false, message = "Invoice not found for editing" });
+                        return Json(new { success = false, message = "Invoice not found for editing or not a Raw Material Invoice" });
                     }
                     
                     tranNo = existingData.TRANNO;
                     tranDNo = existingData.TRANDNO;
 
-                    // Update TRANSACTIONMASTER
+                    // EDIT MODE: Get OLD TRANDAID values BEFORE deleting items (so we can reset them)
+                    var oldTrandaidValues = context.Database.SqlQuery<int>(
+                        @"SELECT DISTINCT TRANDAID 
+                          FROM TRANSACTIONDETAIL 
+                          WHERE TRANMID = @p0 AND TRANDAID > 0",
+                        tranMId
+                    ).ToList();
+                    
+                    System.Diagnostics.Debug.WriteLine($"EDIT MODE: Found {oldTrandaidValues.Count} old TRANDAID values to reset: {string.Join(", ", oldTrandaidValues)}");
+
+                    // EDIT MODE: Reset old TRANDAID values in Raw Material Intake (make them available again)
+                    if (oldTrandaidValues.Any())
+                    {
+                        foreach (var oldTranpid in oldTrandaidValues)
+                        {
+                            var resetSql = @"
+                                UPDATE td
+                                SET td.TRANDAID = 0
+                                FROM TRANSACTIONDETAIL td
+                                INNER JOIN TRANSACTION_PRODUCT_CALCULATION tpc ON td.TRANDID = tpc.TRANDID
+                                WHERE tpc.TRANPID = @p0";
+                            
+                            int rowsReset = context.Database.ExecuteSqlCommand(resetSql, oldTranpid);
+                            System.Diagnostics.Debug.WriteLine($"  Reset old TRANDAID=0 for TRANPID={oldTranpid}, rows affected: {rowsReset}");
+                        }
+                    }
+
+                    // Update TRANSACTIONMASTER basic fields - only for Raw Material Invoice (REGSTRID=2)
+                    // NOTE: GST totals will be updated after items are saved and calculated
                     var updateSql = @"
                         UPDATE TRANSACTIONMASTER SET
                             TRANDATE = @p0,
@@ -448,7 +741,7 @@ namespace KVM_ERP.Controllers
                             PRCSDATE = @p5,
                             TRANREFID = @p6,
                             TRANREFNO = @p7
-                        WHERE TRANMID = @p8";
+                        WHERE TRANMID = @p8 AND REGSTRID = 2";
 
                     context.Database.ExecuteSqlCommand(updateSql,
                         invoiceDate,                    // TRANDATE
@@ -462,9 +755,11 @@ namespace KVM_ERP.Controllers
                         tranMId                         // TRANMID (WHERE clause)
                     );
 
-                    // Delete existing items
+                    // Delete existing items - only for Raw Material Invoice (REGSTRID=2)
                     context.Database.ExecuteSqlCommand(@"
-                        DELETE FROM TRANSACTIONDETAIL WHERE TRANMID = @p0
+                        DELETE FROM TRANSACTIONDETAIL 
+                        WHERE TRANMID = @p0 
+                        AND TRANMID IN (SELECT TRANMID FROM TRANSACTIONMASTER WHERE REGSTRID = 2)
                     ", tranMId);
 
                     System.Diagnostics.Debug.WriteLine($"Invoice updated successfully. TRANMID: {tranMId}, TRANNO: {tranNo}");
@@ -482,52 +777,112 @@ namespace KVM_ERP.Controllers
                     tranNo = (maxTranNo ?? 0) + 1;
                     tranDNo = tranNo.ToString("D4");
 
-                    // Set total amount to 0.00 (default value)
-                    decimal totalAmount = 0.00m;
-
-                    // Insert into TRANSACTIONMASTER
+                    // Insert into TRANSACTIONMASTER - ONLY for Raw Material Invoice (REGSTRID=2)
                     var sql = @"
                         INSERT INTO TRANSACTIONMASTER (
                             TRANDATE, CATENAME, CATECODE, VECHNO, DISPSTATUS, 
                             CUSRID, LMUSRID, PRCSDATE, CLIENTWGHT, COMPYID, 
                             REGSTRID, TRANNO, TRANDNO, TRANREFID, TRANNAMT, 
-                            TRANAMTWRDS, TRANREFNO
+                            TRANAMTWRDS, TRANREFNO,
+                            TRANCGSTAMT, TRANSGSTAMT, TRANIGSTAMT,
+                            TRANCGSTEXPRN, TRANSGSTEXPRN, TRANIGSTEXPRN
                         ) VALUES (
                             @p0, @p1, @p2, @p3, @p4, 
                             @p5, @p6, @p7, @p8, @p9, 
-                            @p10, @p11, @p12, @p13, @p14, 
-                            @p15, @p16
+                            2, @p10, @p11, @p12, @p13, 
+                            @p14, @p15,
+                            @p16, @p17, @p18,
+                            @p19, @p20, @p21
                         );
                         SELECT CAST(SCOPE_IDENTITY() as int)";
 
                     tranMId = context.Database.SqlQuery<int>(sql,
-                        invoiceDate,                    // TRANDATE
-                        supplier.CATENAME,              // CATENAME (Supplier Name)
-                        supplier.CATECODE,              // CATECODE (Supplier Code)
-                        "",                             // VECHNO (empty for invoice)
-                        model.Status,                   // DISPSTATUS (0=Active, 1=Inactive)
-                        currentUser,                    // CUSRID
-                        currentUser,                    // LMUSRID
-                        DateTime.Now,                   // PRCSDATE
-                        0,                              // CLIENTWGHT (not used for invoice)
-                        compyId,                        // COMPYID
-                        regstrId,                       // REGSTRID (2 for invoice)
-                        tranNo,                         // TRANNO
-                        tranDNo,                        // TRANDNO
-                        model.SupplierId,               // TRANREFID (Supplier ID)
-                        totalAmount,                    // TRANNAMT
-                        null,                           // TRANAMTWRDS (amount in words - can be added later)
-                        model.RefNo                     // TRANREFNO (Reference Number)
+                        invoiceDate,                    // @p0 TRANDATE
+                        supplier.CATENAME,              // @p1 CATENAME (Supplier Name)
+                        supplier.CATECODE,              // @p2 CATECODE (Supplier Code)
+                        "",                             // @p3 VECHNO (empty for invoice)
+                        model.Status,                   // @p4 DISPSTATUS (0=Active, 1=Inactive)
+                        currentUser,                    // @p5 CUSRID
+                        currentUser,                    // @p6 LMUSRID
+                        DateTime.Now,                   // @p7 PRCSDATE
+                        0,                              // @p8 CLIENTWGHT (not used for invoice)
+                        compyId,                        // @p9 COMPYID
+                        // REGSTRID hardcoded as 2 in SQL
+                        tranNo,                         // @p10 TRANNO
+                        tranDNo,                        // @p11 TRANDNO
+                        model.SupplierId,               // @p12 TRANREFID (Supplier ID)
+                        totalAmount,                    // @p13 TRANNAMT (will be updated later)
+                        amountInWords,                  // @p14 TRANAMTWRDS (will be updated later)
+                        model.RefNo,                    // @p15 TRANREFNO (Reference Number)
+                        totalCGST,                      // @p16 TRANCGSTAMT (will be updated later)
+                        totalSGST,                      // @p17 TRANSGSTAMT (will be updated later)
+                        totalIGST,                      // @p18 TRANIGSTAMT (will be updated later)
+                        0.00m,                          // @p19 TRANCGSTEXPRN (will be updated later)
+                        0.00m,                          // @p20 TRANSGSTEXPRN (will be updated later)
+                        0.00m                           // @p21 TRANIGSTEXPRN (will be updated later)
                     ).FirstOrDefault();
 
                     System.Diagnostics.Debug.WriteLine($"Invoice created successfully. TRANMID: {tranMId}, TRANNO: {tranNo}");
                 }
 
-                // Save invoice items to TRANSACTIONDETAIL
+                // Save invoice items to TRANSACTIONDETAIL with GST calculations
                 if (model.Items != null && model.Items.Count > 0)
                 {
+                    decimal subtotal = 0.00m;
+                    totalCGST = 0.00m;
+                    totalSGST = 0.00m;
+                    totalIGST = 0.00m;
+
                     foreach (var item in model.Items)
                     {
+                        // Get Material Master to find HSNID
+                        var material = context.MaterialMasters
+                            .Where(m => m.MTRLID == item.ItemId)
+                            .FirstOrDefault();
+
+                        int hsnId = 0;
+                        decimal cgstRate = 0.00m;
+                        decimal sgstRate = 0.00m;
+                        decimal igstRate = 0.00m;
+                        decimal itemCGST = 0.00m;
+                        decimal itemSGST = 0.00m;
+                        decimal itemIGST = 0.00m;
+
+                        if (material != null && material.HSNID > 0)
+                        {
+                            hsnId = material.HSNID;
+
+                            // Get HSN Code Master to find GST rates
+                            var hsnCode = context.HSNCodeMasters
+                                .Where(h => h.HSNID == material.HSNID)
+                                .FirstOrDefault();
+
+                            if (hsnCode != null)
+                            {
+                                // Calculate GST based on supplier state
+                                if (isTamilNadu)
+                                {
+                                    // Tamil Nadu supplier: CGST + SGST
+                                    cgstRate = hsnCode.CGSTEXPRN;
+                                    sgstRate = hsnCode.SGSTEXPRN;
+                                    itemCGST = Math.Round((item.Amount * cgstRate) / 100, 2);
+                                    itemSGST = Math.Round((item.Amount * sgstRate) / 100, 2);
+                                    System.Diagnostics.Debug.WriteLine($"  Tamil Nadu GST: CGST={cgstRate}% (₹{itemCGST}), SGST={sgstRate}% (₹{itemSGST})");
+                                }
+                                else
+                                {
+                                    // Other state supplier: IGST only
+                                    igstRate = hsnCode.IGSTEXPRN;
+                                    itemIGST = Math.Round((item.Amount * igstRate) / 100, 2);
+                                    System.Diagnostics.Debug.WriteLine($"  Other State GST: IGST={igstRate}% (₹{itemIGST})");
+                                }
+                            }
+                        }
+
+                        // Calculate Net Amount (Gross Amount + GST)
+                        decimal grossAmount = item.Amount; // TRANDGAMT
+                        decimal netAmount = grossAmount + itemCGST + itemSGST + itemIGST; // TRANDNAMT
+
                         var itemSql = @"
                             INSERT INTO TRANSACTIONDETAIL (
                                 TRANMID, MTRLGID, MTRLID, MTRLNBOX, MTRLCOUNTS,
@@ -535,7 +890,7 @@ namespace KVM_ERP.Controllers
                                 TRANAQTY, TRANDQTY, TRANDRATE, TRANDAMT,
                                 TRANDDISCEXPRN, TRANDDISCAMT, TRANDGAMT,
                                 TRANDCGSTEXPRN, TRANDSGSTEXPRN, TRANDIGSTEXPRN,
-                                CGSTA, SGSTA, IGSTAMT, TRANDNAMT, TRANDAID,
+                                TRANDCGSTAMT, TRANDSGSTAMT, TRANDIGSTAMT, TRANDNAMT, TRANDAID,
                                 CUSRID, LMUSRID, DISPSTATUS, PRCSDATE
                             ) VALUES (
                                 @p0, @p1, @p2, @p3, @p4,
@@ -547,38 +902,309 @@ namespace KVM_ERP.Controllers
                                 @p24, @p25, @p26, @p27
                             )";
 
+                        // CHECKBOX TO TRANDAID MAPPING (TRANDAID is INT type in database):
+                        int trandaid = item.IsSelected && item.TRANPID > 0 ? item.TRANPID : 0;
+                        
+                        System.Diagnostics.Debug.WriteLine($"  Saving item: ItemId={item.ItemId}, HSNID={hsnId}, Gross=₹{grossAmount}, CGST=₹{itemCGST}, SGST=₹{itemSGST}, IGST=₹{itemIGST}, Net=₹{netAmount}");
+
                         context.Database.ExecuteSqlCommand(itemSql,
-                            tranMId,                 // TRANMID
-                            item.MaterialGroupId,    // MTRLGID
-                            item.ItemId,             // MTRLID
-                            0,                       // MTRLNBOX (default 0)
-                            0,                       // MTRLCOUNTS (default 0)
-                            item.GradeId,            // GRADEID
-                            item.ProductionColourId, // PCLRID
-                            item.ReceivedTypeId,     // RCVDTID
-                            1,                       // HSNID (default 1)
-                            item.ActualWeight,       // TRANAQTY
-                            item.NetWeight,          // TRANDQTY
-                            item.Rate,               // TRANDRATE
-                            item.Amount,             // TRANDAMT
-                            0.00m,                   // TRANDDISCEXPRN (default 0.00)
-                            0.00m,                   // TRANDDISCAMT (default 0.00)
-                            0.00m,                   // TRANDGAMT (default 0.00)
-                            0.00m,                   // TRANDCGSTEXPRN (default 0.00)
-                            0.00m,                   // TRANDSGSTEXPRN (default 0.00)
-                            0.00m,                   // TRANDIGSTEXPRN (default 0.00)
-                            0.00m,                   // CGSTA (default 0.00)
-                            0.00m,                   // SGSTA (default 0.00)
-                            0.00m,                   // IGSTAMT (default 0.00)
-                            0.00m,                   // TRANDNAMT (default 0.00)
-                            0.00m,                   // TRANDAID (default 0.00)
-                            currentUser,             // CUSRID
-                            currentUser,             // LMUSRID
-                            0,                       // DISPSTATUS (0=Active)
-                            DateTime.Now             // PRCSDATE
+                            tranMId,                 // @p0 - TRANMID
+                            item.MaterialGroupId,    // @p1 - MTRLGID
+                            item.ItemId,             // @p2 - MTRLID
+                            0,                       // @p3 - MTRLNBOX (default 0)
+                            0,                       // @p4 - MTRLCOUNTS (default 0)
+                            item.GradeId,            // @p5 - GRADEID
+                            item.ProductionColourId, // @p6 - PCLRID
+                            item.ReceivedTypeId,     // @p7 - RCVDTID
+                            hsnId,                   // @p8 - HSNID (from Material Master)
+                            item.ActualWeight,       // @p9 - TRANAQTY
+                            item.NetWeight,          // @p10 - TRANDQTY
+                            item.Rate,               // @p11 - TRANDRATE
+                            item.Amount,             // @p12 - TRANDAMT
+                            0.00m,                   // @p13 - TRANDDISCEXPRN (default 0.00)
+                            0.00m,                   // @p14 - TRANDDISCAMT (default 0.00)
+                            grossAmount,             // @p15 - TRANDGAMT (Gross Amount)
+                            cgstRate,                // @p16 - TRANDCGSTEXPRN (CGST %)
+                            sgstRate,                // @p17 - TRANDSGSTEXPRN (SGST %)
+                            igstRate,                // @p18 - TRANDIGSTEXPRN (IGST %)
+                            itemCGST,                // @p19 - TRANDCGSTAMT (CGST Amount)
+                            itemSGST,                // @p20 - TRANDSGSTAMT (SGST Amount)
+                            itemIGST,                // @p21 - TRANDIGSTAMT (IGST Amount)
+                            netAmount,               // @p22 - TRANDNAMT (Net Amount = Gross + GST)
+                            trandaid,                // @p23 - TRANDAID (TRANPID if selected, else 0)
+                            currentUser,             // @p24 - CUSRID
+                            currentUser,             // @p25 - LMUSRID
+                            0,                       // @p26 - DISPSTATUS (0=Active)
+                            DateTime.Now             // @p27 - PRCSDATE
+                        );
+
+                        // Add to totals
+                        subtotal += item.Amount;
+                        totalCGST += itemCGST;
+                        totalSGST += itemSGST;
+                        totalIGST += itemIGST;
+                    }
+                    
+                    // Calculate grand total
+                    totalAmount = subtotal + totalCGST + totalSGST + totalIGST;
+                    amountInWords = ConvertAmountToWords(totalAmount);
+
+                    System.Diagnostics.Debug.WriteLine($"Invoice Totals: Subtotal=₹{subtotal}, CGST=₹{totalCGST}, SGST=₹{totalSGST}, IGST=₹{totalIGST}, Grand Total=₹{totalAmount}");
+                    System.Diagnostics.Debug.WriteLine($"Amount in Words: {amountInWords}");
+                    System.Diagnostics.Debug.WriteLine($"Saved {model.Items.Count} items to TRANSACTIONDETAIL");
+                    
+                    // IMPORTANT: Update Raw Material Intake TRANSACTIONDETAIL records
+                    // Mark items as "already invoiced" to prevent duplicate invoices
+                    foreach (var item in model.Items.Where(i => i.IsSelected && i.TRANPID > 0))
+                    {
+                        // Find the TRANDID from TRANSACTION_PRODUCT_CALCULATION using TRANPID
+                        // NOTE: Removed "AND td.TRANDAID = 0" condition to support EDIT mode
+                        // In EDIT mode, old TRANDAID values are already reset to 0 (see lines 544-569)
+                        var updateSql = @"
+                            UPDATE td
+                            SET td.TRANDAID = @p1
+                            FROM TRANSACTIONDETAIL td
+                            INNER JOIN TRANSACTION_PRODUCT_CALCULATION tpc ON td.TRANDID = tpc.TRANDID
+                            WHERE tpc.TRANPID = @p0";
+                        
+                        int rowsAffected = context.Database.ExecuteSqlCommand(updateSql, item.TRANPID, item.TRANPID);
+                        System.Diagnostics.Debug.WriteLine($"  Set TRANDAID={item.TRANPID} for Raw Material Intake, rows affected={rowsAffected}");
+                    }
+                    System.Diagnostics.Debug.WriteLine($"Updated {model.Items.Count(i => i.IsSelected && i.TRANPID > 0)} Raw Material Intake records with new TRANDAID values");
+                    
+                    // Update TRANSACTIONMASTER with calculated totals
+                    var updateMasterSql = @"
+                        UPDATE TRANSACTIONMASTER
+                        SET TRANNAMT = @p0,
+                            TRANAMTWRDS = @p1,
+                            TRANCGSTAMT = @p2,
+                            TRANSGSTAMT = @p3,
+                            TRANIGSTAMT = @p4,
+                            TRANCGSTEXPRN = @p5,
+                            TRANSGSTEXPRN = @p6,
+                            TRANIGSTEXPRN = @p7
+                        WHERE TRANMID = @p8";
+
+                    // Calculate average GST rates (in case multiple different rates)
+                    decimal avgCGSTRate = 0.00m;
+                    decimal avgSGSTRate = 0.00m;
+                    decimal avgIGSTRate = 0.00m;
+
+                    if (totalCGST > 0 && subtotal > 0)
+                        avgCGSTRate = Math.Round((totalCGST / subtotal) * 100, 2);
+                    if (totalSGST > 0 && subtotal > 0)
+                        avgSGSTRate = Math.Round((totalSGST / subtotal) * 100, 2);
+                    if (totalIGST > 0 && subtotal > 0)
+                        avgIGSTRate = Math.Round((totalIGST / subtotal) * 100, 2);
+
+                    context.Database.ExecuteSqlCommand(updateMasterSql,
+                        totalAmount,      // @p0 - TRANNAMT
+                        amountInWords,    // @p1 - TRANAMTWRDS
+                        totalCGST,        // @p2 - TRANCGSTAMT
+                        totalSGST,        // @p3 - TRANSGSTAMT
+                        totalIGST,        // @p4 - TRANIGSTAMT
+                        avgCGSTRate,      // @p5 - TRANCGSTEXPRN
+                        avgSGSTRate,      // @p6 - TRANSGSTEXPRN
+                        avgIGSTRate,      // @p7 - TRANIGSTEXPRN
+                        tranMId           // @p8 - TRANMID
+                    );
+
+                    System.Diagnostics.Debug.WriteLine($"Updated TRANSACTIONMASTER: Grand Total=₹{totalAmount}, Amount in Words={amountInWords}");
+                }
+
+                // NOTE: HSN GST (CGST, SGST, IGST) is calculated and displayed on screen
+                // but NOT saved to TRANSACTIONMASTERFACTOR table
+                // Only manual cost factors from TAX popup are saved to TRANSACTIONMASTERFACTOR
+                
+                /*
+                // AUTO-GENERATION OF HSN GST DISABLED - User requested only manual TAX popup factors
+                // Delete existing tax factors if updating
+                context.Database.ExecuteSqlCommand(@"
+                    DELETE FROM TRANSACTIONMASTERFACTOR 
+                    WHERE TRANMID = @p0
+                ", tranMId);
+
+                // Create GST tax factors automatically
+                int taxOrder = 1;
+                
+                if (totalCGST > 0)
+                {
+                    // CGST Tax Factor
+                    var cgstSql = @"
+                        INSERT INTO TRANSACTIONMASTERFACTOR (
+                            TRANMID, CFID, DEDEXPRN, DEDMODE, DEDTYPE, DEDORDR,
+                            CFOPTN, DORDRID, DEDVALUE, TRANCFDESC, CFHSNID,
+                            TRANCFCGSTEXPRN, TRANCFSGSTEXPRN, TRANCFIGSTEXPRN,
+                            TRANCFCGSTAMT, TRANCFSGSTAMT, TRANCFIGSTAMT
+                        ) VALUES (
+                            @p0, @p1, @p2, @p3, @p4, @p5,
+                            @p6, @p7, @p8, @p9, @p10,
+                            @p11, @p12, @p13,
+                            @p14, @p15, @p16
+                        )";
+
+                    decimal cgstAvgRate = totalCGST > 0 ? Math.Round((totalCGST / (totalAmount - totalCGST - totalSGST - totalIGST)) * 100, 2) : 0.00m;
+
+                    context.Database.ExecuteSqlCommand(cgstSql,
+                        tranMId,          // @p0 - TRANMID
+                        0,                // @p1 - CFID (0 for auto-generated)
+                        cgstAvgRate,      // @p2 - DEDEXPRN (CGST %)
+                        0,                // @p3 - DEDMODE (0=ADD)
+                        0,                // @p4 - DEDTYPE (0=%)
+                        taxOrder++,       // @p5 - DEDORDR
+                        0,                // @p6 - CFOPTN (0=Amount)
+                        5,                // @p7 - DORDRID (5=Sales Tax)
+                        totalCGST,        // @p8 - DEDVALUE
+                        "CGST",           // @p9 - TRANCFDESC
+                        0,                // @p10 - CFHSNID
+                        cgstAvgRate,      // @p11 - TRANCFCGSTEXPRN
+                        0.00m,            // @p12 - TRANCFSGSTEXPRN
+                        0.00m,            // @p13 - TRANCFIGSTEXPRN
+                        totalCGST,        // @p14 - TRANCFCGSTAMT
+                        0.00m,            // @p15 - TRANCFSGSTAMT
+                        0.00m             // @p16 - TRANCFIGSTAMT
+                    );
+                }
+
+                if (totalSGST > 0)
+                {
+                    // SGST Tax Factor
+                    var sgstSql = @"
+                        INSERT INTO TRANSACTIONMASTERFACTOR (
+                            TRANMID, CFID, DEDEXPRN, DEDMODE, DEDTYPE, DEDORDR,
+                            CFOPTN, DORDRID, DEDVALUE, TRANCFDESC, CFHSNID,
+                            TRANCFCGSTEXPRN, TRANCFSGSTEXPRN, TRANCFIGSTEXPRN,
+                            TRANCFCGSTAMT, TRANCFSGSTAMT, TRANCFIGSTAMT
+                        ) VALUES (
+                            @p0, @p1, @p2, @p3, @p4, @p5,
+                            @p6, @p7, @p8, @p9, @p10,
+                            @p11, @p12, @p13,
+                            @p14, @p15, @p16
+                        )";
+
+                    decimal sgstAvgRate = totalSGST > 0 ? Math.Round((totalSGST / (totalAmount - totalCGST - totalSGST - totalIGST)) * 100, 2) : 0.00m;
+
+                    context.Database.ExecuteSqlCommand(sgstSql,
+                        tranMId,          // @p0 - TRANMID
+                        0,                // @p1 - CFID (0 for auto-generated)
+                        sgstAvgRate,      // @p2 - DEDEXPRN (SGST %)
+                        0,                // @p3 - DEDMODE (0=ADD)
+                        0,                // @p4 - DEDTYPE (0=%)
+                        taxOrder++,       // @p5 - DEDORDR
+                        0,                // @p6 - CFOPTN (0=Amount)
+                        5,                // @p7 - DORDRID (5=Sales Tax)
+                        totalSGST,        // @p8 - DEDVALUE
+                        "SGST",           // @p9 - TRANCFDESC
+                        0,                // @p10 - CFHSNID
+                        0.00m,            // @p11 - TRANCFCGSTEXPRN
+                        sgstAvgRate,      // @p12 - TRANCFSGSTEXPRN
+                        0.00m,            // @p13 - TRANCFIGSTEXPRN
+                        0.00m,            // @p14 - TRANCFCGSTAMT
+                        totalSGST,        // @p15 - TRANCFSGSTAMT
+                        0.00m             // @p16 - TRANCFIGSTAMT
+                    );
+                }
+
+                if (totalIGST > 0)
+                {
+                    // IGST Tax Factor
+                    var igstSql = @"
+                        INSERT INTO TRANSACTIONMASTERFACTOR (
+                            TRANMID, CFID, DEDEXPRN, DEDMODE, DEDTYPE, DEDORDR,
+                            CFOPTN, DORDRID, DEDVALUE, TRANCFDESC, CFHSNID,
+                            TRANCFCGSTEXPRN, TRANCFSGSTEXPRN, TRANCFIGSTEXPRN,
+                            TRANCFCGSTAMT, TRANCFSGSTAMT, TRANCFIGSTAMT
+                        ) VALUES (
+                            @p0, @p1, @p2, @p3, @p4, @p5,
+                            @p6, @p7, @p8, @p9, @p10,
+                            @p11, @p12, @p13,
+                            @p14, @p15, @p16
+                        )";
+
+                    decimal igstAvgRate = totalIGST > 0 ? Math.Round((totalIGST / (totalAmount - totalCGST - totalSGST - totalIGST)) * 100, 2) : 0.00m;
+
+                    context.Database.ExecuteSqlCommand(igstSql,
+                        tranMId,          // @p0 - TRANMID
+                        0,                // @p1 - CFID (0 for auto-generated)
+                        igstAvgRate,      // @p2 - DEDEXPRN (IGST %)
+                        0,                // @p3 - DEDMODE (0=ADD)
+                        0,                // @p4 - DEDTYPE (0=%)
+                        taxOrder++,       // @p5 - DEDORDR
+                        0,                // @p6 - CFOPTN (0=Amount)
+                        5,                // @p7 - DORDRID (5=Sales Tax)
+                        totalIGST,        // @p8 - DEDVALUE
+                        "IGST",           // @p9 - TRANCFDESC
+                        0,                // @p10 - CFHSNID
+                        0.00m,            // @p11 - TRANCFCGSTEXPRN
+                        0.00m,            // @p12 - TRANCFSGSTEXPRN
+                        igstAvgRate,      // @p13 - TRANCFIGSTEXPRN
+                        0.00m,            // @p14 - TRANCFCGSTAMT
+                        0.00m,            // @p15 - TRANCFSGSTAMT
+                        totalIGST         // @p16 - TRANCFIGSTAMT
+                    );
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Auto-generated {taxOrder - 1} GST tax factors in TRANSACTIONMASTERFACTOR");
+                */
+
+                // Save user-provided MANUAL tax factors from Cost Factor TAX popup (if any)
+                // NOTE: HSN GST is ONLY displayed on screen, NOT saved to database
+                // ONLY manual cost factors from TAX button are saved
+                if (model.TaxFactors != null && model.TaxFactors.Count > 0)
+                {
+                    // Delete existing tax factors before inserting new ones
+                    context.Database.ExecuteSqlCommand(@"
+                        DELETE FROM TRANSACTIONMASTERFACTOR 
+                        WHERE TRANMID = @p0
+                    ", tranMId);
+
+                    int taxOrder = 1; // Start from 1 for manual factors
+
+                    foreach (var tax in model.TaxFactors)
+                    {
+                        var manualTaxSql = @"
+                            INSERT INTO TRANSACTIONMASTERFACTOR (
+                                TRANMID, CFID, DEDEXPRN, DEDMODE, DEDTYPE, DEDORDR,
+                                CFOPTN, DORDRID, DEDVALUE, TRANCFDESC, CFHSNID,
+                                TRANCFCGSTEXPRN, TRANCFSGSTEXPRN, TRANCFIGSTEXPRN,
+                                TRANCFCGSTAMT, TRANCFSGSTAMT, TRANCFIGSTAMT
+                            ) VALUES (
+                                @p0, @p1, @p2, @p3, @p4, @p5,
+                                @p6, @p7, @p8, @p9, @p10,
+                                @p11, @p12, @p13,
+                                @p14, @p15, @p16
+                            )";
+
+                        context.Database.ExecuteSqlCommand(manualTaxSql,
+                            tranMId,                // @p0 - TRANMID
+                            tax.CFID,               // @p1 - CFID (from Cost Factor Master)
+                            tax.CFEXPR,             // @p2 - DEDEXPRN (percentage like 5%)
+                            tax.CFMODE,             // @p3 - DEDMODE (0=ADD, 1=DEDUCT)
+                            tax.CFTYPE,             // @p4 - DEDTYPE (0=%, 1=Value)
+                            taxOrder++,             // @p5 - DEDORDR (continues after HSN factors)
+                            tax.CFOPTN,             // @p6 - CFOPTN
+                            tax.DORDRID,            // @p7 - DORDRID
+                            tax.DEDVALUE,           // @p8 - DEDVALUE (calculated amount)
+                            tax.CFDESC,             // @p9 - TRANCFDESC (Cost Factor Description)
+                            0,                      // @p10 - CFHSNID (0 for manual factors)
+                            0.00m,                  // @p11 - TRANCFCGSTEXPRN (0 for manual)
+                            0.00m,                  // @p12 - TRANCFSGSTEXPRN (0 for manual)
+                            0.00m,                  // @p13 - TRANCFIGSTEXPRN (0 for manual)
+                            0.00m,                  // @p14 - TRANCFCGSTAMT (0 for manual)
+                            0.00m,                  // @p15 - TRANCFSGSTAMT (0 for manual)
+                            0.00m                   // @p16 - TRANCFIGSTAMT (0 for manual)
                         );
                     }
-                    System.Diagnostics.Debug.WriteLine($"Saved {model.Items.Count} items to TRANSACTIONDETAIL");
+                    System.Diagnostics.Debug.WriteLine($"Saved {model.TaxFactors.Count} manual tax factors from Cost Factor popup");
+                }
+                else
+                {
+                    // No manual tax factors - delete all existing tax factors
+                    context.Database.ExecuteSqlCommand(@"
+                        DELETE FROM TRANSACTIONMASTERFACTOR 
+                        WHERE TRANMID = @p0
+                    ", tranMId);
+                    System.Diagnostics.Debug.WriteLine($"No manual tax factors - cleared TRANSACTIONMASTERFACTOR for TRANMID={tranMId}");
                 }
 
                 return Json(new { 
@@ -627,6 +1253,7 @@ namespace KVM_ERP.Controllers
         public int ReceivedTypeId { get; set; }
         public string ReceivedType { get; set; }
         public decimal ActualWeight { get; set; }
+        public int TRANPID { get; set; }  // Transaction Product Calculation ID
     }
 
     // Model for saving invoice
@@ -638,6 +1265,7 @@ namespace KVM_ERP.Controllers
         public int Status { get; set; }
         public int SupplierId { get; set; }
         public List<InvoiceItemModel> Items { get; set; }
+        public List<TaxFactorModel> TaxFactors { get; set; }
     }
 
     // Model for invoice items
@@ -652,6 +1280,8 @@ namespace KVM_ERP.Controllers
         public decimal NetWeight { get; set; }    // TRANDQTY
         public decimal Rate { get; set; }         // TRANDRATE
         public decimal Amount { get; set; }       // TRANDAMT
+        public int TRANPID { get; set; }            // Transaction Product Calculation ID
+        public bool IsSelected { get; set; }      // Whether item is selected for tax calculation
     }
 
     // Model for editing invoice
@@ -686,6 +1316,23 @@ namespace KVM_ERP.Controllers
         public decimal NetWeight { get; set; }
         public decimal Rate { get; set; }
         public decimal Amount { get; set; }
+        public int TRANPID { get; set; }  // Transaction Product Calculation ID from TRANDAID
+    }
+
+    // ViewModel for Tax Factor Editing
+    public class TaxFactorEditViewModel
+    {
+        public int CFID { get; set; }
+        public string CFDESC { get; set; }
+        public decimal CFEXPR { get; set; }
+        public int CFMODE { get; set; }
+        public int CFTYPE { get; set; }
+        public decimal DEDVALUE { get; set; }
+        public int CFOPTN { get; set; }
+        public int DORDRID { get; set; }
+        public decimal CGSTEXPRN { get; set; }
+        public decimal SGSTEXPRN { get; set; }
+        public decimal IGSTEXPRN { get; set; }
     }
 
     // Helper class for retrieving existing invoice data
@@ -693,5 +1340,49 @@ namespace KVM_ERP.Controllers
     {
         public int TRANNO { get; set; }
         public string TRANDNO { get; set; }
+    }
+
+    // Model for tax factors
+    public class TaxFactorModel
+    {
+        public int CFID { get; set; }
+        public string CFDESC { get; set; }
+        public decimal CFEXPR { get; set; }
+        public int CFMODE { get; set; }
+        public int CFTYPE { get; set; }
+        public decimal DEDVALUE { get; set; }
+        public int CFOPTN { get; set; }
+        public int DORDRID { get; set; }
+        public decimal CGSTEXPRN { get; set; }
+        public decimal SGSTEXPRN { get; set; }
+        public decimal IGSTEXPRN { get; set; }
+    }
+
+    // ViewModel for Cost Factor
+    public class CostFactorViewModel
+    {
+        public int CFID { get; set; }
+        public string CFDESC { get; set; }
+        public int CFMODE { get; set; }
+        public int CFTYPE { get; set; }
+        public decimal CFEXPR { get; set; }
+        public int CFOPTN { get; set; }
+        public int DORDRID { get; set; }
+        public decimal CGSTEXPRN { get; set; }
+        public decimal SGSTEXPRN { get; set; }
+        public decimal IGSTEXPRN { get; set; }
+    }
+
+    // Model for GST calculation request
+    public class ItemGSTRequest
+    {
+        public List<ItemGSTData> items { get; set; }
+        public bool isTamilNadu { get; set; }
+    }
+
+    public class ItemGSTData
+    {
+        public int itemId { get; set; }
+        public decimal amount { get; set; }
     }
 }

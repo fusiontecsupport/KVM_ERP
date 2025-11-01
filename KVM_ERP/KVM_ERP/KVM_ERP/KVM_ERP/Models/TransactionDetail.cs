@@ -88,16 +88,16 @@ namespace KVM_ERP.Models
         public decimal TRANDIGSTEXPRN { get; set; }
 
         [Required]
-        [Column("CGSTA")]
-        public decimal CGSTA { get; set; }
+        [Column("TRANDCGSTAMT")]
+        public decimal TRANDCGSTAMT { get; set; }
 
         [Required]
-        [Column("SGSTA")]
-        public decimal SGSTA { get; set; }
+        [Column("TRANDSGSTAMT")]
+        public decimal TRANDSGSTAMT { get; set; }
 
         [Required]
-        [Column("IGSTAMT")]
-        public decimal IGSTAMT { get; set; }
+        [Column("TRANDIGSTAMT")]
+        public decimal TRANDIGSTAMT { get; set; }
 
         [Required]
         [Column("TRANDNAMT")]
@@ -105,7 +105,7 @@ namespace KVM_ERP.Models
 
         [Required]
         [Column("TRANDAID")]
-        public decimal TRANDAID { get; set; }
+        public int TRANDAID { get; set; }
 
         [Required]
         [MaxLength(100)]

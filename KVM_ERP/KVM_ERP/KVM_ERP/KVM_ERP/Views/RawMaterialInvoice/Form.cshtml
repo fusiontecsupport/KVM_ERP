@@ -300,6 +300,81 @@
     .select2-container--default .select2-selection--single .select2-selection__clear:hover {
         color: #dc3545;
     }
+
+    /* Modal Close Button Styling */
+    .modal-header .close {
+        padding: 0.5rem 0.75rem;
+        margin: -0.5rem -0.75rem -0.5rem auto;
+        opacity: 1 !important;
+        font-size: 1.8rem;
+        font-weight: 300;
+        line-height: 1;
+        color: #fff;
+        text-shadow: none;
+        transition: all 0.3s ease;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-header .close:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+        transform: rotate(90deg);
+        opacity: 1 !important;
+    }
+
+    .modal-header .close:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+    }
+
+    .modal-header.bg-success .close {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Modal Footer Button Styling */
+    .modal-footer .btn {
+        border-radius: 25px;
+        padding: 10px 25px;
+        font-weight: 600;
+        font-size: 14px;
+        border: none;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-footer .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .modal-footer .btn-secondary:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-footer .btn-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+
+    .modal-footer .btn-success:hover {
+        background: linear-gradient(135deg, #218838 0%, #1ba87e 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4);
+    }
+
+    .modal-footer .btn i {
+        font-size: 14px;
+    }
 </style>
 
 <div class="main-container">
@@ -423,15 +498,43 @@
             <!-- Total Amount Section -->
             <div class="form-section">
                 <div class="row align-items-center">
-                    <!-- <div class="col-md-6">
+                    <div class="col-md-6">
                         <button type="button" class="btn btn-success" id="taxBtn" onclick="openTaxModal()">
                             <i class="fa fa-calculator"></i> TAX
                         </button>
-                    </div> -->
-                    <div class="col-md-12 text-end">
+                    </div>
+                    <div class="col-md-6 text-end">
                         <h4 class="mb-3">
-                            <strong>Total: </strong>
-                            <span id="grossAmount" class="text-success" style="font-size: 24px; font-weight: bold;">₹ 0.00</span>
+                            <strong>Subtotal: </strong>
+                            <span id="grossAmount" class="text-success" style="font-size: 20px; font-weight: bold;">₹ 0.00</span>
+                        </h4>
+                        
+                        <!-- HSN-Based GST Breakdown -->
+                        <div id="gstBreakdown" style="margin-bottom: 1rem;">
+                            <div id="cgstRow" style="display: none; margin-bottom: 8px;">
+                                <strong>CGST: </strong>
+                                <span id="cgstRateDisplay" class="text-muted" style="font-size: 14px;"></span>
+                                <span id="cgstAmountDisplay" class="text-info" style="font-size: 18px; font-weight: bold; margin-left: 10px;">₹ 0.00</span>
+                            </div>
+                            <div id="sgstRow" style="display: none; margin-bottom: 8px;">
+                                <strong>SGST: </strong>
+                                <span id="sgstRateDisplay" class="text-muted" style="font-size: 14px;"></span>
+                                <span id="sgstAmountDisplay" class="text-info" style="font-size: 18px; font-weight: bold; margin-left: 10px;">₹ 0.00</span>
+                            </div>
+                            <div id="igstRow" style="display: none; margin-bottom: 8px;">
+                                <strong>IGST: </strong>
+                                <span id="igstRateDisplay" class="text-muted" style="font-size: 14px;"></span>
+                                <span id="igstAmountDisplay" class="text-info" style="font-size: 18px; font-weight: bold; margin-left: 10px;">₹ 0.00</span>
+                            </div>
+                            <div id="noTaxRow" style="display: block; margin-bottom: 8px;">
+                                <strong>Tax: </strong>
+                                <span class="text-muted" style="font-size: 18px;">₹ 0.00</span>
+                            </div>
+                        </div>
+                        
+                        <h4 class="mb-3" style="border-top: 2px solid #ddd; padding-top: 10px;">
+                            <strong>Grand Total: </strong>
+                            <span id="grandTotalDisplay" class="text-success" style="font-size: 24px; font-weight: bold;">₹ 0.00</span>
                         </h4>
                     </div>
                 </div>
@@ -460,7 +563,7 @@
                 <h5 class="modal-title" id="taxModalLabel">
                     <i class="fa fa-calculator"></i> Tax Calculation
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                <button type="button" class="close" onclick="$('#taxModal').modal('hide');" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -505,7 +608,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                <button type="button" class="btn btn-secondary" onclick="$('#taxModal').modal('hide');">
                     <i class="fa fa-times"></i> Close
                 </button>
                 <button type="button" class="btn btn-success" onclick="applyTaxCalculation()">
@@ -583,6 +686,8 @@
                     if (isEditMode && editId > 0) {
                         // Load saved invoice items for editing
                         loadInvoiceItems(editId);
+                        // Load saved tax factors for editing
+                        loadInvoiceTaxFactors(editId);
                     } else {
                         // Load supplier items from Raw Material Intake
                         if (supplierId) {
@@ -598,6 +703,14 @@
                 var isChecked = $(this).prop('checked');
                 $('.row-checkbox').prop('checked', isChecked);
                 calculateGrossAmount();
+                
+                // Recalculate all tax rows if tax exists
+                if ($('#taxTableBody tr').length > 0) {
+                    $('#taxTableBody tr').each(function() {
+                        var rowId = $(this).data('row-id');
+                        calculateTaxRow(rowId);
+                    });
+                }
             });
 
             // Update Select All checkbox state when individual checkboxes change
@@ -665,12 +778,28 @@
                         itemsData = response.data;
                         renderItemsTable();
                         
-                        // Populate Net Weight and Rate for saved items
+                        // Populate Net Weight, Rate, Amount and CHECK CHECKBOXES ONLY for items with TRANPID > 0
                         response.data.forEach(function(item, index) {
+                            console.log('Item ' + index + ': TRANPID=' + item.TRANPID + ' (type: ' + typeof item.TRANPID + '), ItemName=' + item.ItemName);
+                            
+                            // ONLY check checkbox if TRANPID > 0 (mapped with TRANDAID in database - INT type)
+                            if (item.TRANPID > 0) {
+                                $('.row-checkbox[data-index="' + index + '"]').prop('checked', true);
+                                console.log('✓ Checkbox CHECKED for index ' + index + ' (TRANPID=' + item.TRANPID + ')');
+                            } else {
+                                console.log('✗ Checkbox UNCHECKED for index ' + index + ' (TRANPID=' + item.TRANPID + ')');
+                            }
+                            
+                            // Populate values
                             $('.net-weight[data-index="' + index + '"]').val(item.NetWeight.toFixed(2));
                             $('.rate[data-index="' + index + '"]').val(item.Rate.toFixed(2));
                             $('.amount[data-index="' + index + '"]').val(item.Amount.toFixed(2));
                         });
+                        
+                        // Update Select All checkbox state
+                        var totalCheckboxes = $('.row-checkbox').length;
+                        var checkedCheckboxes = $('.row-checkbox:checked').length;
+                        $('#selectAll').prop('checked', totalCheckboxes === checkedCheckboxes);
                         
                         calculateGrossAmount();
                     } else {
@@ -684,11 +813,142 @@
             });
         }
 
+        function loadInvoiceTaxFactors(invoiceId) {
+            console.log('loadInvoiceTaxFactors called for invoiceId:', invoiceId);
+            
+            // IMPORTANT: Load cost factors FIRST, then load tax data
+            $.ajax({
+                url: '@Url.Action("GetCostFactors", "RawMaterialInvoice")',
+                type: 'POST',
+                success: function(costFactorsResponse) {
+                    if (costFactorsResponse.success) {
+                        costFactorsData = costFactorsResponse.data;
+                        console.log('Cost factors loaded:', costFactorsData.length);
+                        
+                        // NOW load the saved tax factors
+                        $.ajax({
+                            url: '@Url.Action("GetInvoiceTaxFactors", "RawMaterialInvoice")',
+                            type: 'POST',
+                            data: { invoiceId: invoiceId },
+                            success: function (response) {
+                                console.log('Tax factors response:', response);
+                                console.log('Tax factors data:', JSON.stringify(response.data, null, 2));
+                                if (response.success && response.data && response.data.length > 0) {
+                                    console.log('Loading ' + response.data.length + ' tax factors');
+                                    
+                                    // Clear existing tax rows
+                                    $('#taxTableBody').empty();
+                                    taxData = response.data; // Store tax data
+                                    
+                                    // Calculate and display tax totals on main form
+                                    var totalTax = 0;
+                                    response.data.forEach(function(tax) {
+                                        totalTax += parseFloat(tax.DEDVALUE) || 0;
+                                    });
+                                    
+                                    // Update main form display
+                                    $('#taxAmountDisplay').text('₹ ' + totalTax.toFixed(2));
+                                    
+                                    // Calculate grand total
+                                    var grossAmount = parseFloat($('#grossAmount').text().replace('₹ ', '').replace(',', '')) || 0;
+                                    var grandTotal = grossAmount + totalTax;
+                                    $('#grandTotalDisplay').text('₹ ' + grandTotal.toFixed(2));
+                                    
+                                    console.log('Tax amount: ₹' + totalTax.toFixed(2) + ', Grand Total: ₹' + grandTotal.toFixed(2));
+                                    
+                                    // Add each saved tax factor as a row
+                                    response.data.forEach(function(tax, index) {
+                                        addTaxRow();
+                                        
+                                        // Wait a bit for the row to be added, then populate it
+                                        setTimeout(function() {
+                                            var allRows = $('#taxTableBody tr');
+                                            var currentRow = $(allRows[index]); // Get the specific row by index
+                                            var actualRowId = currentRow.data('row-id');
+                                            
+                                            console.log('Row ' + index + ' has rowId: ' + actualRowId);
+                                            console.log('Populating row ' + index + ': CFID=' + tax.CFID + ', CFDESC=' + tax.CFDESC + ', CFTYPE=' + tax.CFTYPE + ', CFMODE=' + tax.CFMODE + ', CFEXPR=' + tax.CFEXPR + ', DEDVALUE=' + tax.DEDVALUE);
+                                            
+                                            // Set cost factor dropdown
+                                            var costFactorSelect = currentRow.find('.cost-factor');
+                                            console.log('Dropdown found:', costFactorSelect.length > 0);
+                                            console.log('Dropdown options count:', costFactorSelect.find('option').length);
+                                            console.log('Setting dropdown to CFID:', tax.CFID);
+                                            
+                                            costFactorSelect.val(tax.CFID);
+                                            
+                                            // Verify dropdown was set
+                                            var selectedValue = costFactorSelect.val();
+                                            var selectedText = costFactorSelect.find('option:selected').text();
+                                            console.log('Dropdown after setting - Value:', selectedValue, 'Text:', selectedText);
+                                            
+                                            if (!selectedValue || selectedValue === '') {
+                                                console.error('FAILED to set dropdown for row ' + index + '! CFID ' + tax.CFID + ' not found in options');
+                                                // Try to find the option by text if CFID doesn't work
+                                                costFactorSelect.find('option').each(function() {
+                                                    if ($(this).text().toUpperCase().includes(tax.CFDESC.toUpperCase())) {
+                                                        console.log('Found option by text matching:', $(this).val(), $(this).text());
+                                                        costFactorSelect.val($(this).val());
+                                                        return false; // break
+                                                    }
+                                                });
+                                            }
+                                            
+                                            // Set expression
+                                            var expression = tax.CFTYPE === 0 ? 'Percentage' : 'Value';
+                                            currentRow.find('.expression').val(expression);
+                                            
+                                            // Set mode
+                                            var mode = tax.CFMODE === 0 ? '+' : '-';
+                                            currentRow.find('.mode').val(mode);
+                                            
+                                            // Set value and make readonly
+                                            var valueInput = currentRow.find('.value-input');
+                                            valueInput.val(tax.CFEXPR.toFixed(2));
+                                            valueInput.prop('readonly', true);
+                                            valueInput.css('background-color', '#e9ecef');
+                                            
+                                            // Set amount
+                                            currentRow.find('.amount-output').val(tax.DEDVALUE.toFixed(2));
+                                            
+                                            console.log('Tax row ' + index + ' populated: ' + tax.CFDESC + ' = ₹' + tax.DEDVALUE.toFixed(2));
+                                        }, 100 * (index + 1)); // Increased timeout for better stability
+                                    });
+                                    
+                                    // Update totals after all rows are added
+                                    setTimeout(function() {
+                                        console.log('Updating tax totals after row population...');
+                                        updateTaxTotals();
+                                    }, 100 * response.data.length + 300);
+                                } else {
+                                    console.log('No tax factors found or empty response');
+                                    taxData = [];
+                                    // Reset tax display to 0
+                                    $('#taxAmountDisplay').text('₹ 0.00');
+                                    var grossAmount = parseFloat($('#grossAmount').text().replace('₹ ', '').replace(',', '')) || 0;
+                                    $('#grandTotalDisplay').text('₹ ' + grandTotal.toFixed(2));
+                                }
+                            },
+                            error: function (xhr, status, error) {
+                                console.error('Error loading tax factors:', error);
+                                console.error('Response:', xhr.responseText);
+                            }
+                        });
+                    } else {
+                        console.error('Error loading cost factors');
+                    }
+                },
+                error: function() {
+                    console.error('Failed to load cost factors');
+                }
+            });
+        }
+
         function renderItemsTable() {
             var html = '';
             itemsData.forEach(function (item, index) {
                 var actualWeight = (item.ActualWeight || 0).toFixed(2);
-                html += '<tr>';
+                html += '<tr data-item-id="' + (item.ItemId || 0) + '">';
                 html += '<td><input type="checkbox" class="row-checkbox" data-index="' + index + '" /></td>';
                 html += '<td>' + (index + 1) + '</td>';
                 html += '<td><input type="text" readonly value="' + (item.ItemName || '') + '" /></td>';
@@ -712,6 +972,14 @@
             // Add event listener for row checkbox
             $('.row-checkbox').on('change', function () {
                 calculateGrossAmount();
+                
+                // Recalculate all tax rows if tax modal is open or if tax data exists
+                if ($('#taxTableBody tr').length > 0) {
+                    $('#taxTableBody tr').each(function() {
+                        var rowId = $(this).data('row-id');
+                        calculateTaxRow(rowId);
+                    });
+                }
             });
         }
 
@@ -723,16 +991,131 @@
             
             // Recalculate gross amount after amount changes
             calculateGrossAmount();
+            
+            // Recalculate all tax rows if tax exists
+            if ($('#taxTableBody tr').length > 0) {
+                $('#taxTableBody tr').each(function() {
+                    var rowId = $(this).data('row-id');
+                    calculateTaxRow(rowId);
+                });
+            }
         }
 
-        // Calculate Total Amount from all rows
+        // Calculate Total Amount from CHECKED rows only + HSN-based GST
         function calculateGrossAmount() {
             var grossAmount = 0;
-            $('.amount').each(function() {
-                var amount = parseFloat($(this).val()) || 0;
-                grossAmount += amount;
+            var supplierState = $('#state').val() || '';
+            var isTamilNadu = supplierState.toUpperCase().includes('TAMIL');
+            
+            var totalCGST = 0;
+            var totalSGST = 0;
+            var totalIGST = 0;
+            var hasGST = false;
+            
+            // Collect all checked items
+            var checkedItems = [];
+            $('#itemsTableBody tr').each(function() {
+                var checkbox = $(this).find('.row-checkbox');
+                if (checkbox.is(':checked')) {
+                    var amount = parseFloat($(this).find('.amount').val()) || 0;
+                    var itemId = parseInt($(this).data('item-id')) || 0;
+                    grossAmount += amount;
+                    checkedItems.push({ itemId: itemId, amount: amount });
+                }
             });
+            
+            // Calculate GST for each checked item
+            if (checkedItems.length > 0 && grossAmount > 0) {
+                console.log('Calculating HSN GST for ' + checkedItems.length + ' items:', checkedItems);
+                console.log('Supplier state:', supplierState, 'Is Tamil Nadu:', isTamilNadu);
+                
+                // Make AJAX call to get HSN-based GST rates for all items
+                $.ajax({
+                    url: '@Url.Action("GetMaterialHSNGST", "RawMaterialInvoice")',
+                    type: 'POST',
+                    data: JSON.stringify({ items: checkedItems, isTamilNadu: isTamilNadu }),
+                    contentType: 'application/json',
+                    async: false, // Synchronous to update display immediately
+                    success: function(response) {
+                        console.log('HSN GST API Response:', response);
+                        if (response.success && response.gstData) {
+                            totalCGST = response.gstData.totalCGST || 0;
+                            totalSGST = response.gstData.totalSGST || 0;
+                            totalIGST = response.gstData.totalIGST || 0;
+                            hasGST = response.gstData.hasGST || false;
+                            
+                            console.log('HSN GST Calculated - CGST: ₹' + totalCGST.toFixed(2) + ', SGST: ₹' + totalSGST.toFixed(2) + ', IGST: ₹' + totalIGST.toFixed(2));
+                            
+                            // Update GST display - ALWAYS show based on supplier state (even if 0)
+                            $('#noTaxRow').hide();
+                            
+                            if (isTamilNadu) {
+                                // Tamil Nadu: Show CGST + SGST (always, even if 0)
+                                $('#cgstRateDisplay').text('@@ ' + response.gstData.cgstRate + '%');
+                                $('#cgstAmountDisplay').text('₹ ' + totalCGST.toFixed(2));
+                                $('#cgstRow').show();
+                                
+                                $('#sgstRateDisplay').text('@@ ' + response.gstData.sgstRate + '%');
+                                $('#sgstAmountDisplay').text('₹ ' + totalSGST.toFixed(2));
+                                $('#sgstRow').show();
+                                
+                                $('#igstRow').hide();
+                            } else {
+                                // Other States: Show IGST only (always, even if 0)
+                                $('#igstRateDisplay').text('@@ ' + response.gstData.igstRate + '%');
+                                $('#igstAmountDisplay').text('₹ ' + totalIGST.toFixed(2));
+                                $('#igstRow').show();
+                                
+                                $('#cgstRow').hide();
+                                $('#sgstRow').hide();
+                            }
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error fetching GST data:', error);
+                        console.error('Status:', status);
+                        console.error('Response:', xhr.responseText);
+                        $('#noTaxRow').show();
+                        $('#cgstRow, #sgstRow, #igstRow').hide();
+                    }
+                });
+            } else {
+                // No items selected - show default
+                $('#noTaxRow').show();
+                $('#cgstRow, #sgstRow, #igstRow').hide();
+            }
+            
+            // Update display
             $('#grossAmount').text('₹ ' + grossAmount.toFixed(2));
+            
+            // Calculate total tax = HSN GST + Manual Cost Factors from popup
+            var hsnGSTTotal = totalCGST + totalSGST + totalIGST;
+            var manualCostFactorTotal = 0;
+            
+            // Add manual cost factors from Tax popup (if any)
+            if (taxData && taxData.length > 0) {
+                taxData.forEach(function(tax) {
+                    manualCostFactorTotal += tax.DEDVALUE || 0;
+                });
+            }
+            
+            var totalTax = hsnGSTTotal + manualCostFactorTotal;
+            var grandTotal = grossAmount + totalTax;
+            
+            // Update Grand Total display
+            $('#grandTotalDisplay').text('₹ ' + grandTotal.toFixed(2));
+            
+            // Remove existing otherChargesRow first to prevent duplicates
+            $('#otherChargesRow').remove();
+            
+            // Show manual cost factors as separate line if present
+            if (manualCostFactorTotal > 0) {
+                // Show additional cost factors below GST
+                var costFactorHtml = '<div style="margin-bottom: 8px;"><strong>Other Charges: </strong><span class="text-info" style="font-size: 18px; font-weight: bold; margin-left: 10px;">₹ ' + manualCostFactorTotal.toFixed(2) + '</span></div>';
+                $('#gstBreakdown').append('<div id="otherChargesRow">' + costFactorHtml + '</div>');
+            }
+            
+            console.log('Gross: ₹' + grossAmount.toFixed(2) + ', HSN GST: ₹' + hsnGSTTotal.toFixed(2) + ', Manual Cost: ₹' + manualCostFactorTotal.toFixed(2) + ', Total Tax: ₹' + totalTax.toFixed(2) + ', Grand: ₹' + grandTotal.toFixed(2));
         }
 
         function clearSupplierDetails() {
@@ -746,12 +1129,17 @@
             $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-muted">Please select a supplier to load items</td></tr>');
             $('#selectAll').prop('checked', false);
             $('#grossAmount').text('₹ 0.00');
+            $('#grandTotalDisplay').text('₹ 0.00');
+            // Reset GST display
+            $('#noTaxRow').show();
+            $('#cgstRow, #sgstRow, #igstRow, #otherChargesRow').hide();
         }
 
         // Tax Modal Functions
         var costFactorsData = [];
         var taxRowIndex = 0;
         var taxRows = [];
+        var taxData = []; // Store tax calculation data
 
         function openTaxModal() {
             // Load cost factors
@@ -808,10 +1196,48 @@
             
             $('#taxTableBody').append(html);
             
-            // Add event listeners
-            $('[data-row-id="' + rowId + '"]').on('change input', function() {
+            // Add event listener for cost factor selection
+            $('.cost-factor[data-row-id="' + rowId + '"]').on('change', function() {
+                onCostFactorChange(rowId);
+            });
+            
+            // Add event listeners for calculation
+            $('.expression[data-row-id="' + rowId + '"], .mode[data-row-id="' + rowId + '"], .value-input[data-row-id="' + rowId + '"]').on('change input', function() {
                 calculateTaxRow(rowId);
             });
+        }
+
+        function onCostFactorChange(rowId) {
+            var cfId = $('.cost-factor[data-row-id="' + rowId + '"]').val();
+            
+            if (cfId) {
+                var costFactor = costFactorsData.find(cf => cf.CFID == cfId);
+                
+                if (costFactor) {
+                    // Set expression type based on CFTYPE (0=%, 1=Value)
+                    var expressionType = costFactor.CFTYPE == 0 ? 'Percentage' : 'Value';
+                    $('.expression[data-row-id="' + rowId + '"]').val(expressionType);
+                    
+                    // Set mode based on CFMODE (0=ADD(+), 1=DEDUCT(-))
+                    var mode = costFactor.CFMODE == 0 ? '+' : '-';
+                    $('.mode[data-row-id="' + rowId + '"]').val(mode);
+                    
+                    // Set value from CFEXPR and make it readonly
+                    var valueInput = $('.value-input[data-row-id="' + rowId + '"]');
+                    valueInput.val(costFactor.CFEXPR.toFixed(2));
+                    valueInput.prop('readonly', true);
+                    valueInput.css('background-color', '#e9ecef');
+                    
+                    // Calculate the row
+                    calculateTaxRow(rowId);
+                }
+            } else {
+                // If no cost factor selected, make value editable again
+                var valueInput = $('.value-input[data-row-id="' + rowId + '"]');
+                valueInput.prop('readonly', false);
+                valueInput.css('background-color', '');
+                valueInput.val('0.00');
+            }
         }
 
         function deleteTaxRow(rowId) {
@@ -819,8 +1245,22 @@
             updateTaxTotals();
         }
 
+        // Get total of selected items only
+        function getSelectedItemsTotal() {
+            var selectedTotal = 0;
+            $('#itemsTableBody tr').each(function() {
+                var checkbox = $(this).find('.row-checkbox');
+                if (checkbox.is(':checked')) {
+                    var amount = parseFloat($(this).find('.amount').val()) || 0;
+                    selectedTotal += amount;
+                }
+            });
+            return selectedTotal;
+        }
+
         function calculateTaxRow(rowId) {
-            var grossAmount = parseFloat($('#grossAmount').text().replace('₹ ', '').replace(',', '')) || 0;
+            // Use selected items total instead of gross amount
+            var selectedTotal = getSelectedItemsTotal();
             var expression = $('.expression[data-row-id="' + rowId + '"]').val();
             var mode = $('.mode[data-row-id="' + rowId + '"]').val();
             var value = parseFloat($('.value-input[data-row-id="' + rowId + '"]').val()) || 0;
@@ -829,7 +1269,7 @@
             if (expression === 'Value') {
                 amount = value;
             } else if (expression === 'Percentage') {
-                amount = (grossAmount * value) / 100;
+                amount = (selectedTotal * value) / 100;
             }
             
             // Apply mode (+ or -)
@@ -847,17 +1287,65 @@
                 totalTax += parseFloat($(this).val()) || 0;
             });
             
-            var grossAmount = parseFloat($('#grossAmount').text().replace('₹ ', '').replace(',', '')) || 0;
-            var grandTotal = grossAmount + totalTax;
+            // Use selected items total for calculation
+            var selectedTotal = getSelectedItemsTotal();
+            var grandTotal = selectedTotal + totalTax;
             
+            // Update modal footer totals
             $('#totalTaxAmount').text('₹ ' + totalTax.toFixed(2));
             $('#grandTotal').text('₹ ' + grandTotal.toFixed(2));
+            
+            console.log('Tax Totals Updated - Selected Total: ₹' + selectedTotal.toFixed(2) + ', Tax: ₹' + totalTax.toFixed(2) + ', Grand Total: ₹' + grandTotal.toFixed(2));
         }
 
         function applyTaxCalculation() {
+            // Collect tax data from table
+            taxData = [];
+            $('#taxTableBody tr').each(function() {
+                var rowId = $(this).data('row-id');
+                var cfSelect = $('.cost-factor[data-row-id="' + rowId + '"]');
+                var cfId = cfSelect.val();
+                
+                if (cfId) {
+                    var selectedOption = cfSelect.find('option:selected');
+                    var costFactor = costFactorsData.find(cf => cf.CFID == cfId);
+                    var cfDesc = cfSelect.find('option:selected').text().toUpperCase();
+                    var cfExpr = parseFloat($('.value-input[data-row-id="' + rowId + '"]').val()) || 0;
+                    var dedValue = parseFloat($('.amount-output[data-row-id="' + rowId + '"]').val()) || 0;
+                    
+                    // Determine GST type based on cost factor description
+                    var cgstExprn = 0, sgstExprn = 0, igstExprn = 0;
+                    
+                    if (cfDesc.includes('CGST')) {
+                        cgstExprn = cfExpr;  // Save CGST percentage (e.g., 9)
+                    } else if (cfDesc.includes('SGST')) {
+                        sgstExprn = cfExpr;  // Save SGST percentage (e.g., 9)
+                    } else if (cfDesc.includes('IGST')) {
+                        igstExprn = cfExpr;  // Save IGST percentage (e.g., 18)
+                    }
+                    
+                    taxData.push({
+                        CFID: parseInt(cfId),
+                        CFDESC: cfSelect.find('option:selected').text(),
+                        CFEXPR: cfExpr,
+                        CFMODE: $('.mode[data-row-id="' + rowId + '"]').val() === '+' ? 0 : 1,
+                        CFTYPE: $('.expression[data-row-id="' + rowId + '"]').val() === 'Percentage' ? 0 : 1,
+                        DEDVALUE: dedValue,
+                        CFOPTN: costFactor ? costFactor.CFOPTN : 0,
+                        DORDRID: costFactor ? costFactor.DORDRID : 0,
+                        CGSTEXPRN: cgstExprn,  // CGST percentage from CFEXPR if CGST
+                        SGSTEXPRN: sgstExprn,  // SGST percentage from CFEXPR if SGST
+                        IGSTEXPRN: igstExprn   // IGST percentage from CFEXPR if IGST
+                    });
+                }
+            });
+            
+            // Update display with both HSN GST and manual cost factors
+            calculateGrossAmount(); // This will update the full breakdown
+            
             // Close modal
             $('#taxModal').modal('hide');
-            alert('Tax calculation applied successfully!');
+            console.log('Tax data collected:', taxData);
         }
 
         function saveInvoice() {
@@ -889,11 +1377,14 @@
                 RefNo: $('#refNo').val(),
                 Status: $('#status').val(),
                 SupplierId: $('#supplierName').val(),
-                Items: []
+                Items: [],
+                TaxFactors: taxData  // Include tax calculation data
             };
 
-            // Collect items data
+            // Collect items data - only selected items
             itemsData.forEach(function (item, index) {
+                var checkbox = $('.row-checkbox[data-index="' + index + '"]');
+                var isSelected = checkbox.is(':checked');
                 var netWeight = parseFloat($('.net-weight[data-index="' + index + '"]').val()) || 0;
                 var rate = parseFloat($('.rate[data-index="' + index + '"]').val()) || 0;
                 var amount = parseFloat($('.amount[data-index="' + index + '"]').val()) || 0;
@@ -908,7 +1399,9 @@
                         ActualWeight: item.ActualWeight || 0,
                         NetWeight: netWeight,
                         Rate: rate,
-                        Amount: amount
+                        Amount: amount,
+                        TRANPID: item.TRANPID || 0,  // Transaction Product Calculation ID
+                        IsSelected: isSelected    // Mark if item is selected for tax calculation
                     });
                 }
             });

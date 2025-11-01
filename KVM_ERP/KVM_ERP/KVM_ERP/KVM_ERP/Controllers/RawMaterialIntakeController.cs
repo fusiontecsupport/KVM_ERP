@@ -84,8 +84,8 @@ namespace KVM_ERP.Controllers
 
             if (id != null && id > 0)
             {
-                // Edit
-                model = db.TransactionMasters.FirstOrDefault(t => t.TRANMID == id) ?? new TransactionMaster();
+                // Edit - Only load Raw Material Intake records (REGSTRID=1)
+                model = db.TransactionMasters.FirstOrDefault(t => t.TRANMID == id && t.REGSTRID == 1) ?? new TransactionMaster();
                 // Preselect supplier by code (preferred) or name
                 var sel = suppliers.FirstOrDefault(x => x.CATECODE == model.CATECODE)
                           ?? suppliers.FirstOrDefault(x => x.CATENAME == model.CATENAME);
@@ -419,7 +419,7 @@ namespace KVM_ERP.Controllers
                     }
                 }
 
-                // Build the SQL query with optional date filtering
+                // Build the SQL query with optional date filtering - ONLY Raw Material Intake (REGSTRID=1)
                 string sql = $@"SELECT tm.TRANMID, tm.TRANDATE, tm.CATENAME, tm.CATECODE, tm.VECHNO, tm.DISPSTATUS,
                              ISNULL(p.PRODUCTS,'') AS PRODUCTS
                       FROM TRANSACTIONMASTER tm
@@ -434,7 +434,7 @@ namespace KVM_ERP.Controllers
                          FROM TRANSACTIONDETAIL td
                          GROUP BY td.TRANMID
                       ) p ON p.TRANMID = tm.TRANMID
-                      WHERE 1=1 {whereClause}
+                      WHERE tm.REGSTRID = 1 {whereClause}
                       ORDER BY tm.TRANDATE DESC, tm.TRANMID DESC";
 
                 // Debug logging

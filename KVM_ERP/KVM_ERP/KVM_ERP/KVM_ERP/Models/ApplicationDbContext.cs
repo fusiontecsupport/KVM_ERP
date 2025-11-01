@@ -33,6 +33,7 @@ namespace KVM_ERP.Models
         public DbSet<MaterialMaster> MaterialMasters { get; set; }
         public DbSet<TransactionMaster> TransactionMasters { get; set; }
         public DbSet<TransactionDetail> TransactionDetails { get; set; }
+        public DbSet<TransactionMasterFactor> TransactionMasterFactors { get; set; }
         public DbSet<TransactionProductCalculation> TransactionProductCalculations { get; set; }
         public DbSet<TransactionQualityCheck> TransactionQualityChecks { get; set; }
         public DbSet<LaboratoryMaster> LaboratoryMasters { get; set; }
@@ -72,8 +73,14 @@ namespace KVM_ERP.Models
 
             //modelBuilder.Entity<TransactionMaster>().Property(d => d.TRANCRATE).HasPrecision(18, 4);
             
-            // Configure TransactionMaster decimal precision for TRANNAMT
+            // Configure TransactionMaster decimal precision for TRANNAMT and GST fields
             modelBuilder.Entity<TransactionMaster>().Property(d => d.TRANNAMT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionMaster>().Property(d => d.TRANCGSTAMT).HasPrecision(18, 2);
+            modelBuilder.Entity<TransactionMaster>().Property(d => d.TRANSGSTAMT).HasPrecision(18, 2);
+            modelBuilder.Entity<TransactionMaster>().Property(d => d.TRANIGSTAMT).HasPrecision(18, 2);
+            modelBuilder.Entity<TransactionMaster>().Property(d => d.TRANCGSTEXPRN).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionMaster>().Property(d => d.TRANSGSTEXPRN).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionMaster>().Property(d => d.TRANIGSTEXPRN).HasPrecision(18, 3);
             
             // Configure CurrencyMaster decimal precision
             modelBuilder.Entity<CurrencyMaster>().Property(d => d.CURNAMT).HasPrecision(18, 2);
@@ -146,11 +153,21 @@ namespace KVM_ERP.Models
             modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDCGSTEXPRN).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDSGSTEXPRN).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDIGSTEXPRN).HasPrecision(18, 3);
-            modelBuilder.Entity<TransactionDetail>().Property(t => t.CGSTA).HasPrecision(18, 3);
-            modelBuilder.Entity<TransactionDetail>().Property(t => t.SGSTA).HasPrecision(18, 3);
-            modelBuilder.Entity<TransactionDetail>().Property(t => t.IGSTAMT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDCGSTAMT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDSGSTAMT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDIGSTAMT).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDNAMT).HasPrecision(18, 3);
-            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDAID).HasPrecision(18, 3);
+            // TRANDAID is INT type - no precision configuration needed
+
+            // Configure TransactionMasterFactor decimal precision for all decimal fields
+            modelBuilder.Entity<TransactionMasterFactor>().Property(t => t.DEDEXPRN).HasPrecision(18, 2);
+            modelBuilder.Entity<TransactionMasterFactor>().Property(t => t.DEDVALUE).HasPrecision(18, 2);
+            modelBuilder.Entity<TransactionMasterFactor>().Property(t => t.TRANCFCGSTEXPRN).HasPrecision(18, 2);
+            modelBuilder.Entity<TransactionMasterFactor>().Property(t => t.TRANCFSGSTEXPRN).HasPrecision(18, 2);
+            modelBuilder.Entity<TransactionMasterFactor>().Property(t => t.TRANCFIGSTEXPRN).HasPrecision(18, 2);
+            modelBuilder.Entity<TransactionMasterFactor>().Property(t => t.TRANCFCGSTAMT).HasPrecision(18, 2);
+            modelBuilder.Entity<TransactionMasterFactor>().Property(t => t.TRANCFSGSTAMT).HasPrecision(18, 2);
+            modelBuilder.Entity<TransactionMasterFactor>().Property(t => t.TRANCFIGSTAMT).HasPrecision(18, 2);
 
             // Keep this:
             modelBuilder.Entity<IdentityUser>().ToTable("AspNetUsers");
