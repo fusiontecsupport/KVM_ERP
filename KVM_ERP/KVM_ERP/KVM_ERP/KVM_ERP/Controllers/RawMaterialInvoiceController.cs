@@ -37,10 +37,10 @@ namespace KVM_ERP.Controllers
             {
                 System.Diagnostics.Debug.WriteLine($"GetAjaxData called - FromDate: {fromDate}, ToDate: {toDate}");
                 
-                // Build SQL query with date filtering - calculate GRAND TOTAL (Subtotal + Tax)
+                // Build SQL query with date filtering - Get GRAND TOTAL from TRANSACTIONMASTER
+                // TRANNAMT column stores the grand total (Subtotal + CGST + SGST + IGST)
                 var sql = @"SELECT tm.TRANMID, tm.TRANDATE, tm.TRANNO, tm.TRANDNO, tm.TRANREFNO, tm.CATENAME, 
-                           (ISNULL((SELECT SUM(TRANDAMT) FROM TRANSACTIONDETAIL WHERE TRANMID = tm.TRANMID), 0) +
-                            ISNULL((SELECT SUM(DEDVALUE) FROM TRANSACTIONMASTERFACTOR WHERE TRANMID = tm.TRANMID), 0)) as TRANNAMT,
+                           ISNULL(tm.TRANNAMT, 0) as TRANNAMT,
                            tm.DISPSTATUS
                            FROM TRANSACTIONMASTER tm
                            WHERE tm.REGSTRID = 2";
@@ -151,7 +151,7 @@ namespace KVM_ERP.Controllers
                     return Json(new { success = false, message = "Invoice not found" });
                 }
 
-                // STEP 1: Get TRANDAID values from invoice BEFORE deleting
+                // STEP 1: Get TRANDAID values for logging (items that will become available again)
                 var trandaidValues = context.Database.SqlQuery<int>(
                     @"SELECT DISTINCT TRANDAID 
                       FROM TRANSACTIONDETAIL 
@@ -159,38 +159,25 @@ namespace KVM_ERP.Controllers
                     id
                 ).ToList();
 
-                System.Diagnostics.Debug.WriteLine($"Found {trandaidValues.Count} TRANDAID values to reset: {string.Join(", ", trandaidValues)}");
+                System.Diagnostics.Debug.WriteLine($"Deleting invoice {id}. {trandaidValues.Count} items will become available: {string.Join(", ", trandaidValues)}");
 
-                // STEP 2: Reset TRANDAID in Raw Material Intake records (make items available again)
-                if (trandaidValues.Any())
-                {
-                    foreach (var tranpid in trandaidValues)
-                    {
-                        var resetSql = @"
-                            UPDATE td
-                            SET td.TRANDAID = 0
-                            FROM TRANSACTIONDETAIL td
-                            INNER JOIN TRANSACTION_PRODUCT_CALCULATION tpc ON td.TRANDID = tpc.TRANDID
-                            WHERE tpc.TRANPID = @p0 AND td.TRANDAID > 0";
-                        
-                        int rowsReset = context.Database.ExecuteSqlCommand(resetSql, tranpid);
-                        System.Diagnostics.Debug.WriteLine($"  Reset TRANDAID=0 for TRANPID={tranpid}, rows affected: {rowsReset}");
-                    }
-                }
+                // NOTE: We do NOT update Raw Material Intake (REGSTRID=1) records
+                // When invoice TRANSACTIONDETAIL is deleted, those TRANPID values automatically become available
+                // because they won't appear in the NOT IN (SELECT TRANDAID...) subquery anymore
 
-                // STEP 3: Delete tax factors
+                // STEP 2: Delete tax factors
                 context.Database.ExecuteSqlCommand(
                     "DELETE FROM TRANSACTIONMASTERFACTOR WHERE TRANMID = @p0",
                     id
                 );
 
-                // STEP 4: Delete invoice items
+                // STEP 3: Delete invoice items (this makes TRANPID values available again)
                 context.Database.ExecuteSqlCommand(
                     "DELETE FROM TRANSACTIONDETAIL WHERE TRANMID = @p0",
                     id
                 );
 
-                // STEP 5: Delete the invoice header
+                // STEP 4: Delete the invoice header
                 context.Database.ExecuteSqlCommand(
                     "DELETE FROM TRANSACTIONMASTER WHERE TRANMID = @p0 AND REGSTRID = 2",
                     id
@@ -371,7 +358,17 @@ namespace KVM_ERP.Controllers
                         AND tm.REGSTRID = 1
                         AND (tm.DISPSTATUS = 0 OR tm.DISPSTATUS IS NULL)
                         AND (td.DISPSTATUS = 0 OR td.DISPSTATUS IS NULL)
-                        AND (td.TRANDAID IS NULL OR td.TRANDAID = 0)  -- Only show items NOT yet invoiced
+                        AND tpc.TRANPID IS NOT NULL
+                        AND tpc.TRANPID > 0
+                        AND tpc.TRANPID NOT IN (
+                            SELECT DISTINCT TRANDAID 
+                            FROM TRANSACTIONDETAIL invtd
+                            INNER JOIN TRANSACTIONMASTER invtm ON invtd.TRANMID = invtm.TRANMID
+                            WHERE invtm.REGSTRID = 2 
+                                AND invtd.TRANDAID > 0
+                                AND (invtd.DISPSTATUS = 0 OR invtd.DISPSTATUS IS NULL)
+                                AND (invtm.DISPSTATUS = 0 OR invtm.DISPSTATUS IS NULL)
+                        )
                     ORDER BY m.MTRLDESC
                 ", supplierCode).ToList();
 
@@ -435,6 +432,153 @@ namespace KVM_ERP.Controllers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error getting invoice items: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                }
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // Get ALL items for editing: saved items (checked) + available items (unchecked)
+        [HttpPost]
+        public JsonResult GetInvoiceItemsForEdit(int invoiceId)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"GetInvoiceItemsForEdit called for invoiceId: {invoiceId}");
+                
+                // STEP 1: Get supplier code from the invoice
+                var supplierCode = context.Database.SqlQuery<string>(@"
+                    SELECT CATECODE 
+                    FROM TRANSACTIONMASTER 
+                    WHERE TRANMID = @p0
+                ", invoiceId).FirstOrDefault();
+                
+                if (string.IsNullOrEmpty(supplierCode))
+                {
+                    return Json(new { success = false, message = "Supplier not found for this invoice" });
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"Supplier code: {supplierCode}");
+                
+                // STEP 2: Get ALL available items from Raw Material Intake
+                // Show items that are NOT invoiced OR already in THIS invoice
+                var allItems = context.Database.SqlQuery<SupplierItemViewModel>(@"
+                    SELECT DISTINCT
+                        m.MTRLID as ItemId,
+                        m.MTRLDESC as ItemName,
+                        td.MTRLGID as MaterialGroupId,
+                        ISNULL(tpc.GRADEID, 0) as GradeId,
+                        g.GRADEDESC as Grade,
+                        ISNULL(tpc.PCLRID, 0) as ProductionColourId,
+                        pcm.PCLRDESC as ProductionColour,
+                        ISNULL(tpc.RCVDTID, 0) as ReceivedTypeId,
+                        rt.RCVDTDESC as ReceivedType,
+                        ISNULL(tpc.FACTORYWGT, 0) as ActualWeight,
+                        ISNULL(tpc.TRANPID, 0) as TRANPID
+                    FROM TRANSACTIONMASTER tm
+                    INNER JOIN TRANSACTIONDETAIL td ON tm.TRANMID = td.TRANMID
+                    INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
+                    LEFT JOIN TRANSACTION_PRODUCT_CALCULATION tpc ON td.TRANDID = tpc.TRANDID
+                    LEFT JOIN GRADEMASTER g ON tpc.GRADEID = g.GRADEID
+                    LEFT JOIN PRODUCTIONCOLOURMASTER pcm ON tpc.PCLRID = pcm.PCLRID
+                    LEFT JOIN RECEIVEDTYPEMASTER rt ON tpc.RCVDTID = rt.RCVDTID
+                    WHERE tm.CATECODE = @p0
+                        AND tm.REGSTRID = 1
+                        AND (tm.DISPSTATUS = 0 OR tm.DISPSTATUS IS NULL)
+                        AND (td.DISPSTATUS = 0 OR td.DISPSTATUS IS NULL)
+                        AND tpc.TRANPID IS NOT NULL
+                        AND tpc.TRANPID > 0
+                        AND (
+                            tpc.TRANPID NOT IN (
+                                SELECT DISTINCT TRANDAID 
+                                FROM TRANSACTIONDETAIL invtd
+                                INNER JOIN TRANSACTIONMASTER invtm ON invtd.TRANMID = invtm.TRANMID
+                                WHERE invtm.REGSTRID = 2 
+                                    AND invtd.TRANDAID > 0
+                                    AND (invtd.DISPSTATUS = 0 OR invtd.DISPSTATUS IS NULL)
+                                    AND (invtm.DISPSTATUS = 0 OR invtm.DISPSTATUS IS NULL)
+                            )
+                            OR tpc.TRANPID IN (
+                                SELECT DISTINCT TRANDAID 
+                                FROM TRANSACTIONDETAIL invtd
+                                WHERE invtd.TRANMID = @p1
+                                    AND invtd.TRANDAID > 0
+                                    AND (invtd.DISPSTATUS = 0 OR invtd.DISPSTATUS IS NULL)
+                            )
+                        )
+                    ORDER BY m.MTRLDESC
+                ", supplierCode, invoiceId).ToList();
+                
+                System.Diagnostics.Debug.WriteLine($"Found {allItems.Count} total available items");
+                
+                // STEP 3: Get saved items from THIS invoice
+                var savedItems = context.Database.SqlQuery<InvoiceItemEditViewModel>(@"
+                    SELECT 
+                        td.TRANDID,
+                        td.MTRLID as ItemId,
+                        td.MTRLGID as MaterialGroupId,
+                        td.GRADEID as GradeId,
+                        td.PCLRID as ProductionColourId,
+                        td.RCVDTID as ReceivedTypeId,
+                        td.TRANAQTY as ActualWeight,
+                        td.TRANDQTY as NetWeight,
+                        td.TRANDRATE as Rate,
+                        td.TRANDAMT as Amount,
+                        ISNULL(td.TRANDAID, 0) as TRANPID
+                    FROM TRANSACTIONDETAIL td
+                    WHERE td.TRANMID = @p0
+                        AND (td.DISPSTATUS = 0 OR td.DISPSTATUS IS NULL)
+                ", invoiceId).ToList();
+                
+                System.Diagnostics.Debug.WriteLine($"Found {savedItems.Count} saved items in invoice");
+                
+                // STEP 4: Merge - add NetWeight, Rate, Amount to items that are saved
+                var mergedItems = allItems.Select(item => {
+                    // Match by TRANPID (should be unique identifier)
+                    var savedItem = savedItems.FirstOrDefault(s => s.TRANPID == item.TRANPID && item.TRANPID > 0);
+                    
+                    var isSelected = savedItem != null;
+                    
+                    System.Diagnostics.Debug.WriteLine($"  Item: {item.ItemName} (TRANPID={item.TRANPID}), SavedItem={savedItem != null}, IsSelected={isSelected}");
+                    
+                    return new {
+                        ItemId = item.ItemId,
+                        ItemName = item.ItemName,
+                        MaterialGroupId = item.MaterialGroupId,
+                        GradeId = item.GradeId,
+                        Grade = item.Grade,
+                        ProductionColourId = item.ProductionColourId,
+                        ProductionColour = item.ProductionColour,
+                        ReceivedTypeId = item.ReceivedTypeId,
+                        ReceivedType = item.ReceivedType,
+                        ActualWeight = item.ActualWeight,
+                        NetWeight = savedItem?.NetWeight ?? item.ActualWeight,  // Use saved or default to actual
+                        Rate = savedItem?.Rate ?? 0,  // Use saved or 0
+                        Amount = savedItem?.Amount ?? 0,  // Use saved or 0
+                        TRANPID = item.TRANPID,
+                        IsSelected = isSelected  // Checked if it was saved
+                    };
+                }).ToList();
+                
+                var selectedCount = mergedItems.Count(i => i.IsSelected);
+                System.Diagnostics.Debug.WriteLine($"Merged result: {mergedItems.Count} total items, {selectedCount} selected");
+                
+                if (selectedCount > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("Selected items:");
+                    foreach (var item in mergedItems.Where(i => i.IsSelected))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"  ✓ {item.ItemName} (TRANPID={item.TRANPID})");
+                    }
+                }
+                
+                return Json(new { success = true, data = mergedItems });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in GetInvoiceItemsForEdit: {ex.Message}");
                 if (ex.InnerException != null)
                 {
                     System.Diagnostics.Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
@@ -637,7 +781,18 @@ namespace KVM_ERP.Controllers
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"SaveInvoice called. InvoiceId: {model.InvoiceId}, SupplierId: {model.SupplierId}");
+                System.Diagnostics.Debug.WriteLine($"========== SaveInvoice called ==========");
+                System.Diagnostics.Debug.WriteLine($"InvoiceId: {model.InvoiceId}, SupplierId: {model.SupplierId}");
+                System.Diagnostics.Debug.WriteLine($"InvoiceDate: {model.InvoiceDate}, RefNo: {model.RefNo}");
+                System.Diagnostics.Debug.WriteLine($"Total Items in request: {model.Items?.Count ?? 0}");
+                
+                if (model.Items != null)
+                {
+                    foreach (var item in model.Items)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"  Item: ItemId={item.ItemId}, IsSelected={item.IsSelected}, NetWeight={item.NetWeight}, Rate={item.Rate}");
+                    }
+                }
 
                 // Get supplier details
                 var supplier = context.SupplierMasters
@@ -702,32 +857,7 @@ namespace KVM_ERP.Controllers
                     tranNo = existingData.TRANNO;
                     tranDNo = existingData.TRANDNO;
 
-                    // EDIT MODE: Get OLD TRANDAID values BEFORE deleting items (so we can reset them)
-                    var oldTrandaidValues = context.Database.SqlQuery<int>(
-                        @"SELECT DISTINCT TRANDAID 
-                          FROM TRANSACTIONDETAIL 
-                          WHERE TRANMID = @p0 AND TRANDAID > 0",
-                        tranMId
-                    ).ToList();
-                    
-                    System.Diagnostics.Debug.WriteLine($"EDIT MODE: Found {oldTrandaidValues.Count} old TRANDAID values to reset: {string.Join(", ", oldTrandaidValues)}");
-
-                    // EDIT MODE: Reset old TRANDAID values in Raw Material Intake (make them available again)
-                    if (oldTrandaidValues.Any())
-                    {
-                        foreach (var oldTranpid in oldTrandaidValues)
-                        {
-                            var resetSql = @"
-                                UPDATE td
-                                SET td.TRANDAID = 0
-                                FROM TRANSACTIONDETAIL td
-                                INNER JOIN TRANSACTION_PRODUCT_CALCULATION tpc ON td.TRANDID = tpc.TRANDID
-                                WHERE tpc.TRANPID = @p0";
-                            
-                            int rowsReset = context.Database.ExecuteSqlCommand(resetSql, oldTranpid);
-                            System.Diagnostics.Debug.WriteLine($"  Reset old TRANDAID=0 for TRANPID={oldTranpid}, rows affected: {rowsReset}");
-                        }
-                    }
+                    System.Diagnostics.Debug.WriteLine($"EDIT MODE: Updating existing invoice TRANMID={tranMId}");
 
                     // Update TRANSACTIONMASTER basic fields - only for Raw Material Invoice (REGSTRID=2)
                     // NOTE: GST totals will be updated after items are saved and calculated
@@ -826,6 +956,7 @@ namespace KVM_ERP.Controllers
                 }
 
                 // Save invoice items to TRANSACTIONDETAIL with GST calculations
+                // FILTER: Only save items where IsSelected = true (checkbox is checked)
                 if (model.Items != null && model.Items.Count > 0)
                 {
                     decimal subtotal = 0.00m;
@@ -833,7 +964,17 @@ namespace KVM_ERP.Controllers
                     totalSGST = 0.00m;
                     totalIGST = 0.00m;
 
-                    foreach (var item in model.Items)
+                    // Only process SELECTED items (IsSelected = true)
+                    var selectedItems = model.Items.Where(i => i.IsSelected).ToList();
+                    System.Diagnostics.Debug.WriteLine($"Total items in request: {model.Items.Count}, Selected items: {selectedItems.Count}");
+
+                    // Validate: At least one item must be selected
+                    if (selectedItems.Count == 0)
+                    {
+                        return Json(new { success = false, message = "Please select at least one item to save in the invoice" });
+                    }
+
+                    foreach (var item in selectedItems)
                     {
                         // Get Material Master to find HSNID
                         var material = context.MaterialMasters
@@ -902,10 +1043,11 @@ namespace KVM_ERP.Controllers
                                 @p24, @p25, @p26, @p27
                             )";
 
-                        // CHECKBOX TO TRANDAID MAPPING (TRANDAID is INT type in database):
-                        int trandaid = item.IsSelected && item.TRANPID > 0 ? item.TRANPID : 0;
+                        // TRANDAID: Store TRANPID for reference in invoice (REGSTRID=2 only)
+                        // This does NOT update Raw Material Intake (REGSTRID=1) records
+                        int trandaid = item.TRANPID > 0 ? item.TRANPID : 0;
                         
-                        System.Diagnostics.Debug.WriteLine($"  Saving item: ItemId={item.ItemId}, HSNID={hsnId}, Gross=₹{grossAmount}, CGST=₹{itemCGST}, SGST=₹{itemSGST}, IGST=₹{itemIGST}, Net=₹{netAmount}");
+                        System.Diagnostics.Debug.WriteLine($"  Saving item: ItemId={item.ItemId}, TRANPID={item.TRANPID}, TRANDAID={trandaid}, HSNID={hsnId}, Gross=₹{grossAmount}, CGST=₹{itemCGST}, SGST=₹{itemSGST}, IGST=₹{itemIGST}, Net=₹{netAmount}");
 
                         context.Database.ExecuteSqlCommand(itemSql,
                             tranMId,                 // @p0 - TRANMID
@@ -931,7 +1073,7 @@ namespace KVM_ERP.Controllers
                             itemSGST,                // @p20 - TRANDSGSTAMT (SGST Amount)
                             itemIGST,                // @p21 - TRANDIGSTAMT (IGST Amount)
                             netAmount,               // @p22 - TRANDNAMT (Net Amount = Gross + GST)
-                            trandaid,                // @p23 - TRANDAID (TRANPID if selected, else 0)
+                            trandaid,                // @p23 - TRANDAID (Stores TRANPID reference for invoice)
                             currentUser,             // @p24 - CUSRID
                             currentUser,             // @p25 - LMUSRID
                             0,                       // @p26 - DISPSTATUS (0=Active)
@@ -951,26 +1093,11 @@ namespace KVM_ERP.Controllers
 
                     System.Diagnostics.Debug.WriteLine($"Invoice Totals: Subtotal=₹{subtotal}, CGST=₹{totalCGST}, SGST=₹{totalSGST}, IGST=₹{totalIGST}, Grand Total=₹{totalAmount}");
                     System.Diagnostics.Debug.WriteLine($"Amount in Words: {amountInWords}");
-                    System.Diagnostics.Debug.WriteLine($"Saved {model.Items.Count} items to TRANSACTIONDETAIL");
+                    System.Diagnostics.Debug.WriteLine($"Saved {selectedItems.Count} SELECTED items (out of {model.Items.Count} total items) to TRANSACTIONDETAIL");
                     
-                    // IMPORTANT: Update Raw Material Intake TRANSACTIONDETAIL records
-                    // Mark items as "already invoiced" to prevent duplicate invoices
-                    foreach (var item in model.Items.Where(i => i.IsSelected && i.TRANPID > 0))
-                    {
-                        // Find the TRANDID from TRANSACTION_PRODUCT_CALCULATION using TRANPID
-                        // NOTE: Removed "AND td.TRANDAID = 0" condition to support EDIT mode
-                        // In EDIT mode, old TRANDAID values are already reset to 0 (see lines 544-569)
-                        var updateSql = @"
-                            UPDATE td
-                            SET td.TRANDAID = @p1
-                            FROM TRANSACTIONDETAIL td
-                            INNER JOIN TRANSACTION_PRODUCT_CALCULATION tpc ON td.TRANDID = tpc.TRANDID
-                            WHERE tpc.TRANPID = @p0";
-                        
-                        int rowsAffected = context.Database.ExecuteSqlCommand(updateSql, item.TRANPID, item.TRANPID);
-                        System.Diagnostics.Debug.WriteLine($"  Set TRANDAID={item.TRANPID} for Raw Material Intake, rows affected={rowsAffected}");
-                    }
-                    System.Diagnostics.Debug.WriteLine($"Updated {model.Items.Count(i => i.IsSelected && i.TRANPID > 0)} Raw Material Intake records with new TRANDAID values");
+                    // IMPORTANT: TRANDAID behavior based on REGSTRID:
+                    // - REGSTRID=2 (Invoice): TRANDAID stores TRANPID as reference (saved above)
+                    // - REGSTRID=1 (Raw Material Intake): TRANDAID is NOT touched/updated
                     
                     // Update TRANSACTIONMASTER with calculated totals
                     var updateMasterSql = @"

@@ -684,8 +684,8 @@
                     }
                     
                     if (isEditMode && editId > 0) {
-                        // Load saved invoice items for editing
-                        loadInvoiceItems(editId);
+                        // Load ALL items for editing (saved + available)
+                        loadInvoiceItemsForEdit(editId);
                         // Load saved tax factors for editing
                         loadInvoiceTaxFactors(editId);
                     } else {
@@ -809,6 +809,52 @@
                 error: function (xhr, status, error) {
                     console.error('Error loading invoice items:', error);
                     $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-danger">Failed to load invoice items</td></tr>');
+                }
+            });
+        }
+
+        // Load ALL items for EDIT mode: saved items (checked) + available items (unchecked)
+        function loadInvoiceItemsForEdit(invoiceId) {
+            $.ajax({
+                url: '@Url.Action("GetInvoiceItemsForEdit", "RawMaterialInvoice")',
+                type: 'POST',
+                data: { invoiceId: invoiceId },
+                beforeSend: function () {
+                    $('#itemsTableBody').html('<tr><td colspan="10" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading items...</td></tr>');
+                },
+                success: function (response) {
+                    if (response.success && response.data && response.data.length > 0) {
+                        itemsData = response.data;
+                        renderItemsTable();
+                        
+                        // Populate values and checkbox state from merged data
+                        response.data.forEach(function(item, index) {
+                            console.log('Item ' + index + ': ' + item.ItemName + ', IsSelected=' + item.IsSelected + ', NetWeight=' + item.NetWeight + ', Rate=' + item.Rate);
+                            
+                            // Set checkbox based on IsSelected (true if item was in invoice)
+                            $('.row-checkbox[data-index="' + index + '"]').prop('checked', item.IsSelected);
+                            
+                            // Populate values (saved values if selected, defaults if not)
+                            $('.net-weight[data-index="' + index + '"]').val(item.NetWeight.toFixed(2));
+                            $('.rate[data-index="' + index + '"]').val(item.Rate.toFixed(2));
+                            $('.amount[data-index="' + index + '"]').val(item.Amount.toFixed(2));
+                        });
+                        
+                        // Update Select All checkbox state
+                        var totalCheckboxes = $('.row-checkbox').length;
+                        var checkedCheckboxes = $('.row-checkbox:checked').length;
+                        $('#selectAll').prop('checked', totalCheckboxes === checkedCheckboxes);
+                        
+                        calculateGrossAmount();
+                        
+                        console.log('Loaded ' + response.data.length + ' total items, ' + response.data.filter(i => i.IsSelected).length + ' selected');
+                    } else {
+                        $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-muted">No items found</td></tr>');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error loading items for edit:', error);
+                    $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-danger">Failed to load items</td></tr>');
                 }
             });
         }
@@ -984,10 +1030,29 @@
         }
 
         function calculateAmount(index) {
-            var netWeight = parseFloat($('.net-weight[data-index="' + index + '"]').val()) || 0;
+            var netWeightInput = $('.net-weight[data-index="' + index + '"]');
+            var netWeight = parseFloat(netWeightInput.val()) || 0;
             var rate = parseFloat($('.rate[data-index="' + index + '"]').val()) || 0;
             var amount = (netWeight * rate).toFixed(2);
             $('.amount[data-index="' + index + '"]').val(amount);
+            
+            // Validate Net Weight against Actual Weight (real-time visual feedback)
+            var actualWeight = parseFloat(itemsData[index].ActualWeight) || 0;
+            if (netWeight > actualWeight) {
+                // Add red border and show warning
+                netWeightInput.css({
+                    'border': '2px solid #dc3545',
+                    'background-color': '#fff5f5'
+                });
+                netWeightInput.attr('title', 'Net Weight (' + netWeight.toFixed(2) + ' kg) cannot exceed Actual Weight (' + actualWeight.toFixed(2) + ' kg)');
+            } else {
+                // Remove red border if valid
+                netWeightInput.css({
+                    'border': '1px solid #ced4da',
+                    'background-color': 'white'
+                });
+                netWeightInput.removeAttr('title');
+            }
             
             // Recalculate gross amount after amount changes
             calculateGrossAmount();
@@ -1381,7 +1446,7 @@
                 TaxFactors: taxData  // Include tax calculation data
             };
 
-            // Collect items data - only selected items
+            // Collect items data - ONLY CHECKED items with values
             itemsData.forEach(function (item, index) {
                 var checkbox = $('.row-checkbox[data-index="' + index + '"]');
                 var isSelected = checkbox.is(':checked');
@@ -1389,7 +1454,30 @@
                 var rate = parseFloat($('.rate[data-index="' + index + '"]').val()) || 0;
                 var amount = parseFloat($('.amount[data-index="' + index + '"]').val()) || 0;
 
-                if (netWeight > 0 || rate > 0) {
+                // ONLY include items that are CHECKED (isSelected = true)
+                if (isSelected) {
+                    // Validate that checked items have required values
+                    if (netWeight <= 0) {
+                        alert('Item "' + item.ItemName + '" is selected but has no Net Weight. Please enter a value or uncheck it.');
+                        invoiceData.Items = []; // Clear items to stop save
+                        return false; // Stop forEach
+                    }
+                    if (rate <= 0) {
+                        alert('Item "' + item.ItemName + '" is selected but has no Rate. Please enter a value or uncheck it.');
+                        invoiceData.Items = []; // Clear items to stop save
+                        return false; // Stop forEach
+                    }
+                    
+                    // Validate Net Weight cannot be greater than Actual Weight
+                    var actualWeight = parseFloat(item.ActualWeight) || 0;
+                    if (netWeight > actualWeight) {
+                        alert('Item "' + item.ItemName + '": Net Weight (' + netWeight.toFixed(2) + ' kg) cannot be greater than Actual Weight (' + actualWeight.toFixed(2) + ' kg). Please enter a valid Net Weight.');
+                        invoiceData.Items = []; // Clear items to stop save
+                        return false; // Stop forEach
+                    }
+
+                    console.log('Adding CHECKED item: ' + item.ItemName + ', ActualWeight=' + actualWeight + ', NetWeight=' + netWeight + ', Rate=' + rate);
+                    
                     invoiceData.Items.push({
                         ItemId: item.ItemId,
                         MaterialGroupId: item.MaterialGroupId || 0,
@@ -1401,17 +1489,32 @@
                         Rate: rate,
                         Amount: amount,
                         TRANPID: item.TRANPID || 0,  // Transaction Product Calculation ID
-                        IsSelected: isSelected    // Mark if item is selected for tax calculation
+                        IsSelected: true    // All items in array are selected
                     });
+                } else {
+                    console.log('Skipping UNCHECKED item: ' + item.ItemName);
                 }
             });
 
+            // Check if validation errors occurred
             if (invoiceData.Items.length === 0) {
-                alert('Please enter net weight and rate for at least one item');
+                // Check if there are ANY checked items at all
+                var checkedCount = $('.row-checkbox:checked').length;
+                if (checkedCount === 0) {
+                    alert('Please select at least one item to save');
+                } else {
+                    alert('Please enter net weight and rate for all selected items');
+                }
                 return;
             }
 
-            console.log('Invoice Data:', invoiceData);
+            console.log('========== INVOICE DATA TO SEND ==========');
+            console.log('Total Items:', invoiceData.Items.length);
+            console.log('Items Detail:', invoiceData.Items);
+            invoiceData.Items.forEach(function(item, index) {
+                console.log('  Item ' + index + ': ItemId=' + item.ItemId + ', IsSelected=' + item.IsSelected + ', NetWeight=' + item.NetWeight + ', Rate=' + item.Rate);
+            });
+            console.log('Full Invoice Data:', JSON.stringify(invoiceData, null, 2));
 
             // Save invoice via AJAX
             $.ajax({
