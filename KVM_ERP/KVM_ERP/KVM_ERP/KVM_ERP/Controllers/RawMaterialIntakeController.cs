@@ -420,7 +420,7 @@ namespace KVM_ERP.Controllers
                 }
 
                 // Build the SQL query with optional date filtering - ONLY Raw Material Intake (REGSTRID=1)
-                string sql = $@"SELECT tm.TRANMID, tm.TRANDATE, tm.CATENAME, tm.CATECODE, tm.VECHNO, tm.DISPSTATUS,
+                string sql = $@"SELECT tm.TRANMID, tm.TRANDATE, tm.TRANDNO, tm.CATENAME, tm.CATECODE, tm.VECHNO, tm.DISPSTATUS,
                              ISNULL(p.PRODUCTS,'') AS PRODUCTS
                       FROM TRANSACTIONMASTER tm
                       LEFT JOIN (
@@ -452,6 +452,7 @@ namespace KVM_ERP.Controllers
                 {
                     TRANMID = r.TRANMID,
                     TRANDATE = r.TRANDATE.ToString("yyyy-MM-dd"), // ISO for stable ordering; format on client if needed
+                    TRANDNO = r.TRANDNO ?? "0000",  // Display number
                     CATENAME = r.CATENAME ?? string.Empty,
                     CATECODE = r.CATECODE ?? string.Empty,
                     VECHNO = r.VECHNO ?? string.Empty,
@@ -494,6 +495,7 @@ namespace KVM_ERP.Controllers
         {
             public int TRANMID { get; set; }
             public DateTime TRANDATE { get; set; }
+            public string TRANDNO { get; set; }
             public string CATENAME { get; set; }
             public string CATECODE { get; set; }
             public string VECHNO { get; set; }

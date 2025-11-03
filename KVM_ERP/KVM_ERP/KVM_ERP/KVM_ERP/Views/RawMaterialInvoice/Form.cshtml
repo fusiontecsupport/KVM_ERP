@@ -1037,8 +1037,11 @@
             $('.amount[data-index="' + index + '"]').val(amount);
             
             // Validate Net Weight against Actual Weight (real-time visual feedback)
+            // Use rounding to 2 decimal places to avoid floating point precision issues
             var actualWeight = parseFloat(itemsData[index].ActualWeight) || 0;
-            if (netWeight > actualWeight) {
+            var netWeightRounded = Math.round(netWeight * 100) / 100;
+            var actualWeightRounded = Math.round(actualWeight * 100) / 100;
+            if (netWeightRounded > actualWeightRounded) {
                 // Add red border and show warning
                 netWeightInput.css({
                     'border': '2px solid #dc3545',
@@ -1469,8 +1472,11 @@
                     }
                     
                     // Validate Net Weight cannot be greater than Actual Weight
+                    // Use rounding to 2 decimal places to avoid floating point precision issues
                     var actualWeight = parseFloat(item.ActualWeight) || 0;
-                    if (netWeight > actualWeight) {
+                    var netWeightRounded = Math.round(netWeight * 100) / 100;
+                    var actualWeightRounded = Math.round(actualWeight * 100) / 100;
+                    if (netWeightRounded > actualWeightRounded) {
                         alert('Item "' + item.ItemName + '": Net Weight (' + netWeight.toFixed(2) + ' kg) cannot be greater than Actual Weight (' + actualWeight.toFixed(2) + ' kg). Please enter a valid Net Weight.');
                         invoiceData.Items = []; // Clear items to stop save
                         return false; // Stop forEach
