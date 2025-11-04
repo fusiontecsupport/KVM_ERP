@@ -216,9 +216,36 @@ namespace KVM_ERP.Controllers
                         var postedIds = new HashSet<int>(details.Where(x => x.TRANDID > 0).Select(x => x.TRANDID));
                         var toDelete = existingDetails.Where(x => !postedIds.Contains(x.TRANDID)).Select(x => x.TRANDID).ToList();
 
+                        // VALIDATION: Check if invoice has been generated before allowing deletion of detail rows
+                        if (toDelete.Any())
+                        {
+                            // Invoice links to intake through TRANPID (from TRANSACTION_PRODUCT_CALCULATION) 
+                            // which is stored as TRANDAID in invoice's TRANSACTIONDETAIL
+                            // Check if any of the rows being deleted are referenced in an invoice
+                            var checkInvoice = db.Database.SqlQuery<int>(
+                                @"SELECT COUNT(1) 
+                                  FROM TRANSACTIONDETAIL invtd
+                                  INNER JOIN TRANSACTIONMASTER invtm ON invtd.TRANMID = invtm.TRANMID
+                                  WHERE invtm.REGSTRID = 2
+                                  AND invtd.TRANDAID IN (
+                                      SELECT TRANPID 
+                                      FROM TRANSACTION_PRODUCT_CALCULATION
+                                      WHERE TRANDID IN (" + string.Join(",", toDelete) + @")
+                                  )").FirstOrDefault();
+                            
+                            if (checkInvoice > 0)
+                            {
+                                return Json(new { success = false, message = "Cannot delete product rows: Invoice has been generated for these items. Please delete the invoice first." });
+                            }
+                        }
+
                         // Delete removed rows
                         foreach (var delId in toDelete)
                         {
+                            // STEP 1: Delete from TRANSACTION_PRODUCT_CALCULATION first (child table)
+                            db.Database.ExecuteSqlCommand("DELETE FROM TRANSACTION_PRODUCT_CALCULATION WHERE TRANDID = @p0", delId);
+                            
+                            // STEP 2: Delete from TRANSACTIONDETAIL (parent table)
                             db.Database.ExecuteSqlCommand("DELETE FROM TRANSACTIONDETAIL WHERE TRANDID = @p0", delId);
                         }
 
@@ -477,12 +504,46 @@ namespace KVM_ERP.Controllers
         {
             try
             {
-                var exists = db.Database.SqlQuery<int>("SELECT COUNT(1) FROM TRANSACTIONMASTER WHERE TRANMID = @p0", id).FirstOrDefault();
+                var exists = db.Database.SqlQuery<int>("SELECT COUNT(1) FROM TRANSACTIONMASTER WHERE TRANMID = @p0 AND REGSTRID = 1", id).FirstOrDefault();
                 if (exists == 0)
                 {
                     return Json("Record not found");
                 }
-                db.Database.ExecuteSqlCommand("DELETE FROM TRANSACTIONMASTER WHERE TRANMID = @p0", id);
+                
+                // VALIDATION: Check if invoice has been generated for this intake
+                // Invoice links to intake through TRANPID (from TRANSACTION_PRODUCT_CALCULATION) 
+                // which is stored as TRANDAID in invoice's TRANSACTIONDETAIL
+                var checkInvoice = db.Database.SqlQuery<int>(
+                    @"SELECT COUNT(1) 
+                      FROM TRANSACTIONDETAIL invtd
+                      INNER JOIN TRANSACTIONMASTER invtm ON invtd.TRANMID = invtm.TRANMID
+                      WHERE invtm.REGSTRID = 2
+                      AND invtd.TRANDAID IN (
+                          SELECT TRANPID 
+                          FROM TRANSACTION_PRODUCT_CALCULATION tpc
+                          INNER JOIN TRANSACTIONDETAIL td ON tpc.TRANDID = td.TRANDID
+                          WHERE td.TRANMID = @p0
+                      )", 
+                    id).FirstOrDefault();
+                
+                if (checkInvoice > 0)
+                {
+                    return Json("Cannot delete: Invoice has been generated for this Raw Material Intake. Please delete the invoice first.");
+                }
+                
+                // Delete child records first to prevent foreign key violations
+                // Step 1: Delete product calculations
+                db.Database.ExecuteSqlCommand(
+                    @"DELETE FROM TRANSACTION_PRODUCT_CALCULATION 
+                      WHERE TRANDID IN (SELECT TRANDID FROM TRANSACTIONDETAIL WHERE TRANMID = @p0)", 
+                    id);
+                
+                // Step 2: Delete transaction details
+                db.Database.ExecuteSqlCommand("DELETE FROM TRANSACTIONDETAIL WHERE TRANMID = @p0", id);
+                
+                // Step 3: Delete the master record
+                db.Database.ExecuteSqlCommand("DELETE FROM TRANSACTIONMASTER WHERE TRANMID = @p0 AND REGSTRID = 1", id);
+                
                 return Json("Successfully deleted");
             }
             catch (Exception ex)
@@ -634,6 +695,75 @@ namespace KVM_ERP.Controllers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error getting calculation: {ex.Message}");
+                return Json(new { success = false, message = ex.Message }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        // Get all product calculations for a TRANDID (batch loading for better performance)
+        public JsonResult GetAllProductCalculations(int trandid)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"Batch loading calculations for TRANDID={trandid}");
+                
+                var calculations = db.TransactionProductCalculations
+                    .Where(t => t.TRANDID == trandid)
+                    .Select(calculation => new
+                    {
+                        TRANPID = calculation.TRANPID,
+                        TRANDID = calculation.TRANDID,
+                        PACKMID = calculation.PACKMID,
+                        PCK1 = calculation.PCK1,
+                        PCK2 = calculation.PCK2,
+                        PCK3 = calculation.PCK3,
+                        PCK4 = calculation.PCK4,
+                        PCK5 = calculation.PCK5,
+                        PCK6 = calculation.PCK6,
+                        PCK7 = calculation.PCK7,
+                        PCK8 = calculation.PCK8,
+                        PCK9 = calculation.PCK9,
+                        PCK10 = calculation.PCK10,
+                        PCK11 = calculation.PCK11,
+                        PCK12 = calculation.PCK12,
+                        PCK13 = calculation.PCK13,
+                        PCK14 = calculation.PCK14,
+                        PCK15 = calculation.PCK15,
+                        PCK16 = calculation.PCK16,
+                        PCK17 = calculation.PCK17,
+                        TOPCK = calculation.TOPCK,
+                        PCKLVALUE = calculation.PCKLVALUE,
+                        AVGPCKVALUE = calculation.AVGPCKVALUE,
+                        PNDSVALUE = calculation.PNDSVALUE,
+                        TOTALPNDS = calculation.TOTALPNDS,
+                        YELDPERCENT = calculation.YELDPERCENT,
+                        TOTALYELDCOUNTS = calculation.TOTALYELDCOUNTS,
+                        KGWGT = calculation.KGWGT,
+                        PCKKGWGT = calculation.PCKKGWGT,
+                        WASTEWGT = calculation.WASTEWGT,
+                        WASTEPWGT = calculation.WASTEPWGT,
+                        FACTORYWGT = calculation.FACTORYWGT,
+                        FACAVGWGT = calculation.FACAVGWGT,
+                        FACAVGCOUNT = calculation.FACAVGCOUNT,
+                        PRODDATE = calculation.PRODDATE,
+                        CALCULATIONMODE = calculation.CALCULATIONMODE,
+                        GRADEID = calculation.GRADEID,
+                        PCLRID = calculation.PCLRID,
+                        RCVDTID = calculation.RCVDTID,
+                        BKN = calculation.BKN,
+                        DISPSTATUS = calculation.DISPSTATUS,
+                        CUSRID = calculation.CUSRID,
+                        LMUSRID = calculation.LMUSRID,
+                        PRCSDATE = calculation.PRCSDATE
+                    })
+                    .ToList();
+                
+                System.Diagnostics.Debug.WriteLine($"Found {calculations.Count} calculations");
+                
+                return Json(new { success = true, calculations = calculations }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error batch loading calculations: {ex.Message}");
                 return Json(new { success = false, message = ex.Message }, JsonRequestBehavior.AllowGet);
             }
         }

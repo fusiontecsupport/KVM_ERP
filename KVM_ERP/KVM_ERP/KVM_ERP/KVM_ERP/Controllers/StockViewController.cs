@@ -466,10 +466,10 @@ namespace KVM_ERP.Controllers
                         Total = (upToPreviousData.Total ?? 0) + (selectedDayData.Total ?? 0)
                     };
 
-                    // Calculate NO OF BOXES row (each column / 6) - Floor to whole number, display only if >= 1
+                    // Calculate NO OF CASES row (each column / 6) - Floor to whole number, display only if >= 1
                     var noOfBoxesData = new PackingDetailRow
                     {
-                        RowType = "NO OF BOXES",
+                        RowType = "NO OF CASES",
                         PCK1 = CalculateBoxes(totalData.PCK1),
                         PCK2 = CalculateBoxes(totalData.PCK2),
                         PCK3 = CalculateBoxes(totalData.PCK3),
@@ -489,7 +489,7 @@ namespace KVM_ERP.Controllers
                         PCK17 = CalculateBoxes(totalData.PCK17)
                     };
                     
-                    // Total for NO OF BOXES = Sum of individual column boxes (not division of grand total)
+                    // Total for NO OF CASES = Sum of individual column boxes (not division of grand total)
                     noOfBoxesData.Total = (noOfBoxesData.PCK1 ?? 0) + (noOfBoxesData.PCK2 ?? 0) + (noOfBoxesData.PCK3 ?? 0) +
                                          (noOfBoxesData.PCK4 ?? 0) + (noOfBoxesData.PCK5 ?? 0) + (noOfBoxesData.PCK6 ?? 0) +
                                          (noOfBoxesData.PCK7 ?? 0) + (noOfBoxesData.PCK8 ?? 0) + (noOfBoxesData.PCK9 ?? 0) +
@@ -691,7 +691,7 @@ namespace KVM_ERP.Controllers
 
                     var noOfBoxesData = new PackingDetailRow
                     {
-                        RowType = "NO OF BOXES",
+                        RowType = "NO OF CASES",
                         PCK1 = CalculateBoxes(total),
                         Total = CalculateBoxes(total)
                     };
@@ -883,30 +883,34 @@ namespace KVM_ERP.Controllers
                     
                     if (totalCalcCount == 0)
                     {
-                        System.Diagnostics.Debug.WriteLine("ERROR: No data in TRANSACTION_PRODUCT_CALCULATION table at all!");
-                        return new List<object[]> { new object[] { 1, "No calculation data exists in database", "0.00" } };
+                        System.Diagnostics.Debug.WriteLine("INFO: No data in TRANSACTION_PRODUCT_CALCULATION table");
+                        // Return empty list - no stock data exists yet
+                        return new List<object[]>();
                     }
 
-                    // STEP 2: Show first few calculation records with PCK values - using simple approach
+                    // STEP 2: Check for calculation records with PCK values within the date range
                     var rawCalcCount = db.Database.SqlQuery<int>(@"
                         SELECT COUNT(*) 
-                        FROM TRANSACTION_PRODUCT_CALCULATION 
-                        WHERE (PCK1 > 0 OR PCK2 > 0 OR PCK3 > 0 OR PCK4 > 0 OR PCK5 > 0)
-                    ").FirstOrDefault();
+                        FROM TRANSACTION_PRODUCT_CALCULATION tpc
+                        INNER JOIN TRANSACTIONDETAIL td ON tpc.TRANDID = td.TRANDID
+                        INNER JOIN TRANSACTIONMASTER tm ON td.TRANMID = tm.TRANMID
+                        WHERE (tpc.DISPSTATUS = 0 OR tpc.DISPSTATUS IS NULL)
+                        AND (tm.DISPSTATUS = 0 OR tm.DISPSTATUS IS NULL)
+                        AND tm.TRANDATE <= @p0
+                        AND (PCK1 > 0 OR PCK2 > 0 OR PCK3 > 0 OR PCK4 > 0 OR PCK5 > 0 
+                             OR PCK6 > 0 OR PCK7 > 0 OR PCK8 > 0 OR PCK9 > 0 OR PCK10 > 0
+                             OR PCK11 > 0 OR PCK12 > 0 OR PCK13 > 0 OR PCK14 > 0 OR PCK15 > 0
+                             OR PCK16 > 0 OR PCK17 > 0 OR BKN > 0)
+                    ", asOnDate).FirstOrDefault();
 
-                    System.Diagnostics.Debug.WriteLine($"Found {rawCalcCount} calculation records with PCK values > 0");
-
-                    if (rawCalcCount == 0)
-                    {
-                        System.Diagnostics.Debug.WriteLine("ERROR: No calculation records have any PCK values > 0!");
-                        return new List<object[]> { new object[] { 1, "No PCK values found in calculations", "0.00" } };
-                    }
+                    System.Diagnostics.Debug.WriteLine($"Found {rawCalcCount} calculation records with PCK values > 0 for date {asOnDate:yyyy-MM-dd}");
 
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Error checking calculation data: {ex.Message}");
-                    return new List<object[]> { new object[] { 1, $"Database error: {ex.Message}", "0.00" } };
+                    // Return empty list on error - will be handled by main try-catch if serious
+                    return new List<object[]>();
                 }
 
                 // STEP 3: Get products with their PCK totals
@@ -1002,7 +1006,8 @@ namespace KVM_ERP.Controllers
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Error in direct calculation query: {ex.Message}");
-                    return new List<object[]> { new object[] { 1, $"Query error: {ex.Message}", "0.00" } };
+                    // Return empty list on query error - will be logged for debugging
+                    return new List<object[]>();
                 }
 
                 // If we found direct calculations, return them
@@ -1013,8 +1018,9 @@ namespace KVM_ERP.Controllers
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("ERROR: No PCK totals found even in direct query");
-                    return new List<object[]> { new object[] { 1, "No slab totals calculated", "0.00" } };
+                    System.Diagnostics.Debug.WriteLine("INFO: No stock data found for the selected date");
+                    // Return empty list - the view will show "No data available"
+                    return new List<object[]>();
                 }
             }
             catch (Exception ex)
@@ -1080,7 +1086,7 @@ namespace KVM_ERP.Controllers
 
     public class PackingDetailRow
     {
-        public string RowType { get; set; } // "Up to DD/MM/YYYY", "DD/MM/YYYY", "TOTAL", "NO OF BOXES"
+        public string RowType { get; set; } // "Up to DD/MM/YYYY", "DD/MM/YYYY", "TOTAL", "NO OF CASES"
         public decimal? PCK1 { get; set; }
         public decimal? PCK2 { get; set; }
         public decimal? PCK3 { get; set; }

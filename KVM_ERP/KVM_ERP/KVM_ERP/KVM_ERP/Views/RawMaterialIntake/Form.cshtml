@@ -504,6 +504,8 @@
 
             // Form submit to serialize both details and quality check
             $('#rawIntakeForm').on('submit', function(e) {
+                e.preventDefault(); // Prevent default form submission
+                
                 // Serialize details data
                 var rows = [];
                 $tbody.children('tr').each(function(){
@@ -516,7 +518,6 @@
                         rows.push({ TRANDID: trandid, MTRLGID: gid, MTRLID: pid, MTRLNBOX: nbox, MTRLCOUNTS: cnt });
                     }
                 });
-                $('#detailRowsJson').val(JSON.stringify(rows));
 
                 // Serialize quality check data
                 var qualityData = null;
@@ -539,7 +540,28 @@
                     };
                 }
                 
-                $('#qualityCheckJson').val(qualityData ? JSON.stringify(qualityData) : '');
+                // Submit via AJAX to handle JSON response
+                $.ajax({
+                    url: '@Url.Action("savedata", "RawMaterialIntake")',
+                    type: 'POST',
+                    data: $(this).serialize() + '&detailRowsJson=' + encodeURIComponent(JSON.stringify(rows)) + 
+                          '&qualityCheckJson=' + encodeURIComponent(qualityData ? JSON.stringify(qualityData) : ''),
+                    success: function(response) {
+                        // Check if response indicates failure
+                        if (response.success === false) {
+                            alert(response.message || 'Operation failed');
+                        } else if (typeof response === 'string' && response.indexOf('success') > -1) {
+                            // Success message - redirect to list
+                            window.location.href = '@Url.Action("Index", "RawMaterialIntake")';
+                        } else {
+                            // Default success handling
+                            window.location.href = '@Url.Action("Index", "RawMaterialIntake")';
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        alert('Error saving data: ' + error);
+                    }
+                });
             });
 
             // -------- Details Table UI --------
@@ -776,6 +798,19 @@
             }
         }
         function openProductCalculationModal(trandid, supplierName, supplierCode, productType, product, noOfBoxes, countPerKg) {
+            // IMPORTANT: Show modal FIRST so DOM elements exist
+            // Clear any existing modal state
+            $('#productCalculationModal').removeClass('show').hide();
+            $('.modal-backdrop').remove();
+            $('body').removeClass('modal-open');
+            
+            // Show modal using direct method
+            $('#productCalculationModal').show().addClass('show fade');
+            $('body').addClass('modal-open');
+            $('<div class="modal-backdrop fade show"></div>').appendTo('body');
+            
+            console.log('Modal shown - DOM elements are now available');
+            
             // Populate display fields
             $('#modal-supplier-name').text(supplierName);
             $('#modal-supplier-code').text(supplierCode);
@@ -787,6 +822,12 @@
             
             // Store TRANDID for saving
             $('#productCalculationModal').data('trandid', trandid);
+            
+            // IMPORTANT: Clear cached data from previous modal opens
+            $('.tab-pane').each(function() {
+                $(this).removeData('existing-calculation');
+            });
+            console.log('Cleared cached calculation data for fresh load');
             
             // Clear all tab calculations
             $('.tab-pane .calculation-result').text('0.000');
@@ -850,108 +891,221 @@
                 }
             });
             
-            // Load existing calculations for ALL tabs, then activate first tab
-            setTimeout(function() {
-                console.log('Loading existing calculations for all tabs...');
-                
-                // Load existing calculations for all packing masters
-                $('#packingMasterTabs .nav-link').each(function() {
-                    const packingId = $(this).data('packing-id');
-                    if (packingId) {
-                        console.log('Pre-loading calculation for packing ID:', packingId);
-                        loadExistingCalculationForTab(packingId);
-                    }
-                });
-                
-                // Set up final checks after all calculations are loaded
-                setTimeout(function() {
-                    ensureDateFieldIsPopulated(trandid);
-                    ensureFactoryFieldsPopulated();
-                }, 2000);
-                
-                // Set up a periodic check to ensure date gets set (aggressive approach)
-                let dateSetAttempts = 0;
-                const maxAttempts = 10;
-                const dateSetInterval = setInterval(function() {
-                    dateSetAttempts++;
-                    const dateField = $('#prodDate');
+            // OPTIMIZED: Batch load all calculations in ONE request
+            console.log('Batch loading all calculations for TRANDID:', trandid);
+            
+            $.ajax({
+                url: '@Url.Action("GetAllProductCalculations", "RawMaterialIntake")',
+                type: 'GET',
+                data: { trandid: trandid },
+                success: function(response) {
+                    console.log('Batch loaded calculations:', response);
                     
-                    if (dateField.length > 0 && !dateField.val()) {
-                        // Try to get date from any loaded tab
-                        $('.tab-pane').each(function() {
-                            const tabPane = $(this);
-                            const storedCalculation = tabPane.data('existing-calculation');
+                    if (response.success && response.calculations && response.calculations.length > 0) {
+                        // Store all calculations in their respective tab panes
+                        response.calculations.forEach(function(calc) {
+                            const packingId = calc.PACKMID;
+                            $(`#pane-${packingId}`).data('existing-calculation', calc);
+                            console.log('Stored calculation for packing ID:', packingId);
                             
-                            if (storedCalculation && storedCalculation.PRODDATE && !dateField.val()) {
+                            // Set global factory fields from first calculation
+                            if (!$('#facAvgWeight').val() && (calc.FACAVGWGT || calc.FACAVGWGT === 0)) {
+                                $('#facAvgWeight').val(calc.FACAVGWGT);
+                            }
+                            if (!$('#facAvgCount').val() && (calc.FACAVGCOUNT || calc.FACAVGCOUNT === 0)) {
+                                $('#facAvgCount').val(calc.FACAVGCOUNT);
+                            }
+                            
+                            // Set production date from first calculation with a date
+                            if (calc.PRODDATE && !$('#prodDate').val()) {
                                 try {
-                                    const prodDate = new Date(storedCalculation.PRODDATE);
+                                    const prodDate = new Date(calc.PRODDATE);
                                     if (!isNaN(prodDate.getTime())) {
                                         const formattedDate = prodDate.toISOString().split('T')[0];
-                                        
-                                        // Aggressive date setting
-                                        dateField.val(formattedDate);
-                                        dateField[0].value = formattedDate;
-                                        dateField.attr('value', formattedDate);
-                                        
-                                        console.log('Periodic check - set date:', formattedDate);
-                                        console.log('Periodic check - DOM value:', dateField[0].value);
-                                        
-                                        dateField.trigger('change');
-                                        dateField.trigger('input');
-                                        
-                                        clearInterval(dateSetInterval);
-                                        return false; // Break out of each loop
+                                        $('#prodDate').val(formattedDate);
+                                        console.log('Set date from calculation:', formattedDate);
                                     }
                                 } catch (error) {
-                                    console.error('Periodic check - date error:', error);
+                                    console.error('Error setting date:', error);
                                 }
                             }
                         });
+                        
+                        // IMPORTANT: Set global fields from first calculation
+                        // Use small delay to ensure modal DOM is fully rendered
+                        setTimeout(function() {
+                            if (response.calculations.length > 0) {
+                                const firstCalc = response.calculations[0];
+                                
+                                // Set production date with verification
+                                if (firstCalc.PRODDATE) {
+                                    console.log('=== DATE SETTING DEBUG ===');
+                                    console.log('Raw PRODDATE:', firstCalc.PRODDATE);
+                                    console.log('#prodDate exists:', $('#prodDate').length > 0);
+                                    console.log('#prodDate visible:', $('#prodDate').is(':visible'));
+                                    
+                                    try {
+                                    let formattedDate;
+                                    
+                                    // Handle .NET JSON date format: /Date(1762194600000)/
+                                    if (typeof firstCalc.PRODDATE === 'string' && firstCalc.PRODDATE.indexOf('/Date(') === 0) {
+                                        const timestamp = parseInt(firstCalc.PRODDATE.match(/\d+/)[0]);
+                                        const prodDate = new Date(timestamp);
+                                        if (!isNaN(prodDate.getTime())) {
+                                            formattedDate = prodDate.toISOString().split('T')[0];
+                                            console.log('.NET date parsed - timestamp:', timestamp, 'formatted:', formattedDate);
+                                        }
+                                    }
+                                    // Handle standard YYYY-MM-DD format
+                                    else if (typeof firstCalc.PRODDATE === 'string' && firstCalc.PRODDATE.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                                        formattedDate = firstCalc.PRODDATE;
+                                        console.log('Standard date format used:', formattedDate);
+                                    }
+                                    // Handle other date formats
+                                    else {
+                                        const prodDate = new Date(firstCalc.PRODDATE);
+                                        if (!isNaN(prodDate.getTime())) {
+                                            formattedDate = prodDate.toISOString().split('T')[0];
+                                            console.log('Generic date parsed:', formattedDate);
+                                        }
+                                    }
+                                    
+                                    console.log('Formatted date:', formattedDate);
+                                        
+                                        if (formattedDate) {
+                                            const dateField = $('#prodDate');
+                                            if (dateField.length > 0) {
+                                                // Clear first
+                                                dateField.val('');
+                                                // Set value
+                                                dateField.val(formattedDate);
+                                                // Force update
+                                                dateField[0].value = formattedDate;
+                                                dateField.trigger('change');
+                                                
+                                                console.log('✓ Date field set to:', formattedDate);
+                                                console.log('Verification - jQuery val():', dateField.val());
+                                                console.log('Verification - DOM value:', dateField[0].value);
+                                            } else {
+                                                console.error('✗ Date field #prodDate NOT FOUND in DOM!');
+                                            }
+                                        } else {
+                                            console.error('✗ Could not format date');
+                                        }
+                                    } catch (error) {
+                                        console.error('✗ Error setting date:', error);
+                                    }
+                                } else {
+                                    console.log('No PRODDATE in first calculation');
+                                }
+                                
+                                // Set factory fields
+                                if (firstCalc.FACAVGWGT !== null && firstCalc.FACAVGWGT !== undefined) {
+                                    $('#facAvgWeight').val(firstCalc.FACAVGWGT);
+                                    console.log('✓ Factory Avg Weight set:', firstCalc.FACAVGWGT);
+                                }
+                                if (firstCalc.FACAVGCOUNT !== null && firstCalc.FACAVGCOUNT !== undefined) {
+                                    $('#facAvgCount').val(firstCalc.FACAVGCOUNT);
+                                    console.log('✓ Factory Avg Count set:', firstCalc.FACAVGCOUNT);
+                                }
+                                
+                                // Set dropdowns
+                                if (firstCalc.GRADEID) {
+                                    $('#gradeId').val(firstCalc.GRADEID);
+                                    console.log('✓ Grade set:', firstCalc.GRADEID);
+                                }
+                                if (firstCalc.PCLRID) {
+                                    $('#colourId').val(firstCalc.PCLRID);
+                                    console.log('✓ Colour set:', firstCalc.PCLRID);
+                                }
+                                if (firstCalc.RCVDTID) {
+                                    $('#receivedTypeId').val(firstCalc.RCVDTID);
+                                    console.log('✓ Received Type set:', firstCalc.RCVDTID);
+                                }
+                            }
+                        }, 100); // Small delay to ensure modal DOM is ready
+                        
+                        // Find which tab to activate (first one with data)
+                        let tabToActivate = null;
+                        let packingIdToActivate = null;
+                        
+                        $('#packingMasterTabs .nav-link').each(function() {
+                            const packingId = $(this).data('packing-id');
+                            const tabPane = $(`#pane-${packingId}`);
+                            const storedCalculation = tabPane.data('existing-calculation');
+                            
+                            if (storedCalculation && Object.keys(storedCalculation).length > 0) {
+                                tabToActivate = $(this);
+                                packingIdToActivate = packingId;
+                                console.log('EDIT MODE: Found saved data for packing ID:', packingId);
+                                return false; // Break - use first tab with data
+                            }
+                        });
+                        
+                        // If no saved data, use first tab (ADD mode)
+                        if (!tabToActivate) {
+                            tabToActivate = $('#packingMasterTabs .nav-link').first();
+                            packingIdToActivate = tabToActivate.data('packing-id');
+                            console.log('ADD MODE: Activating first tab (Head On):', packingIdToActivate);
+                        }
+                        
+                        // Activate selected tab and load its fields
+                        if (tabToActivate && tabToActivate.length > 0) {
+                            $('#packingMasterTabs .nav-link').removeClass('active');
+                            $('.tab-pane').removeClass('show active');
+                            tabToActivate.addClass('active');
+                            $(`#pane-${packingIdToActivate}`).addClass('show active');
+                            
+                            // Load fields for active tab
+                            loadPackingTypeFieldsForTab(packingIdToActivate);
+                            
+                            // IMPORTANT: Populate data after fields are loaded
+                            const activeTabPane = $(`#pane-${packingIdToActivate}`);
+                            const activeCalc = activeTabPane.data('existing-calculation');
+                            if (activeCalc && Object.keys(activeCalc).length > 0) {
+                                console.log('Populating active tab data after batch load:', packingIdToActivate);
+                                setTimeout(function() {
+                                    populateTabCalculation(activeCalc, packingIdToActivate);
+                                }, 400); // Wait for fields to load
+                            }
+                            
+                            // Update radio buttons after fields load
+                            setTimeout(function() {
+                                updateRadioButtonsForActiveTab();
+                            }, 300);
+                        }
+                    } else {
+                        // No calculations found - ADD mode
+                        console.log('No existing calculations - ADD mode');
+                        const firstTab = $('#packingMasterTabs .nav-link').first();
+                        const packingId = firstTab.data('packing-id');
+                        
+                        $('#packingMasterTabs .nav-link').removeClass('active');
+                        $('.tab-pane').removeClass('show active');
+                        firstTab.addClass('active');
+                        $(`#pane-${packingId}`).addClass('show active');
+                        
+                        loadPackingTypeFieldsForTab(packingId);
+                        
+                        setTimeout(function() {
+                            updateRadioButtonsForActiveTab();
+                        }, 300);
                     }
-                    // Also stabilize factory fields repeatedly until set
-                    ensureFactoryFieldsPopulated();
-                    
-                    if (dateSetAttempts >= maxAttempts || dateField.val()) {
-                        clearInterval(dateSetInterval);
-                        console.log('Periodic date check completed. Attempts:', dateSetAttempts, 'Final value:', dateField.val());
-                    }
-                }, 300); // Check every 300ms
-                
-                // Activate first tab and load its fields
-                const firstTab = $('#packingMasterTabs .nav-link').first();
-                if (firstTab.length > 0) {
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error batch loading calculations:', error);
+                    // Fallback to first tab on error
+                    const firstTab = $('#packingMasterTabs .nav-link').first();
                     const packingId = firstTab.data('packing-id');
-                    console.log('Activating first tab:', packingId);
                     
-                    // Make sure first tab is active
                     $('#packingMasterTabs .nav-link').removeClass('active');
                     $('.tab-pane').removeClass('show active');
                     firstTab.addClass('active');
                     $(`#pane-${packingId}`).addClass('show active');
                     
-                    // Load fields for first tab
-                    if (packingId) {
-                        loadPackingTypeFieldsForTab(packingId);
-                        
-                        // Update radio buttons for the initial active tab after a delay
-                        setTimeout(function() {
-                            console.log('Updating radio buttons for initial tab:', packingId);
-                            updateRadioButtonsForActiveTab();
-                        }, 1000); // Wait for data to load
-                    }
+                    loadPackingTypeFieldsForTab(packingId);
                 }
-            }, 200); // Increased timeout to allow for multiple AJAX calls
-            
-            // Check if modal exists
-            if ($('#productCalculationModal').length === 0) {
-                alert('Modal not found in DOM!');
-                return;
-            }
-            
-            // Clear any existing modal state
-            $('#productCalculationModal').removeClass('show').hide();
-            $('.modal-backdrop').remove();
-            $('body').removeClass('modal-open');
+            });
             
             // Set default calculation mode and trigger form layout
             setTimeout(function() {
@@ -974,13 +1128,8 @@
                             calculateTabTotals(tabPane);
                         }
                     });
-                }, 2000); // Wait 2 seconds for everything to be fully loaded
+                }, 400); // Reduced from 2000ms to 400ms since data is batch-loaded
             }, 100);
-            
-            // Show modal using direct method (more reliable)
-            $('#productCalculationModal').show().addClass('show fade');
-            $('body').addClass('modal-open');
-            $('<div class="modal-backdrop fade show"></div>').appendTo('body');
         }
 
 
@@ -1043,7 +1192,7 @@
                     console.log('Found stored calculation data, populating tab...');
                     setTimeout(function() {
                         populateTabCalculation(storedCalculation, packingId);
-                    }, 500);
+                    }, 200); // Reduced from 500ms to 200ms
                 } else {
                     console.log('No stored calculation found, loading from server...');
                     loadExistingCalculationForTab(packingId);
@@ -1059,7 +1208,7 @@
                         console.log('Tab switched (new fields) - triggering calculation for:', packingId);
                         calculateTabTotals(tabPane);
                     }
-                }, 800);
+                }, 300); // Reduced from 800ms to 300ms
             }
         }
 
@@ -1089,7 +1238,7 @@
                         console.log('Bootstrap tab event - triggering calculation for:', packingId);
                         calculateTabTotals(tabPane);
                     }
-                }, 1000);
+                }, 300); // Reduced from 1000ms to 300ms for faster response
             }
         });
 
@@ -1652,11 +1801,17 @@
             
             // Check if we have stored calculation data for this tab
             const storedCalculation = tabPane.data('existing-calculation');
-            if (storedCalculation) {
-                console.log('Found stored calculation data, populating fields for packingId:', packingId);
+            if (storedCalculation && Object.keys(storedCalculation).length > 0) {
+                console.log('Found stored calculation data in loadPackingTypeFieldsForTab, populating fields for packingId:', packingId);
                 setTimeout(function() {
-                    populateTabCalculation(storedCalculation, packingId);
-                }, 200);
+                    // Double-check data still exists before populating
+                    const currentCalc = tabPane.data('existing-calculation');
+                    if (currentCalc && Object.keys(currentCalc).length > 0) {
+                        populateTabCalculation(currentCalc, packingId);
+                    }
+                }, 300); // Increased to 300ms to ensure fields are ready
+            } else {
+                console.log('No stored calculation data found in loadPackingTypeFieldsForTab for packingId:', packingId);
             }
             
             // Also trigger calculation on input changes for this tab
@@ -1675,7 +1830,16 @@
                 return;
             }
             
-            console.log('Loading calculation for trandid:', trandid, 'packingId:', packingId);
+            // OPTIMIZED: Check if calculation is already cached from batch load
+            const tabPane = $(`#pane-${packingId}`);
+            const cachedCalculation = tabPane.data('existing-calculation');
+            
+            if (cachedCalculation && Object.keys(cachedCalculation).length > 0) {
+                console.log('Using cached calculation for packingId:', packingId);
+                return; // Data already loaded, no need for AJAX call
+            }
+            
+            console.log('Loading calculation from server for trandid:', trandid, 'packingId:', packingId);
             
             $.ajax({
                 url: '@Url.Action("GetProductCalculation", "RawMaterialIntake")',
@@ -1753,199 +1917,79 @@
                 return;
             }
             
-            // Wait for fields to be loaded first
-            setTimeout(function() {
-                // Populate packing fields
-                for (let i = 1; i <= 17; i++) {
-                    const val = calculation['PCK' + i];
-                    const fieldId = `#pck${i}_${packingId}`;
-                    const field = tabPane.find(fieldId);
-                    
+            // Populate packing fields (no setTimeout - timing controlled by caller)
+            console.log('Starting field population...');
+            for (let i = 1; i <= 17; i++) {
+                const val = calculation['PCK' + i];
+                const fieldId = `#pck${i}_${packingId}`;
+                const field = tabPane.find(fieldId);
+                
+                if (val !== null && val !== undefined && val > 0) { // Only log non-zero values
                     console.log(`PCK${i}: value=${val}, fieldId=${fieldId}, fieldExists=${field.length > 0}`);
-                    
-                    if (val !== null && val !== undefined && field.length > 0) {
-                        field.val(val);
-                        console.log(`Set ${fieldId} to ${val}`);
+                }
+                
+                if (val !== null && val !== undefined && field.length > 0) {
+                    field.val(val);
+                    if (val > 0) { // Only log successful sets for non-zero values
+                        console.log(`✓ Set ${fieldId} to ${val}`);
                     }
                 }
-                
-                // Populate other fields
-                tabPane.find('.pounds-value').val(calculation.PNDSVALUE || '');
-                tabPane.find('.yield-percent').val(calculation.YELDPERCENT || '');
-                tabPane.find('.per-kg-weight').val(calculation.KGWGT || '');
-                tabPane.find('.wastage').val(calculation.WASTEWGT || '');
-                if (calculation.FACAVGWGT !== null && calculation.FACAVGWGT !== undefined) {
-                    $('#facAvgWeight').val(calculation.FACAVGWGT);
-                }
-                if (calculation.FACAVGCOUNT !== null && calculation.FACAVGCOUNT !== undefined) {
-                    $('#facAvgCount').val(calculation.FACAVGCOUNT);
-                }
-                
-                // INSTANT Grade Weight calculation if this is Grade Weight mode
-                const isGradeWeightMode = calculation.CALCULATIONMODE == 2;
-                if (isGradeWeightMode) {
-                    console.log('=== INSTANT GRADE WEIGHT CALCULATION AFTER FIELD POPULATION ===');
-                    calculateGradeWeightMode(tabPane);
-                }
-                
-                // Populate production date (format for HTML date input)
-                console.log('Raw PRODDATE from database:', calculation.PRODDATE);
-                if (calculation.PRODDATE) {
-                    try {
-                        let formattedDate;
-                        
-                        // Handle different date formats from server
-                        if (typeof calculation.PRODDATE === 'string') {
-                            // If it's already a string in YYYY-MM-DD format, use it directly
-                            if (calculation.PRODDATE.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                                formattedDate = calculation.PRODDATE;
-                            } else {
-                                // Parse the string date
-                                const prodDate = new Date(calculation.PRODDATE);
-                                if (!isNaN(prodDate.getTime())) {
-                                    formattedDate = prodDate.toISOString().split('T')[0];
-                                }
-                            }
-                        } else {
-                            // Handle Date object
-                            const prodDate = new Date(calculation.PRODDATE);
-                            if (!isNaN(prodDate.getTime())) {
-                                formattedDate = prodDate.toISOString().split('T')[0];
-                            }
-                        }
-                        
-                        console.log('Formatted date for input:', formattedDate);
-                        
-                        if (formattedDate) {
-                            // Ensure the date field exists before setting
-                            const dateField = $('#prodDate');
-                            console.log('Date field found:', dateField.length > 0);
-                            
-                            if (dateField.length > 0) {
-                                // Clear any existing value first
-                                dateField.val('');
-                                dateField[0].value = '';
-                                
-                                // Set the new value using multiple methods
-                                dateField.val(formattedDate);
-                                dateField[0].value = formattedDate; // Direct DOM property
-                                dateField.attr('value', formattedDate); // HTML attribute
-                                
-                                // Force the browser to recognize the change
-                                dateField[0].dispatchEvent(new Event('input', { bubbles: true }));
-                                dateField[0].dispatchEvent(new Event('change', { bubbles: true }));
-                                
-                                // Also trigger jQuery events
-                                dateField.trigger('change');
-                                dateField.trigger('input');
-                                
-                                console.log('Set production date to:', formattedDate);
-                                console.log('Date field value after setting:', dateField.val());
-                                console.log('Date field DOM value:', dateField[0].value);
-                                
-                                // Verify the date was set correctly after a short delay
-                                setTimeout(function() {
-                                    console.log('Date field verification - jQuery val():', dateField.val());
-                                    console.log('Date field verification - DOM value:', dateField[0].value);
-                                    console.log('Date field verification - getAttribute:', dateField[0].getAttribute('value'));
-                                }, 100);
-                            } else {
-                                console.error('Date field #prodDate not found in DOM');
-                            }
-                        } else {
-                            console.error('Could not format date from:', calculation.PRODDATE);
-                        }
-                    } catch (error) {
-                        console.error('Error parsing production date:', error, 'Raw value:', calculation.PRODDATE);
-                    }
-                } else {
-                    console.log('No production date found in calculation data');
-                }
-                
-                // Populate dropdown fields
-                if (calculation.GRADEID !== null && calculation.GRADEID !== undefined) {
-                    $('#gradeId').val(calculation.GRADEID);
-                    console.log('Set Grade dropdown to:', calculation.GRADEID);
-                }
-                if (calculation.PCLRID !== null && calculation.PCLRID !== undefined) {
-                    $('#colourId').val(calculation.PCLRID);
-                    console.log('Set Production Colour dropdown to:', calculation.PCLRID);
-                }
-                if (calculation.RCVDTID !== null && calculation.RCVDTID !== undefined) {
-                    $('#receivedTypeId').val(calculation.RCVDTID);
-                    console.log('Set Received Type dropdown to:', calculation.RCVDTID);
-                }
-                
-                // Populate BKN field
-                if (calculation.BKN !== null && calculation.BKN !== undefined) {
-                    tabPane.find('.bkn-field').val(calculation.BKN);
-                    console.log('Set BKN field to:', calculation.BKN);
-                }
-                
-                console.log('Other fields populated');
-                
-                // Store the calculation ID for updates
-                tabPane.attr('data-calculation-id', calculation.TRANPID || 0);
-                
-                // Set calculation mode AFTER all fields are populated
-                console.log('Raw CALCULATIONMODE from database:', calculation.CALCULATIONMODE);
-                const frontendMode = calculation.CALCULATIONMODE == 2 ? 'gradeweight' : 'packing'; // 1=packing, 2=gradeweight
-                console.log('Setting calculation mode to:', frontendMode, '(backend value:', calculation.CALCULATIONMODE, ')');
-                
-                // Set radio button without triggering change event initially
-                $(`input[name="calculationMode"][value="${frontendMode}"]`).prop('checked', true);
-                $('.calculation-mode-section .form-check').removeClass('selected');
-                $(`input[name="calculationMode"][value="${frontendMode}"]`).closest('.form-check').addClass('selected');
-                
-                // Apply the form layout based on mode
-                applyModeLayout(frontendMode);
-                
-                // Fast trigger for Grade Weight mode, normal timing for Packing mode
-                if (frontendMode === 'gradeweight') {
-                    // Grade Weight mode - IMMEDIATE calculation (no delay)
-                    console.log('=== INSTANT GRADE WEIGHT CALCULATION ===');
-                    calculateGradeWeightMode(tabPane);
-                    
-                    // Also trigger again after a tiny delay to ensure it sticks
-                    setTimeout(function() {
-                        calculateGradeWeightMode(tabPane);
-                    }, 50);
-                } else {
-                    // Packing mode - normal timing
-                    setTimeout(function() {
-                        console.log('=== TRIGGERING CALCULATIONS FOR EDIT MODE ===');
-                        console.log('Mode:', frontendMode);
-                        console.log('Tab pane:', tabPane.attr('id'));
-                        
-                        // Verify fields are populated before calculating
-                        let hasData = false;
-                        tabPane.find('.pck-field').each(function() {
-                            if ($(this).val() && parseFloat($(this).val()) > 0) {
-                                hasData = true;
-                                return false; // break loop
-                            }
-                        });
-                        
-                        console.log('Has PCK data:', hasData);
-                        
-                        if (hasData) {
-                            // Force trigger calculations
-                            calculateTabTotals(tabPane);
-                            
-                            // Also trigger input event to ensure all handlers work
-                            setTimeout(function() {
-                                tabPane.find('.pck-field').first().trigger('input');
-                            }, 100);
-                        } else {
-                            console.log('No PCK data found, retrying calculation...');
-                            setTimeout(function() {
-                                calculateTabTotals(tabPane);
-                            }, 500);
-                        }
-                        
-                    }, 500);
-                }
-            }, 1000); // Increased timeout to ensure fields are loaded
+            }
+            
+            // Populate tab-specific fields only (NOT global fields - those are set on modal open)
+            tabPane.find('.pounds-value').val(calculation.PNDSVALUE || '');
+            tabPane.find('.yield-percent').val(calculation.YELDPERCENT || '');
+            tabPane.find('.per-kg-weight').val(calculation.KGWGT || '');
+            tabPane.find('.wastage').val(calculation.WASTEWGT || '');
+            
+            // Populate BKN field (tab-specific)
+            if (calculation.BKN !== null && calculation.BKN !== undefined) {
+                tabPane.find('.bkn-field').val(calculation.BKN);
+                console.log('Set BKN field to:', calculation.BKN);
+            }
+            
+            // NOTE: Global fields (date, factory fields, dropdowns) are set once on modal open
+            // Don't set them here to avoid overwriting on tab switches
+            
+            // INSTANT Grade Weight calculation if this is Grade Weight mode
+            const isGradeWeightMode = calculation.CALCULATIONMODE == 2;
+            if (isGradeWeightMode) {
+                console.log('=== INSTANT GRADE WEIGHT CALCULATION AFTER FIELD POPULATION ===');
+                calculateGradeWeightMode(tabPane);
+            }
+            
+            console.log('Tab-specific fields populated for packing ID:', packingId);
+            
+            // Store the calculation ID for updates
+            tabPane.attr('data-calculation-id', calculation.TRANPID || 0);
+            
+            // Set calculation mode AFTER all fields are populated
+            console.log('Raw CALCULATIONMODE from database:', calculation.CALCULATIONMODE);
+            const frontendMode = calculation.CALCULATIONMODE == 2 ? 'gradeweight' : 'packing'; // 1=packing, 2=gradeweight
+            console.log('Setting calculation mode to:', frontendMode, '(backend value:', calculation.CALCULATIONMODE, ')');
+            
+            // Set radio button without triggering change event initially
+            $(`input[name="calculationMode"][value="${frontendMode}"]`).prop('checked', true);
+            $('.calculation-mode-section .form-check').removeClass('selected');
+            $(`input[name="calculationMode"][value="${frontendMode}"]`).closest('.form-check').addClass('selected');
+            
+            // Apply the form layout based on mode
+            applyModeLayout(frontendMode);
+            
+            // Trigger calculations based on mode
+            if (frontendMode === 'gradeweight') {
+                // Grade Weight mode - IMMEDIATE calculation (no delay)
+                console.log('=== INSTANT GRADE WEIGHT CALCULATION ===');
+                calculateGradeWeightMode(tabPane);
+            } else {
+                // Packing mode - trigger calculation after a short delay
+                setTimeout(function() {
+                    console.log('=== TRIGGERING CALCULATIONS FOR EDIT MODE ===');
+                    calculateTabTotals(tabPane);
+                }, 100);
+            }
+            
+            console.log('=== POPULATION COMPLETE ===');
         }
 
         function updateRadioButtonsForActiveTab() {

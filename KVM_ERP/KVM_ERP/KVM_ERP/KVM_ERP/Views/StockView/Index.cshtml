@@ -411,7 +411,7 @@
                         "data": 2, 
                         "width": "20%",
                         "render": function (data, type, row) {
-                            return '<div class="total-weight" style="text-align: left;">' + data + ' KG</div>';
+                            return '<div class="total-weight" style="text-align: left;">' + data + ' SLAB</div>';
                         }
                     }
                 ],
@@ -529,7 +529,7 @@
                                 // Different styling for different row types
                                 if (row.RowType === 'TOTAL') {
                                     rowStyle = 'background-color: #f0f0f0; font-weight: bold;';
-                                } else if (row.RowType === 'NO OF BOXES') {
+                                } else if (row.RowType === 'NO OF CASES') {
                                     rowStyle = 'background-color: #fff3cd; font-weight: bold;';
                                 }
                                 
@@ -541,8 +541,8 @@
                                     var pckValue = row['PCK' + i] || 0;
                                     var displayValue = '';
                                     
-                                    if (row.RowType === 'NO OF BOXES') {
-                                        // For NO OF BOXES: show whole number only if >= 1
+                                    if (row.RowType === 'NO OF CASES') {
+                                        // For NO OF CASES: show whole number only if >= 1
                                         if (pckValue >= 1) {
                                             displayValue = Math.floor(pckValue).toString();
                                         }
@@ -562,9 +562,9 @@
                                 if (row.RowType === 'TOTAL') {
                                     totalBgColor = 'background-color: #28a745; color: white;';
                                     totalDisplayValue = totalValue.toFixed(2);
-                                } else if (row.RowType === 'NO OF BOXES') {
+                                } else if (row.RowType === 'NO OF CASES') {
                                     totalBgColor = 'background-color: #ffc107; color: black;';
-                                    // For NO OF BOXES total: show whole number only if >= 1
+                                    // For NO OF CASES total: show whole number only if >= 1
                                     totalDisplayValue = totalValue >= 1 ? Math.floor(totalValue).toString() : '';
                                 } else {
                                     totalBgColor = 'background-color: #d4edda;';

@@ -532,6 +532,11 @@
                             </div>
                         </div>
                         
+                        <!-- Manual Tax Factors from Tax Button -->
+                        <div id="manualTaxBreakdown" style="margin-bottom: 1rem;">
+                            <!-- Manual taxes will be dynamically added here -->
+                        </div>
+                        
                         <h4 class="mb-3" style="border-top: 2px solid #ddd; padding-top: 10px;">
                             <strong>Grand Total: </strong>
                             <span id="grandTotalDisplay" class="text-success" style="font-size: 24px; font-weight: bold;">₹ 0.00</span>
@@ -965,14 +970,16 @@
                                     setTimeout(function() {
                                         console.log('Updating tax totals after row population...');
                                         updateTaxTotals();
+                                        updateManualTaxDisplay(); // Display manual taxes on main form
                                     }, 100 * response.data.length + 300);
                                 } else {
                                     console.log('No tax factors found or empty response');
                                     taxData = [];
                                     // Reset tax display to 0
                                     $('#taxAmountDisplay').text('₹ 0.00');
+                                    $('#manualTaxBreakdown').empty(); // Clear manual tax display
                                     var grossAmount = parseFloat($('#grossAmount').text().replace('₹ ', '').replace(',', '')) || 0;
-                                    $('#grandTotalDisplay').text('₹ ' + grandTotal.toFixed(2));
+                                    $('#grandTotalDisplay').text('₹ ' + grossAmount.toFixed(2));
                                 }
                             },
                             error: function (xhr, status, error) {
@@ -1408,12 +1415,31 @@
                 }
             });
             
+            // Update manual tax display
+            updateManualTaxDisplay();
+            
             // Update display with both HSN GST and manual cost factors
             calculateGrossAmount(); // This will update the full breakdown
             
             // Close modal
             $('#taxModal').modal('hide');
             console.log('Tax data collected:', taxData);
+        }
+        
+        function updateManualTaxDisplay() {
+            var manualTaxContainer = $('#manualTaxBreakdown');
+            manualTaxContainer.empty(); // Clear previous display
+            
+            if (taxData && taxData.length > 0) {
+                taxData.forEach(function(tax) {
+                    var taxRow = $('<div style="margin-bottom: 8px;">' +
+                        '<strong>' + tax.CFDESC + ': </strong>' +
+                        '<span class="text-muted" style="font-size: 14px;">@@ ' + tax.CFEXPR.toFixed(2) + (tax.CFTYPE === 0 ? '%' : '') + '</span>' +
+                        '<span class="text-warning" style="font-size: 18px; font-weight: bold; margin-left: 10px;">₹ ' + tax.DEDVALUE.toFixed(2) + '</span>' +
+                    '</div>');
+                    manualTaxContainer.append(taxRow);
+                });
+            }
         }
 
         function saveInvoice() {
