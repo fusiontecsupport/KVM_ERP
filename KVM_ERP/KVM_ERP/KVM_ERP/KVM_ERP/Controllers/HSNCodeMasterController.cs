@@ -14,14 +14,14 @@ namespace KVM_ERP.Controllers
         private ApplicationDbContext db = new ApplicationDbContext();
 
         // GET: HSNCodeMaster
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "HSNCodeMasterIndex")]
         public ActionResult Index()
         {
             return View();
         }
 
         // GET: HSNCodeMaster/Form
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "HSNCodeMasterCreate,HSNCodeMasterEdit")]
         public ActionResult Form(int id = 0)
         {
             HSNCodeMaster tab = new HSNCodeMaster();
@@ -237,7 +237,7 @@ namespace KVM_ERP.Controllers
 
         // POST: HSNCodeMaster/Del
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "HSNCodeMasterDelete")]
         public ActionResult Del(int id)
         {
             try

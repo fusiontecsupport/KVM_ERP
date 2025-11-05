@@ -1,4 +1,4 @@
-﻿using KVM_ERP.Models;
+using KVM_ERP.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -84,10 +84,27 @@ namespace KVM_ERP.Controllers.Masters
         }
 
 
-        [Authorize(Roles = "CompanyMasterCreate")]
         public ActionResult NForm(int? id = 0)
         {
             if (Convert.ToInt32(System.Web.HttpContext.Current.Session["compyid"]) == 0) { return RedirectToAction("Login", "Account"); }
+
+            // Check authorization based on operation type
+            if (id == 0 || id == null)
+            {
+                // ADD operation - require Create permission ONLY
+                if (!User.IsInRole("CompanyMasterCreate"))
+                {
+                    return RedirectToAction("Login", "Account");
+                }
+            }
+            else
+            {
+                // EDIT operation - require Edit permission ONLY
+                if (!User.IsInRole("CompanyMasterEdit"))
+                {
+                    return RedirectToAction("Login", "Account");
+                }
+            }
 
             CompanyMaster tab = new CompanyMaster();
 
@@ -123,6 +140,26 @@ namespace KVM_ERP.Controllers.Masters
 
         public void savedata(CompanyMaster tab)
         {
+            // Check authorization based on operation type
+            if (tab.COMPID == 0)
+            {
+                // ADD operation - require Create permission
+                if (!User.IsInRole("CompanyMasterCreate"))
+                {
+                    Response.Redirect("/Account/Login");
+                    return;
+                }
+            }
+            else
+            {
+                // EDIT operation - require Edit permission
+                if (!User.IsInRole("CompanyMasterEdit"))
+                {
+                    Response.Redirect("/Account/Login");
+                    return;
+                }
+            }
+
             //if (Session["CUSRID"] != null)
             //    tab.CUSRID = Session["CUSRID"].ToString();
             //else tab.CUSRID = "0";
@@ -141,6 +178,31 @@ namespace KVM_ERP.Controllers.Masters
             Response.Redirect("Index");
         }//..........end
 
+        public string Del(int id)
+        {
+            // Check DELETE permission - return empty string if unauthorized (for AJAX detection)
+            if (!User.IsInRole("CompanyMasterDelete"))
+            {
+                return ""; // Empty string signals unauthorized to JavaScript
+            }
+
+            try
+            {
+                var company = context.companymasters.Find(id);
+                if (company != null)
+                {
+                    context.companymasters.Remove(company);
+                    context.SaveChanges();
+                    return "Deleted Successfully ...";
+                }
+                return "Record not found";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Delete error: {ex.Message}");
+                return "Error deleting record: " + ex.Message;
+            }
+        }
 
         public void nsavedata(FormCollection myfrm)
         {
@@ -153,6 +215,26 @@ namespace KVM_ERP.Controllers.Masters
                         CompanyMaster companymaster = new CompanyMaster();
                         CompanyDetail companydetail = new CompanyDetail();
                         Int32 COMPID = Convert.ToInt32(myfrm["masterdata[0].COMPID"]);
+
+                        // Check authorization based on operation type
+                        if (COMPID == 0)
+                        {
+                            // ADD operation - require Create permission
+                            if (!User.IsInRole("CompanyMasterCreate"))
+                            {
+                                Response.Redirect("/Account/Login");
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            // EDIT operation - require Edit permission
+                            if (!User.IsInRole("CompanyMasterEdit"))
+                            {
+                                Response.Redirect("/Account/Login");
+                                return;
+                            }
+                        }
                         Int32 COMPDID = 0;
                         string DELIDS = "";
                         if (COMPID != 0)

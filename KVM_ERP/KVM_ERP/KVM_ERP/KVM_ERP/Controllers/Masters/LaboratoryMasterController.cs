@@ -12,7 +12,7 @@ namespace KVM_ERP.Controllers.Masters
     {
         ApplicationDbContext context = new ApplicationDbContext();
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "LaboratoryMasterIndex")]
         public ActionResult Index()
         {
             try
@@ -64,7 +64,7 @@ namespace KVM_ERP.Controllers.Masters
             }
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "LaboratoryMasterCreate,LaboratoryMasterEdit")]
         public ActionResult Form(int? id)
         {
             try
@@ -136,6 +136,7 @@ namespace KVM_ERP.Controllers.Masters
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "LaboratoryMasterCreate,LaboratoryMasterEdit")]
         public ActionResult savedata(LaboratoryMaster tab)
         {
             try
@@ -228,6 +229,7 @@ namespace KVM_ERP.Controllers.Masters
         }
 
         [HttpPost]
+        [Authorize(Roles = "LaboratoryMasterDelete")]
         public ActionResult deletedata(int id)
         {
             try

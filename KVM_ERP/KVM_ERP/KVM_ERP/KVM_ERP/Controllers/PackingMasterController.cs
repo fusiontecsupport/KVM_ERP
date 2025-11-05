@@ -14,14 +14,14 @@ namespace KVM_ERP.Controllers
         private ApplicationDbContext db = new ApplicationDbContext();
 
         // GET: PackingMaster
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "PackingMasterIndex")]
         public ActionResult Index()
         {
             return View();
         }
 
         // GET: PackingMaster/Form
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "PackingMasterCreate,PackingMasterEdit")]
         public ActionResult Form(int id = 0)
         {
             PackingMaster tab = new PackingMaster();
@@ -61,7 +61,7 @@ namespace KVM_ERP.Controllers
 
         // POST: PackingMaster/savedata
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "PackingMasterCreate,PackingMasterEdit")]
         public ActionResult savedata(PackingMaster tab)
         {
             try
@@ -204,7 +204,7 @@ namespace KVM_ERP.Controllers
 
         // POST: PackingMaster/Del
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "PackingMasterDelete")]
         public ActionResult Del(int id)
         {
             try

@@ -1,4 +1,4 @@
-﻿using KVM_ERP.Models;
+using KVM_ERP.Models;
 using ClubMembership.Data;
 using System;
 using System.Collections.Generic;
@@ -31,8 +31,109 @@ namespace KVM_ERP
 
             //var query = context.Database.SqlQuery<MenuRoleMaster>("selecgit statust * from MenuRoleMaster where Roles='admin'");
             var query = context.Database.SqlQuery<MenuRoleMaster>("select * from MenuRoleMaster where Roles='" + cusrid + "'");
+            
+            // Get current user to check role claims
+            var user = http != null ? http.User : null;
+            
             foreach (var data in query)
             {
+                // CRITICAL FIX: Menu item visibility logic
+                // Menu should ONLY show if user has Index permission (since clicking menu goes to Index action)
+                // When ALL 4 permissions (Index, Create, Edit, Delete) are deselected, menu will be hidden
+                string controllerName = data.ControllerName;
+                string requiredIndexRole = controllerName + "Index";
+                
+                System.Diagnostics.Debug.WriteLine($"[Menu] Checking menu item '{data.LinkText}' (Controller: {controllerName})");
+                
+                // Check if user has Index permission OR has all 4 permissions deselected
+                bool shouldShowMenu = false;
+                
+                if (user != null && user.Identity != null && user.Identity.IsAuthenticated)
+                {
+                    // Check claims directly (since we added group roles as claims)
+                    var claimsPrincipal = user as System.Security.Claims.ClaimsPrincipal;
+                    if (claimsPrincipal != null)
+                    {
+                        // Debug: Show all role claims for this user
+                        var roleClaims = claimsPrincipal.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToArray();
+                        System.Diagnostics.Debug.WriteLine($"[Menu] User has {roleClaims.Length} role claims: {string.Join(", ", roleClaims.Take(5))}...");
+                        
+                        // Check all 4 permissions
+                        bool hasIndex = claimsPrincipal.HasClaim(System.Security.Claims.ClaimTypes.Role, controllerName + "Index");
+                        bool hasCreate = claimsPrincipal.HasClaim(System.Security.Claims.ClaimTypes.Role, controllerName + "Create");
+                        bool hasEdit = claimsPrincipal.HasClaim(System.Security.Claims.ClaimTypes.Role, controllerName + "Edit");
+                        bool hasDelete = claimsPrincipal.HasClaim(System.Security.Claims.ClaimTypes.Role, controllerName + "Delete");
+                        
+                        // Menu shows ONLY if user has Index permission
+                        // BUT if ALL 4 permissions are deselected, menu should be hidden
+                        bool hasAnyPermission = hasIndex || hasCreate || hasEdit || hasDelete;
+                        
+                        if (!hasAnyPermission)
+                        {
+                            // All 4 permissions deselected - hide menu completely
+                            shouldShowMenu = false;
+                            System.Diagnostics.Debug.WriteLine($"[Menu] All permissions deselected for '{controllerName}' - hiding menu");
+                        }
+                        else if (hasIndex)
+                        {
+                            // User has Index permission - show menu (can access the page)
+                            shouldShowMenu = true;
+                            System.Diagnostics.Debug.WriteLine($"[Menu] User has Index permission for '{controllerName}' - showing menu");
+                        }
+                        else
+                        {
+                            // User has some permissions but NOT Index - hide menu (clicking would redirect to login)
+                            shouldShowMenu = false;
+                            System.Diagnostics.Debug.WriteLine($"[Menu] User lacks Index permission for '{controllerName}' (Has: Create={hasCreate}, Edit={hasEdit}, Delete={hasDelete}) - hiding menu to prevent login redirect");
+                        }
+                        
+                        System.Diagnostics.Debug.WriteLine($"[Menu] Permissions for '{controllerName}': Index={hasIndex}, Create={hasCreate}, Edit={hasEdit}, Delete={hasDelete} => ShowMenu={shouldShowMenu}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[Menu] User is not ClaimsPrincipal, trying IsInRole");
+                        // Fallback to IsInRole for backward compatibility
+                        bool hasIndex = user.IsInRole(requiredIndexRole);
+                        bool hasAnyPermission = hasIndex || 
+                                              user.IsInRole(controllerName + "Create") || 
+                                              user.IsInRole(controllerName + "Edit") || 
+                                              user.IsInRole(controllerName + "Delete");
+                        
+                        // Same logic: show only if has Index, hide if all deselected or if lacks Index
+                        if (!hasAnyPermission)
+                        {
+                            shouldShowMenu = false;
+                        }
+                        else if (hasIndex)
+                        {
+                            shouldShowMenu = true;
+                        }
+                        else
+                        {
+                            shouldShowMenu = false;
+                        }
+                        
+                        System.Diagnostics.Debug.WriteLine($"[Menu] IsInRole check: hasIndex={hasIndex}, hasAny={hasAnyPermission}, ShowMenu={shouldShowMenu}");
+                    }
+                    
+                    if (!shouldShowMenu)
+                    {
+                        // Skip this menu item
+                        System.Diagnostics.Debug.WriteLine($"[Menu] ❌ HIDING '{data.LinkText}'");
+                        continue;
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[Menu] ✅ SHOWING '{data.LinkText}'");
+                    }
+                }
+                else
+                {
+                    // User not authenticated - skip all menu items
+                    System.Diagnostics.Debug.WriteLine($"[Menu] User not authenticated - hiding all menu items");
+                    continue;
+                }
+                
                 amenu.Add(new MenuNavbar { MenuGId = Convert.ToInt32(data.MenuGId),
                                            MenuGIndex = Convert.ToInt32(data.MenuGIndex),
                                            LinkText  = data.LinkText,

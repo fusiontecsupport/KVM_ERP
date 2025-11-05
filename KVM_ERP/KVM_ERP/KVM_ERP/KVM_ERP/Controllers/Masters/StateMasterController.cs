@@ -121,6 +121,7 @@ namespace KVM_ERP.Controllers.Masters
 
         //--------------------------Insert or Modify data------------------------//
         [HttpPost]
+        [Authorize(Roles = "StateMasterCreate,StateMasterEdit")]
         public void savedata(StateMaster tab)
         {
             tab.CUSRID = Session["CUSRID"].ToString();
@@ -153,6 +154,7 @@ namespace KVM_ERP.Controllers.Masters
 
         //------------------------Delete Record----------//
         [HttpPost]
+        [Authorize(Roles = "StateMasterDelete")]
         public ActionResult deletedata(int id)
         {
             try

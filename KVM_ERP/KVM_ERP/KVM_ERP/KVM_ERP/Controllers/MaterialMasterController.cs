@@ -8,17 +8,20 @@ using System.Web.Mvc;
 
 namespace KVM_ERP.Controllers
 {
+    [SessionExpire]
     public class MaterialMasterController : Controller
     {
         private ApplicationDbContext db = new ApplicationDbContext();
 
         // GET: MaterialMaster
+        [Authorize(Roles = "MaterialMasterIndex")]
         public ActionResult Index()
         {
             return View();
         }
 
         // GET: MaterialMaster/Form
+        [Authorize(Roles = "MaterialMasterCreate,MaterialMasterEdit")]
         public ActionResult Form(int? id)
         {
             MaterialMaster tab = new MaterialMaster();
@@ -293,6 +296,7 @@ namespace KVM_ERP.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "MaterialMasterCreate,MaterialMasterEdit")]
         public ActionResult savedata(MaterialMaster tab)
         {
             try
@@ -505,6 +509,7 @@ namespace KVM_ERP.Controllers
 
         // Delete method for AJAX calls
         [HttpPost]
+        [Authorize(Roles = "MaterialMasterDelete")]
         public ActionResult Del(int id)
         {
             try

@@ -12,7 +12,7 @@ namespace KVM_ERP.Controllers.Masters
     {
         ApplicationDbContext context = new ApplicationDbContext();
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "LocationMasterIndex")]
         public ActionResult Index()
         {
             // Use raw SQL to match actual database schema
@@ -139,7 +139,7 @@ namespace KVM_ERP.Controllers.Masters
             }
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "LocationMasterCreate,LocationMasterEdit")]
         public ActionResult Form(int? id = 0)
         {
             LocationMaster tab = new LocationMaster();
@@ -208,6 +208,7 @@ namespace KVM_ERP.Controllers.Masters
         }
 
         [HttpPost]
+        [Authorize(Roles = "LocationMasterCreate,LocationMasterEdit")]
         public void savedata(LocationMaster tab)
         {
             // Debug: Let's see what we receive from the form
@@ -259,7 +260,7 @@ namespace KVM_ERP.Controllers.Masters
             }
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "LocationMasterDelete")]
         public void Del()
         {
             string id = Request.Form.Get("id");

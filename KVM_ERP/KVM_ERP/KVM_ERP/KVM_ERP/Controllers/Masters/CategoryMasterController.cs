@@ -13,6 +13,7 @@ namespace KVM_ERP.Controllers.Masters
 	public class CategoryMasterController : Controller
 	{
 		// Note: Using ClubMembershipDBEntities to query existing table [CategoryTypeMaster]
+		[Authorize(Roles = "CategoryMasterIndex")]
 		public ActionResult Index()
 		{
 			return View();
@@ -59,6 +60,7 @@ namespace KVM_ERP.Controllers.Masters
 			}
 		}
 
+		[Authorize(Roles = "CategoryMasterCreate,CategoryMasterEdit")]
 		public ActionResult Form(int? id)
 		{
 			// Populate status dropdown: 0 = Active, 1 = Inactive
@@ -96,6 +98,7 @@ namespace KVM_ERP.Controllers.Masters
 
 		[HttpPost]
 		[ValidateAntiForgeryToken]
+		[Authorize(Roles = "CategoryMasterCreate,CategoryMasterEdit")]
 		public ActionResult SaveData(CategoryMaster model)
 		{
 			if (!ModelState.IsValid)
@@ -192,6 +195,7 @@ namespace KVM_ERP.Controllers.Masters
 			return RedirectToAction("Index");
 		}
 
+		[Authorize(Roles = "CategoryMasterDelete")]
 		public void Del()
 		{
 			var idStr = Request.Form.Get("id");

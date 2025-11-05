@@ -14,14 +14,14 @@ namespace KVM_ERP.Controllers
         private ApplicationDbContext db = new ApplicationDbContext();
 
         // GET: CostFactorMaster
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CostFactorMasterIndex")]
         public ActionResult Index()
         {
             return View();
         }
 
         // GET: CostFactorMaster/Form
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CostFactorMasterCreate,CostFactorMasterEdit")]
         public ActionResult Form(int id = 0)
         {
             CostFactorMaster tab = new CostFactorMaster();
@@ -279,7 +279,7 @@ namespace KVM_ERP.Controllers
 
         // POST: CostFactorMaster/Del
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CostFactorMasterDelete")]
         public ActionResult Del(int id)
         {
             try

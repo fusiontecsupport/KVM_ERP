@@ -1,4 +1,4 @@
-﻿using KVM_ERP.Models;
+using KVM_ERP.Models;
 using ClubMembership.Data;
 using System;
 using System.Collections.Generic;
@@ -76,6 +76,7 @@ namespace KVM_ERP.Controllers.Masters
             return View(tab);
         }//--End of Form
          //-----------------Imsert or Modify data------------------//
+        [Authorize(Roles = "AccountHeadMasterCreate,AccountHeadMasterEdit")]
         public void savedata(AccountHeadMaster tab)
         {
             tab.CUSRID = Session["CUSRID"].ToString();

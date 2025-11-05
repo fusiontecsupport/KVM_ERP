@@ -12,7 +12,7 @@ namespace KVM_ERP.Controllers.Masters
     {
         ApplicationDbContext context = new ApplicationDbContext();
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CustomerMasterIndex")]
         public ActionResult Index()
         {
             try
@@ -104,7 +104,7 @@ namespace KVM_ERP.Controllers.Masters
             }
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CustomerMasterCreate,CustomerMasterEdit")]
         public ActionResult Form(int? id)
         {
             try
@@ -271,6 +271,7 @@ namespace KVM_ERP.Controllers.Masters
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "CustomerMasterCreate,CustomerMasterEdit")]
         public ActionResult savedata(CustomerMaster tab)
         {
             try
@@ -390,6 +391,7 @@ namespace KVM_ERP.Controllers.Masters
         }
 
         [HttpPost]
+        [Authorize(Roles = "CustomerMasterDelete")]
         public ActionResult deletedata(int id)
         {
             try

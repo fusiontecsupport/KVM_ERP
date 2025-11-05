@@ -14,14 +14,14 @@ namespace KVM_ERP.Controllers
         private ApplicationDbContext db = new ApplicationDbContext();
 
         // GET: MaterialTypeMaster
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "MaterialTypeMasterIndex")]
         public ActionResult Index()
         {
             return View();
         }
 
         // GET: MaterialTypeMaster/Form
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "MaterialTypeMasterCreate,MaterialTypeMasterEdit")]
         public ActionResult Form(int id = 0)
         {
             MaterialTypeMaster tab = new MaterialTypeMaster();
@@ -61,7 +61,7 @@ namespace KVM_ERP.Controllers
 
         // POST: MaterialTypeMaster/savedata
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "MaterialTypeMasterCreate,MaterialTypeMasterEdit")]
         public ActionResult savedata(MaterialTypeMaster tab)
         {
             try
@@ -204,7 +204,7 @@ namespace KVM_ERP.Controllers
 
         // POST: MaterialTypeMaster/Del
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "MaterialTypeMasterDelete")]
         public ActionResult Del(int id)
         {
             try

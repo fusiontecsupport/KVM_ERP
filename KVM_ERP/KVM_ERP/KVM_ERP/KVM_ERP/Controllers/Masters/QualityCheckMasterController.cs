@@ -12,7 +12,7 @@ namespace KVM_ERP.Controllers.Masters
     {
         ApplicationDbContext context = new ApplicationDbContext();
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "QualityCheckMasterIndex")]
         public ActionResult Index()
         {
             try
@@ -64,7 +64,7 @@ namespace KVM_ERP.Controllers.Masters
             }
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "QualityCheckMasterCreate,QualityCheckMasterEdit")]
         public ActionResult Form(int? id)
         {
             try
@@ -136,6 +136,7 @@ namespace KVM_ERP.Controllers.Masters
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "QualityCheckMasterCreate,QualityCheckMasterEdit")]
         public ActionResult savedata(QualityCheckMaster tab)
         {
             try
@@ -209,6 +210,7 @@ namespace KVM_ERP.Controllers.Masters
         }
 
         [HttpPost]
+        [Authorize(Roles = "QualityCheckMasterDelete")]
         public ActionResult deletedata(int id)
         {
             try

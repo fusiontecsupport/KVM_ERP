@@ -13,7 +13,7 @@ namespace KVM_ERP.Controllers.Masters
     {
         ApplicationDbContext context = new ApplicationDbContext();
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "EmployeeMasterIndex")]
         public ActionResult Index()
         {
             try
@@ -431,7 +431,7 @@ namespace KVM_ERP.Controllers.Masters
             }
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "EmployeeMasterCreate,EmployeeMasterEdit")]
         public ActionResult Form(int? id)
         {
             try
@@ -652,6 +652,7 @@ namespace KVM_ERP.Controllers.Masters
 
 
         [HttpPost]
+        [Authorize(Roles = "EmployeeMasterCreate,EmployeeMasterEdit")]
         public void savedata(EmployeeMaster tab)
         {
             try
@@ -815,6 +816,7 @@ namespace KVM_ERP.Controllers.Masters
         }
 
         [HttpPost]
+        [Authorize(Roles = "EmployeeMasterDelete")]
         public ActionResult deletedata(int id)
         {
             try

@@ -14,14 +14,14 @@ namespace KVM_ERP.Controllers
         private ApplicationDbContext db = new ApplicationDbContext();
 
         // GET: UnitMaster
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "UnitMasterIndex")]
         public ActionResult Index()
         {
             return View();
         }
 
         // GET: UnitMaster/Form
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "UnitMasterCreate,UnitMasterEdit")]
         public ActionResult Form(int id = 0)
         {
             UnitMaster tab = new UnitMaster();
@@ -59,7 +59,7 @@ namespace KVM_ERP.Controllers
 
         // POST: UnitMaster/savedata
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "UnitMasterCreate,UnitMasterEdit")]
         public ActionResult savedata(UnitMaster tab)
         {
             try
@@ -201,7 +201,7 @@ namespace KVM_ERP.Controllers
 
         // POST: UnitMaster/Del
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "UnitMasterDelete")]
         public ActionResult Del(int id)
         {
             try

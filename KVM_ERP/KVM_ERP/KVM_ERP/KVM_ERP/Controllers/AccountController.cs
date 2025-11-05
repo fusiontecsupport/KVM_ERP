@@ -455,11 +455,63 @@ namespace KVM_ERP.Controllers
             //}
         }
 
-
         private async Task SignInAsync(ApplicationUser user, bool isPersistent)
         {
             AuthenticationManager.SignOut(DefaultAuthenticationTypes.ExternalCookie);
             var identity = await UserManager.CreateIdentityAsync(user, DefaultAuthenticationTypes.ApplicationCookie);
+            
+            // CRITICAL FIX: Load roles from user's groups and add them as claims
+            using (var context = new ApplicationDbContext())
+            {
+                List<string> groupRoles = new List<string>();
+                
+                // Try different possible table names
+                try
+                {
+                    // Try ApplicationRoleGroups first (most common)
+                    groupRoles = context.Database.SqlQuery<string>(@"
+                        SELECT DISTINCT r.Name 
+                        FROM ApplicationUserGroups aug
+                        INNER JOIN ApplicationRoleGroups arg ON aug.GroupId = arg.GroupId
+                        INNER JOIN AspNetRoles r ON arg.RoleId = r.Id
+                        WHERE aug.UserId = @p0", user.Id).ToList();
+                    
+                    System.Diagnostics.Debug.WriteLine(string.Format("[SignIn] Loaded {0} roles from ApplicationRoleGroups for user {1}", groupRoles.Count, user.UserName));
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(string.Format("[SignIn] ApplicationRoleGroups failed: {0}", ex.Message));
+                    
+                    // Try AspNetUserRoles as fallback
+                    try
+                    {
+                        groupRoles = context.Database.SqlQuery<string>(@"
+                            SELECT DISTINCT r.Name 
+                            FROM AspNetUserRoles ur
+                            INNER JOIN AspNetRoles r ON ur.RoleId = r.Id
+                            WHERE ur.UserId = @p0", user.Id).ToList();
+                        
+                        System.Diagnostics.Debug.WriteLine(string.Format("[SignIn] Loaded {0} roles from AspNetUserRoles for user {1}", groupRoles.Count, user.UserName));
+                    }
+                    catch (Exception ex2)
+                    {
+                        System.Diagnostics.Debug.WriteLine(string.Format("[SignIn] AspNetUserRoles also failed: {0}", ex2.Message));
+                    }
+                }
+                
+                // Add each group role as a claim so [Authorize(Roles="...")] works
+                foreach (var roleName in groupRoles)
+                {
+                    identity.AddClaim(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, roleName));
+                }
+                
+                System.Diagnostics.Debug.WriteLine(string.Format("[SignIn] Total roles added to claims: {0}", groupRoles.Count));
+                if (groupRoles.Count > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine(string.Format("[SignIn] First 10 roles: {0}", string.Join(", ", groupRoles.Take(10))));
+                }
+            }
+            
             AuthenticationManager.SignIn(new AuthenticationProperties() { IsPersistent = isPersistent }, identity);
         }
 
@@ -510,10 +562,23 @@ namespace KVM_ERP.Controllers
 
         private ActionResult RedirectToLocal(string returnUrl)
         {
-            if (Url.IsLocalUrl(returnUrl))
+            // FIX: Don't redirect to returnUrl if it will cause authorization failure
+            // This prevents infinite redirect loops when user doesn't have permission
+            if (Url.IsLocalUrl(returnUrl) && !string.IsNullOrEmpty(returnUrl))
             {
-                return Redirect(returnUrl);
+                // If returnUrl points to a controller action, ignore it and go to safe page
+                // This prevents redirect loop when user lacks the required role
+                if (returnUrl.Contains("/") && returnUrl.Length > 1)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Login] ReturnUrl '{returnUrl}' detected, redirecting to Home instead to avoid auth loop");
+                    // Don't use returnUrl - go to Home instead
+                }
+                else
+                {
+                    return Redirect(returnUrl);
+                }
             }
+            
             // Route users to the appropriate dashboard when no returnUrl is provided
             var group = Session["Group"] as string;
             if (!string.IsNullOrEmpty(group) && group.Equals("Admin", StringComparison.OrdinalIgnoreCase))

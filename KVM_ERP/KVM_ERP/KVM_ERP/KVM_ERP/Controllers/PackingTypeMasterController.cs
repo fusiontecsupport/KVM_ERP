@@ -14,14 +14,14 @@ namespace KVM_ERP.Controllers
         private ApplicationDbContext db = new ApplicationDbContext();
 
         // GET: PackingTypeMaster
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "PackingTypeMasterIndex")]
         public ActionResult Index()
         {
             return View();
         }
 
         // GET: PackingTypeMaster/Form
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "PackingTypeMasterCreate,PackingTypeMasterEdit")]
         public ActionResult Form(int id = 0)
         {
             PackingTypeMaster tab = new PackingTypeMaster();
@@ -89,7 +89,7 @@ namespace KVM_ERP.Controllers
 
         // POST: PackingTypeMaster/savedata
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "PackingTypeMasterCreate,PackingTypeMasterEdit")]
         public ActionResult savedata(PackingTypeMaster tab)
         {
             try
@@ -253,7 +253,7 @@ namespace KVM_ERP.Controllers
 
         // POST: PackingTypeMaster/Del
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "PackingTypeMasterDelete")]
         public ActionResult Del(int id)
         {
             try

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -101,6 +101,7 @@ namespace KVM_ERP.Controllers.Masters
 
         //--------------------------Insert or Modify data------------------------//
         [HttpPost]
+        [Authorize(Roles = "BloodGroupMasterCreate,BloodGroupMasterEdit")]
         public void savedata(BloodGroupMaster tab)
         {
             tab.CUSRID = Session["CUSRID"].ToString();

@@ -1,4 +1,4 @@
-﻿using KVM_ERP.Models;
+using KVM_ERP.Models;
 using ClubMembership.Data;
 using DocumentFormat.OpenXml.Wordprocessing;
 using System;
@@ -84,6 +84,7 @@ namespace KVM_ERP.Controllers.Masters
         }//End of Form
          //-------------------Insert or Modify data-------------//
 
+        [Authorize(Roles = "AccountGroupMasterCreate,AccountGroupMasterEdit")]
         public void savedata(AccountGroupMaster tab)
         {
 

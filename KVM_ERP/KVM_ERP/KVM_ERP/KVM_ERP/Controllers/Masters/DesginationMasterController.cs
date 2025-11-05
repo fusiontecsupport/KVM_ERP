@@ -12,7 +12,7 @@ namespace KVM_ERP.Controllers.Masters
     {
         ApplicationDbContext context = new ApplicationDbContext();
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "DesginationMasterIndex")]
         public ActionResult Index()
         {
             // Use raw SQL to match actual database schema
@@ -114,7 +114,7 @@ namespace KVM_ERP.Controllers.Masters
             }
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "DesginationMasterCreate,DesginationMasterEdit")]
         public ActionResult Form(int? id = 0)
         {
             DesignationMaster tab = new DesignationMaster();
@@ -157,6 +157,7 @@ namespace KVM_ERP.Controllers.Masters
         }
 
         [HttpPost]
+        [Authorize(Roles = "DesginationMasterCreate,DesginationMasterEdit")]
         public void savedata(DesignationMaster tab)
         {
             // Debug: Let's see what we receive from the form
@@ -208,7 +209,7 @@ namespace KVM_ERP.Controllers.Masters
             }
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "DesginationMasterDelete")]
         public void Del()
         {
             string id = Request.Form.Get("id");

@@ -14,14 +14,14 @@ namespace KVM_ERP.Controllers
         private ApplicationDbContext db = new ApplicationDbContext();
 
         // GET: MaterialGroupMaster
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "MaterialGroupMasterIndex")]
         public ActionResult Index()
         {
             return View();
         }
 
         // GET: MaterialGroupMaster/Form
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "MaterialGroupMasterCreate,MaterialGroupMasterEdit")]
         public ActionResult Form(int id = 0)
         {
             MaterialGroupMaster tab = new MaterialGroupMaster();
@@ -59,7 +59,7 @@ namespace KVM_ERP.Controllers
 
         // POST: MaterialGroupMaster/savedata
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "MaterialGroupMasterCreate,MaterialGroupMasterEdit")]
         public ActionResult savedata(MaterialGroupMaster tab)
         {
             try
@@ -201,7 +201,7 @@ namespace KVM_ERP.Controllers
 
         // POST: MaterialGroupMaster/Del
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "MaterialGroupMasterDelete")]
         public ActionResult Del(int id)
         {
             try

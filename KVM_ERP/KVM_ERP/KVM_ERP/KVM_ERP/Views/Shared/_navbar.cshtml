@@ -262,7 +262,15 @@
                         }
                     }*@
 
-                    @* Transaction Menu *@
+                    @* Transaction Menu - Role Based Access Control
+                       RMenuGroupId = 1 (Transaction)
+                       RMenuGroupOrder = Sequential order (1-3)
+                       
+                       Transaction Items:
+                       1. Raw Material Intake (RawMaterialIntake)
+                       2. Stock View (StockView)
+                       3. Invoice (RawMaterialInvoice)
+                    *@
                     @if (isAdmin)
                     {
                         <li class="nav-item dropdown">
@@ -271,13 +279,15 @@
                                 <i class="fa fa-exchange-alt"></i> Transaction
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="transactionDropdown">
+                                <!-- Raw Material Intake - Order: 1, GroupId: 1 -->
                                 <li>
-                                    <a class="dropdown-item" href="@Url.Action("Index", "RawMaterialIntake")">
+                                    <a class="dropdown-item" href="@Url.Action("Index", "RawMaterialIntake")"
+                                       data-role="RawMaterialIntake" data-menugroupid="1" data-menuorder="1">
                                         <i class="fa fa-truck-loading"></i> Raw Material Intake
                                     </a>
                                 </li>
-                                @* Commented out other transaction menu items as requested *@
-                                @*<li>
+                                @* Commented out other transaction menu items as requested
+                                <li>
                                     <a class="dropdown-item" href="@Url.Action("Index", "ComingSoon")">
                                         <i class="fa fa-flask"></i> Sampling & QC
                                     </a>
@@ -301,14 +311,19 @@
                                     <a class="dropdown-item" href="@Url.Action("Index", "ComingSoon")">
                                         <i class="fa fa-file-invoice"></i> Purchase Invoice Generation
                                     </a>
-                                </li>*@
+                                </li>
+                                *@
+                                <!-- Stock View - Order: 2, GroupId: 1 -->
                                 <li>
-                                    <a class="dropdown-item" href="@Url.Action("Index", "StockView")">
+                                    <a class="dropdown-item" href="@Url.Action("Index", "StockView")"
+                                       data-role="StockView" data-menugroupid="1" data-menuorder="2">
                                         <i class="fa fa-chart-line"></i> Stock View
                                     </a>
                                 </li>
+                                <!-- Invoice - Order: 3, GroupId: 1 -->
                                 <li>
-                                    <a class="dropdown-item" href="@Url.Action("Index", "RawMaterialInvoice")">
+                                    <a class="dropdown-item" href="@Url.Action("Index", "RawMaterialInvoice")"
+                                       data-role="RawMaterialInvoice" data-menugroupid="1" data-menuorder="3">
                                         <i class="fa fa-file-invoice"></i> Invoice
                                     </a>
                                 </li>
@@ -316,7 +331,13 @@
                         </li>
                     }
 
-                    @* Tally Menu *@
+                    @* Tally Menu - Role Based Access Control
+                       RMenuGroupId = 2 (Tally)
+                       RMenuGroupOrder = 1
+                       
+                       Tally Items:
+                       1. Invoice Updation to Tally (TallyInvoiceUpdation)
+                    *@
                     @if (isAdmin)
                     {
                         <li class="nav-item dropdown">
@@ -325,8 +346,10 @@
                                 <i class="fa fa-calculator"></i> Tally
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="tallyDropdown">
+                                <!-- Invoice Updation to Tally - Order: 1, GroupId: 2 -->
                                 <li>
-                                    <a class="dropdown-item" href="@Url.Action("Index", "ComingSoon")">
+                                    <a class="dropdown-item" href="@Url.Action("Index", "ComingSoon")"
+                                       data-role="TallyInvoiceUpdation" data-menugroupid="2" data-menuorder="1">
                                         <i class="fa fa-sync-alt"></i> Invoice Updation to Tally
                                     </a>
                                 </li>
@@ -462,7 +485,13 @@
                         </li>
                     }
 
-                    @* Reports Menu *@
+                    @* Reports Menu - Role Based Access Control
+                       RMenuGroupId = 3 (Reports)
+                       RMenuGroupOrder = 1
+                       
+                       Report Items:
+                       1. Raw Materials Import Report (Reports)
+                    *@
                     @if (isAdmin)
                     {
                         <li class="nav-item dropdown">
@@ -471,8 +500,10 @@
                                 <i class="fa fa-chart-bar"></i> Reports
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="reportsDropdown">
+                                <!-- Raw Materials Import Report - Order: 1, GroupId: 3 -->
                                 <li>
-                                    <a class="dropdown-item" href="@Url.Action("RawMaterialsImport", "Reports")">
+                                    <a class="dropdown-item" href="@Url.Action("RawMaterialsImport", "Reports")"
+                                       data-role="RawMaterialsImportReport" data-menugroupid="3" data-menuorder="1">
                                         <i class="fa fa-file-excel"></i> Raw Materials Import
                                     </a>
                                 </li>
@@ -480,8 +511,55 @@
                         </li>
                     }
 
-                    @if (Model != null && isAdmin)
+                    @* Masters Menu - Show if user has ANY master permission OR is Admin *@
+                    @{
+                        var hasSupplier = User.IsInRole("SupplierMasterIndex");
+                        var hasState = User.IsInRole("StateMasterIndex");
+                        var hasUnit = User.IsInRole("UnitMasterIndex");
+                        System.Diagnostics.Debug.WriteLine(string.Format("[Navbar] SupplierMasterIndex={0}, StateMasterIndex={1}, UnitMasterIndex={2}, isAdmin={3}", hasSupplier, hasState, hasUnit, isAdmin));
+                    }
+                    @if (Model != null && (isAdmin || 
+                        User.IsInRole("CompanyMasterIndex") || 
+                        User.IsInRole("DesginationMasterIndex") || 
+                        User.IsInRole("DepartmentMasterIndex") || 
+                        User.IsInRole("CostFactorMasterIndex") || 
+                        User.IsInRole("HSNCodeMasterIndex") || 
+                        User.IsInRole("CustomerMasterIndex") || 
+                        hasSupplier || 
+                        User.IsInRole("LocationMasterIndex") || 
+                        hasState || 
+                        hasUnit || 
+                        User.IsInRole("MaterialMasterIndex") || 
+                        User.IsInRole("MaterialTypeMasterIndex") || 
+                        User.IsInRole("MaterialGroupMasterIndex") || 
+                        User.IsInRole("PackingMasterIndex") || 
+                        User.IsInRole("PackingTypeMasterIndex") || 
+                        User.IsInRole("LaboratoryMasterIndex")))
                     {
+                        @*
+                        Masters Menu - Role Based Access Control
+                        RMenuGroupId = 4 (Masters)
+                        RMenuGroupOrder = Sequential order (1-16)
+                        
+                        16 Masters with their Order:
+                        1. Company Master (CompanyMaster/Index)
+                        2. Designation (DesginationMaster/Index)
+                        3. Department (DepartmentMaster/Index)
+                        4. Cost Factor (CostFactorMaster/Index)
+                        5. HSN Code (HSNCodeMaster/Index)
+                        6. Customer Master (CustomerMaster/Index)
+                        7. Supplier Master (SupplierMaster/Index)
+                        8. Location Master (LocationMaster/Index)
+                        9. State Master (StateMaster/Index)
+                        10. Unit (UnitMaster/Index)
+                        11. Material (MaterialMaster/Index)
+                        12. Material Type (MaterialTypeMaster/Index)
+                        13. Material Group (MaterialGroupMaster/Index)
+                        14. Packing (PackingMaster/Index)
+                        15. Packing Type (PackingTypeMaster/Index)
+                        16. Laboratory (LaboratoryMaster/Index)
+                        *@
+                        
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="mastersDropdown" role="button"
                                data-bs-toggle="dropdown" aria-expanded="false">
@@ -495,69 +573,79 @@
                                             <li class="dropdown-header">
                                                 <i class="fa fa-building-o"></i> General
                                             </li>
-                                            <!-- Company Master -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "CompanyMaster")">
-                                                    <i class="fa fa-building"></i> Company Master
-                                                </a>
-                                            </li>
-                                            <!-- Branch Master -->
-                                            <!-- <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "BranchMaster")">
-                                                    <i class="fa fa-code-fork"></i> Branch Master
-                                                </a>
-                                            </li>
-                                            <!-- Account Group -->
-                                            <!-- <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "AccountGroupMaster")">
-                                                    <i class="fa fa-users"></i> Account Group
-                                                </a>
-                                            </li> -->
-                                            <!-- Account Head -->
-                                            <!-- <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "AccountHeadMaster")">
-                                                    <i class="fa fa-envelope"></i> Account Head
-                                                </a>
-                                            </li>  -->
-                                            <!-- Designation -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "DesginationMaster")">
-                                                    <i class="fa fa-id-badge"></i> Designation
-                                                </a>
-                                            </li>
-                                            <!-- Department -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "DepartmentMaster")">
-                                                    <i class="fa fa-sitemap"></i> Department
-                                                </a>
-                                            </li>
-                                            <!-- Cost Factor -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "CostFactorMaster")">
-                                                    <i class="fa fa-calculator"></i> Costfactor
-                                                </a>
-                                            </li>
-                                            <!-- HSN Code -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "HSNCodeMaster")">
-                                                    <i class="fa fa-barcode"></i> HSN Code
-                                                </a>
-                                            </li>
+                                            <!-- Company Master - Order: 1, GroupId: 4, MenuType: Masters -->
+                                            @if (User.IsInRole("CompanyMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "CompanyMaster")" 
+                                                       data-role="CompanyMaster" data-menugroupid="4" data-menuorder="1">
+                                                        <i class="fa fa-building"></i> Company Master
+                                                    </a>
+                                                </li>
+                                            }
+                                            <!-- Designation - Order: 2, GroupId: 4 -->
+                                            @if (User.IsInRole("DesginationMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "DesginationMaster")"
+                                                       data-role="DesginationMaster" data-menugroupid="4" data-menuorder="2">
+                                                        <i class="fa fa-id-badge"></i> Designation
+                                                    </a>
+                                                </li>
+                                            }
+                                            <!-- Department - Order: 3, GroupId: 4 -->
+                                            @if (User.IsInRole("DepartmentMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "DepartmentMaster")"
+                                                       data-role="DepartmentMaster" data-menugroupid="4" data-menuorder="3">
+                                                        <i class="fa fa-sitemap"></i> Department
+                                                    </a>
+                                                </li>
+                                            }
+                                            <!-- Cost Factor - Order: 4, GroupId: 4 -->
+                                            @if (User.IsInRole("CostFactorMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "CostFactorMaster")"
+                                                       data-role="CostFactorMaster" data-menugroupid="4" data-menuorder="4">
+                                                        <i class="fa fa-calculator"></i> Costfactor
+                                                    </a>
+                                                </li>
+                                            }
+                                            <!-- HSN Code - Order: 5, GroupId: 4 -->
+                                            @if (User.IsInRole("HSNCodeMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "HSNCodeMaster")"
+                                                       data-role="HSNCodeMaster" data-menugroupid="4" data-menuorder="5">
+                                                        <i class="fa fa-barcode"></i> HSN Code
+                                                    </a>
+                                                </li>
+                                            }
                                             
                                             <li class="dropdown-divider"></li>
                                             
-                                            <!-- Customer Master -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "CustomerMaster")">
-                                                    <i class="fa-solid fa-person"></i> Customer Master
-                                                </a>
-                                            </li>
-                                            <!-- Supplier Master -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "SupplierMaster")">
-                                                    <i class="fa fa-truck"></i> Supplier Master
-                                                </a>
-                                            </li>
+                                            <!-- Customer Master - Order: 6, GroupId: 4 -->
+                                            @if (User.IsInRole("CustomerMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "CustomerMaster")"
+                                                       data-role="CustomerMaster" data-menugroupid="4" data-menuorder="6">
+                                                        <i class="fa-solid fa-person"></i> Customer Master
+                                                    </a>
+                                                </li>
+                                            }
+                                            <!-- Supplier Master - Order: 7, GroupId: 4 -->
+                                            @if (User.IsInRole("SupplierMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "SupplierMaster")"
+                                                       data-role="SupplierMaster" data-menugroupid="4" data-menuorder="7">
+                                                        <i class="fa fa-truck"></i> Supplier Master
+                                                    </a>
+                                                </li>
+                                            }
                                             <!-- Salesman Master -->
                                             <!-- <li>
                                                 <a class="dropdown-item" href="@Url.Action("Index", "SalesmanMaster")">
@@ -573,66 +661,102 @@
                                             <li class="dropdown-header">
                                                 <i class="fa fa-cog"></i> Others
                                             </li>
-                                            <!-- Location Master -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "LocationMaster")">
-                                                    <i class="fa-solid fa-map-location-dot"></i> Location Master
-                                                </a>
-                                            </li>
-                                            <!-- State Master -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "StateMaster")">
-                                                    <i class="fa-solid fa-compass"></i> State Master
-                                                </a>
-                                            </li>
+                                            <!-- Location Master - Order: 8, GroupId: 4 -->
+                                            @if (User.IsInRole("LocationMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "LocationMaster")"
+                                                       data-role="LocationMaster" data-menugroupid="4" data-menuorder="8">
+                                                        <i class="fa-solid fa-map-location-dot"></i> Location Master
+                                                    </a>
+                                                </li>
+                                            }
+                                            <!-- State Master - Order: 9, GroupId: 4 -->
+                                            @if (User.IsInRole("StateMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "StateMaster")"
+                                                       data-role="StateMaster" data-menugroupid="4" data-menuorder="9">
+                                                        <i class="fa-solid fa-compass"></i> State Master
+                                                    </a>
+                                                </li>
+                                            }
                                             
                                             <li class="dropdown-divider"></li>
                                             
                                             <li class="dropdown-header">
                                                 <i class="fa fa-info-circle"></i> Item Details
                                             </li>
-                                            <!-- Unit -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "UnitMaster")">
-                                                    <i class="fa fa-balance-scale"></i> Unit
-                                                </a>
-                                            </li>
-                                            <!-- Material -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "MaterialMaster")">
-                                                    <i class="fa-solid fa-atom"></i> Material
-                                                </a>
-                                            </li>
-                                            <!-- Material Type -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "MaterialTypeMaster")">
-                                                    <i class="fa fa-cubes"></i> Material Type
-                                                </a>
-                                            </li>
-                                            <!-- Material Group -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "MaterialGroupMaster")">
-                                                    <i class="fa fa-layer-group"></i> Material Group
-                                                </a>
-                                            </li>
-                                            <!-- Packing Master -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "PackingMaster")">
-                                                    <i class="fa fa-box"></i> Packing
-                                                </a>
-                                            </li>
-                                            <!-- Packing Type Master -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "PackingTypeMaster")">
-                                                    <i class="fa fa-cube"></i> Packing Type
-                                                </a>
-                                            </li>
-                                            <!-- Laboratory Master -->
-                                            <li>
-                                                <a class="dropdown-item" href="@Url.Action("Index", "LaboratoryMaster")">
-                                                    <i class="fa fa-flask"></i> Laboratory
-                                                </a>
-                                            </li>
+                                            <!-- Unit - Order: 10, GroupId: 4 -->
+                                            @if (User.IsInRole("UnitMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "UnitMaster")"
+                                                       data-role="UnitMaster" data-menugroupid="4" data-menuorder="10">
+                                                        <i class="fa fa-balance-scale"></i> Unit
+                                                    </a>
+                                                </li>
+                                            }
+                                            <!-- Material - Order: 11, GroupId: 4 -->
+                                            @if (User.IsInRole("MaterialMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "MaterialMaster")"
+                                                       data-role="MaterialMaster" data-menugroupid="4" data-menuorder="11">
+                                                        <i class="fa-solid fa-atom"></i> Material
+                                                    </a>
+                                                </li>
+                                            }
+                                            <!-- Material Type - Order: 12, GroupId: 4 -->
+                                            @if (User.IsInRole("MaterialTypeMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "MaterialTypeMaster")"
+                                                       data-role="MaterialTypeMaster" data-menugroupid="4" data-menuorder="12">
+                                                        <i class="fa fa-cubes"></i> Material Type
+                                                    </a>
+                                                </li>
+                                            }
+                                            <!-- Material Group - Order: 13, GroupId: 4 -->
+                                            @if (User.IsInRole("MaterialGroupMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "MaterialGroupMaster")"
+                                                       data-role="MaterialGroupMaster" data-menugroupid="4" data-menuorder="13">
+                                                        <i class="fa fa-layer-group"></i> Material Group
+                                                    </a>
+                                                </li>
+                                            }
+                                            <!-- Packing Master - Order: 14, GroupId: 4 -->
+                                            @if (User.IsInRole("PackingMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "PackingMaster")"
+                                                       data-role="PackingMaster" data-menugroupid="4" data-menuorder="14">
+                                                        <i class="fa fa-box"></i> Packing
+                                                    </a>
+                                                </li>
+                                            }
+                                            <!-- Packing Type Master - Order: 15, GroupId: 4 -->
+                                            @if (User.IsInRole("PackingTypeMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "PackingTypeMaster")"
+                                                       data-role="PackingTypeMaster" data-menugroupid="4" data-menuorder="15">
+                                                        <i class="fa fa-cube"></i> Packing Type
+                                                    </a>
+                                                </li>
+                                            }
+                                            <!-- Laboratory Master - Order: 16, GroupId: 4 -->
+                                            @if (User.IsInRole("LaboratoryMasterIndex"))
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" href="@Url.Action("Index", "LaboratoryMaster")"
+                                                       data-role="LaboratoryMaster" data-menugroupid="4" data-menuorder="16">
+                                                        <i class="fa fa-flask"></i> Laboratory
+                                                    </a>
+                                                </li>
+                                            }
 
                                             <!-- Rate Card -->
                                             <!-- <li>
