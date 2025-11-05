@@ -732,6 +732,11 @@
                                             <i class="fa fa-fw fa-envelope"></i> Users
                                         </a>
                                     </li>
+                                    <li>
+                                        <a class="dropdown-item" href="@Url.Action("Index", "Roles")">
+                                            <i class="fa fa-fw fa-user-shield"></i> Roles
+                                        </a>
+                                    </li>
                                     @* Renewal Approval - Only for SuperAdmin Group *@
                                     if (string.Equals(group, "SuperAdmin", System.StringComparison.OrdinalIgnoreCase))
                                     {
