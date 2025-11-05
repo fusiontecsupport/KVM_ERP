@@ -42,8 +42,10 @@ namespace KVM_ERP.Controllers
                 // TRANNAMT column stores the grand total (Subtotal + CGST + SGST + IGST)
                 var sql = @"SELECT tm.TRANMID, tm.TRANDATE, tm.TRANNO, tm.TRANDNO, tm.TRANREFNO, tm.CATENAME, 
                            ISNULL(tm.TRANNAMT, 0) as TRANNAMT,
-                           tm.DISPSTATUS
+                           tm.DISPSTATUS,
+                           ISNULL(pis.PUINSTDESC, 'N/A') as StatusDescription
                            FROM TRANSACTIONMASTER tm
+                           LEFT JOIN PURCHASEINVOICESTATUS pis ON tm.DISPSTATUS = pis.PUINSTID
                            WHERE tm.REGSTRID = 2";
                 
                 var parameters = new List<object>();
@@ -81,7 +83,8 @@ namespace KVM_ERP.Controllers
                     TRANREFNO = i.TRANREFNO ?? "-",
                     CATENAME = i.CATENAME ?? "",
                     TRANNAMT = i.TRANNAMT,
-                    DISPSTATUS = i.DISPSTATUS
+                    DISPSTATUS = i.DISPSTATUS,
+                    StatusDescription = i.StatusDescription
                 }).ToList();
 
                 System.Diagnostics.Debug.WriteLine($"Returning {allInvoices.Count} invoices");
@@ -201,10 +204,14 @@ namespace KVM_ERP.Controllers
 
         // GET: Form for adding/editing invoice
         [Authorize(Roles = "PurchaseInvoiceCreate,PurchaseInvoiceEdit")]
-        public ActionResult Form(int? id)
+        public ActionResult Form(int? id, string source = null)
         {
             try
             {
+                // Check if called from Invoice Approval page
+                bool isApprovalMode = source == "approval";
+                ViewBag.IsApprovalMode = isApprovalMode;
+                
                 // Get suppliers for dropdown
                 ViewBag.Suppliers = context.SupplierMasters
                     .Where(c => (c.DISPSTATUS == 0 || c.DISPSTATUS == null))
@@ -216,17 +223,35 @@ namespace KVM_ERP.Controllers
                     })
                     .ToList();
 
-                // Get purchase invoice statuses for dropdown - only "Cancel" and "Waiting for Approval"
-                ViewBag.InvoiceStatuses = context.PurchaseInvoiceStatuses
-                    .Where(s => (s.DISPSTATUS == 0 || s.DISPSTATUS == null) && 
-                           (s.PUINSTCODE == "PUS002" || s.PUINSTCODE == "PUS003"))
-                    .OrderBy(s => s.PUINSTDESC)
-                    .Select(s => new SelectListItem
-                    {
-                        Value = s.PUINSTID.ToString(),
-                        Text = s.PUINSTDESC
-                    })
-                    .ToList();
+                // Get purchase invoice statuses for dropdown
+                // If from Approval page: show "Active" (PUS001) and "Approved" (PUS004)
+                // If from regular Invoice: show "Cancel" and "Waiting for Approval"
+                if (isApprovalMode)
+                {
+                    ViewBag.InvoiceStatuses = context.PurchaseInvoiceStatuses
+                        .Where(s => (s.DISPSTATUS == 0 || s.DISPSTATUS == null) && 
+                               (s.PUINSTCODE == "PUS001" || s.PUINSTCODE == "PUS004"))  // Active and Approved
+                        .OrderBy(s => s.PUINSTDESC)
+                        .Select(s => new SelectListItem
+                        {
+                            Value = s.PUINSTID.ToString(),
+                            Text = s.PUINSTDESC
+                        })
+                        .ToList();
+                }
+                else
+                {
+                    ViewBag.InvoiceStatuses = context.PurchaseInvoiceStatuses
+                        .Where(s => (s.DISPSTATUS == 0 || s.DISPSTATUS == null) && 
+                               (s.PUINSTCODE == "PUS002" || s.PUINSTCODE == "PUS003"))  // Cancel and Waiting for Approval
+                        .OrderBy(s => s.PUINSTDESC)
+                        .Select(s => new SelectListItem
+                        {
+                            Value = s.PUINSTID.ToString(),
+                            Text = s.PUINSTDESC
+                        })
+                        .ToList();
+                }
 
                 // If editing existing invoice, load the data
                 if (id.HasValue)
@@ -851,8 +876,11 @@ namespace KVM_ERP.Controllers
                 decimal totalSGST = 0.00m;
                 decimal totalIGST = 0.00m;
                 string amountInWords = "";
+                
+                // Declare existingQuantities at method scope for approval mode
+                Dictionary<int, Tuple<decimal, decimal>> existingQuantities = null;
 
-                // Check if this is an UPDATE (edit) or INSERT (new)
+                // Check if this is an UPDATE (edit existing invoice) or INSERT (new invoice)
                 if (model.InvoiceId.HasValue && model.InvoiceId.Value > 0)
                 {
                     // UPDATE existing invoice
@@ -900,6 +928,23 @@ namespace KVM_ERP.Controllers
                         model.RefNo,                    // TRANREFNO (Reference Number)
                         tranMId                         // TRANMID (WHERE clause)
                     );
+
+                    // If in Approval Mode, save existing TRANAQTY and TRANEQTY before deleting
+                    if (model.IsApprovalMode)
+                    {
+                        existingQuantities = new Dictionary<int, Tuple<decimal, decimal>>();
+                        var existingItems = context.Database.SqlQuery<ExistingItemQuantities>(@"
+                            SELECT TRANDAID, TRANAQTY, TRANEQTY 
+                            FROM TRANSACTIONDETAIL 
+                            WHERE TRANMID = @p0
+                        ", tranMId).ToList();
+                        
+                        foreach (var item in existingItems)
+                        {
+                            existingQuantities[item.TRANDAID] = Tuple.Create(item.TRANAQTY, item.TRANEQTY);
+                        }
+                        System.Diagnostics.Debug.WriteLine($"Approval Mode: Saved {existingQuantities.Count} existing quantity records");
+                    }
 
                     // Delete existing items - only for Raw Material Invoice (REGSTRID=2)
                     context.Database.ExecuteSqlCommand(@"
@@ -1063,6 +1108,24 @@ namespace KVM_ERP.Controllers
                         // This does NOT update Raw Material Intake (REGSTRID=1) records
                         int trandaid = item.TRANPID > 0 ? item.TRANPID : 0;
                         
+                        // Determine quantities based on approval mode
+                        decimal tranaqty, traneqty, trandqty;
+                        if (model.IsApprovalMode && existingQuantities != null && existingQuantities.ContainsKey(trandaid))
+                        {
+                            // Approval Mode: Keep original TRANAQTY and TRANEQTY, only update TRANDQTY
+                            tranaqty = existingQuantities[trandaid].Item1;  // Original TRANAQTY
+                            traneqty = existingQuantities[trandaid].Item2;  // Previous TRANEQTY
+                            trandqty = item.NetWeight;                       // New value goes to TRANDQTY
+                            System.Diagnostics.Debug.WriteLine($"  Approval Mode: TRANAQTY={tranaqty}, TRANEQTY={traneqty}, TRANDQTY={trandqty}");
+                        }
+                        else
+                        {
+                            // Regular Mode: NetWeight goes to both TRANEQTY and TRANDQTY
+                            tranaqty = item.ActualWeight;
+                            traneqty = item.NetWeight;
+                            trandqty = item.NetWeight;
+                        }
+                        
                         System.Diagnostics.Debug.WriteLine($"  Saving item: ItemId={item.ItemId}, TRANPID={item.TRANPID}, TRANDAID={trandaid}, HSNID={hsnId}, Gross=₹{grossAmount}, CGST=₹{itemCGST}, SGST=₹{itemSGST}, IGST=₹{itemIGST}, Net=₹{netAmount}");
 
                         context.Database.ExecuteSqlCommand(itemSql,
@@ -1075,9 +1138,9 @@ namespace KVM_ERP.Controllers
                             item.ProductionColourId, // @p6 - PCLRID
                             item.ReceivedTypeId,     // @p7 - RCVDTID
                             hsnId,                   // @p8 - HSNID (from Material Master)
-                            item.ActualWeight,       // @p9 - TRANAQTY (Original from Raw Material Intake)
-                            item.NetWeight,          // @p10 - TRANDQTY (Same as TRANEQTY for compatibility)
-                            item.NetWeight,          // @p11 - TRANEQTY (Editable Net Weight entered by user)
+                            tranaqty,                // @p9 - TRANAQTY (Original from Raw Material Intake)
+                            trandqty,                // @p10 - TRANDQTY (Approval: new value, Regular: same as TRANEQTY)
+                            traneqty,                // @p11 - TRANEQTY (Approval: unchanged, Regular: NetWeight)
                             item.Rate,               // @p12 - TRANDRATE
                             item.Amount,             // @p13 - TRANDAMT
                             0.00m,                   // @p14 - TRANDDISCEXPRN (default 0.00)
@@ -1382,6 +1445,7 @@ namespace KVM_ERP.Controllers
         public string CATENAME { get; set; }
         public decimal TRANNAMT { get; set; }
         public short DISPSTATUS { get; set; }
+        public string StatusDescription { get; set; }
     }
 
     // ViewModel for Supplier Items
@@ -1410,6 +1474,7 @@ namespace KVM_ERP.Controllers
         public int SupplierId { get; set; }
         public List<InvoiceItemModel> Items { get; set; }
         public List<TaxFactorModel> TaxFactors { get; set; }
+        public bool IsApprovalMode { get; set; } = false; // Indicates if saving from approval page
     }
 
     // Model for invoice items
@@ -1500,6 +1565,14 @@ namespace KVM_ERP.Controllers
         public decimal CGSTEXPRN { get; set; }
         public decimal SGSTEXPRN { get; set; }
         public decimal IGSTEXPRN { get; set; }
+    }
+
+    // Model for existing item quantities (used in approval mode)
+    public class ExistingItemQuantities
+    {
+        public int TRANDAID { get; set; }
+        public decimal TRANAQTY { get; set; }
+        public decimal TRANEQTY { get; set; }
     }
 
     // ViewModel for Cost Factor

@@ -227,6 +227,7 @@
     <Compile Include="Controllers\ReportsController.cs" />
     <Compile Include="Controllers\RawMaterialIntakeController.cs" />
     <Compile Include="Controllers\RawMaterialInvoiceController.cs" />
+    <Compile Include="Controllers\PurchaseInvoiceApprovalController.cs" />
     <Compile Include="Controllers\StockViewController.cs" />
     <Compile Include="Controllers\RenewalApprovalController.cs" />
     <!-- Excluded per cleanup -->

@@ -1,5 +1,5 @@
 @{
-    ViewBag.Title = "Invoice";
+    ViewBag.Title = "Invoice Approval";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
@@ -20,7 +20,7 @@
     }
 
     .header-section {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         color: white;
         padding: 25px 30px;
         border-radius: 15px 15px 0 0;
@@ -35,27 +35,9 @@
         gap: 15px;
     }
 
-    /* Add New button styling */
-    .add-btn {
-        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-        border: none;
-        padding: 12px 20px;
-        border-radius: 25px;
-        color: white;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(238, 90, 36, 0.4);
-    }
-    .add-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(238, 90, 36, 0.6);
-        color: white;
-        text-decoration: none;
-    }
-
     .table-container { padding: 30px; background: white; }
 
-    #invoiceTable {
+    #approvalTable {
         border-collapse: separate;
         border-spacing: 0;
         border-radius: 10px;
@@ -64,8 +46,8 @@
         width: 100%;
     }
 
-    #invoiceTable thead th {
-        background: #7f88e9; /* slight violet-blue */
+    #approvalTable thead th {
+        background: #9c88ff; /* purple shade */
         color: white;
         font-weight: 600;
         padding: 15px 12px;
@@ -74,21 +56,21 @@
         font-size: 14px;
         border-right: 1px solid rgba(255,255,255,0.35);
     }
-    #invoiceTable thead th:last-child { border-right: none; }
+    #approvalTable thead th:last-child { border-right: none; }
 
-    #invoiceTable tbody td {
+    #approvalTable tbody td {
         padding: 12px;
         border-bottom: 1px solid #f0f0f0;
         vertical-align: middle;
         text-align: center;
     }
 
-    #invoiceTable tbody tr:hover { background-color: #f8f9ff; transition: all 0.2s ease; }
+    #approvalTable tbody tr:hover { background-color: #fef5ff; transition: all 0.2s ease; }
 
     /* Date Filter Section Styling */
     .date-filter-card {
-        background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%);
-        border: 1px solid #e3f2fd;
+        background: linear-gradient(135deg, #fff5f8 0%, #ffe8f0 100%);
+        border: 1px solid #ffd6e7;
         border-radius: 12px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
@@ -106,12 +88,12 @@
     }
     
     .form-control:focus {
-        border-color: #4facfe;
-        box-shadow: 0 0 0 0.2rem rgba(79, 172, 254, 0.25);
+        border-color: #f5576c;
+        box-shadow: 0 0 0 0.2rem rgba(245, 87, 108, 0.25);
     }
     
     #filterBtn {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         border: none;
         border-radius: 8px;
         padding: 10px 20px;
@@ -121,7 +103,7 @@
     
     #filterBtn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+        box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
     }
     
     #clearBtn {
@@ -140,7 +122,7 @@
 
     .amount-cell {
         font-weight: 700;
-        color: #dc3545;  /* Bootstrap red color */
+        color: #dc3545;
         font-size: 15px;
     }
 
@@ -165,15 +147,15 @@
         color: white;
     }
 
-    .delete-btn {
-        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-        color: white;
+    .print-btn {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        color: #333;
     }
 
-    .delete-btn:hover {
+    .print-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(238, 90, 36, 0.4);
-        color: white;
+        box-shadow: 0 4px 12px rgba(168, 237, 234, 0.4);
+        color: #333;
     }
 
     /* Status Badge Styling */
@@ -190,26 +172,6 @@
     .bg-warning {
         background-color: #ffc107 !important;
     }
-    
-    .bg-danger {
-        background-color: #dc3545 !important;
-        color: white !important;
-    }
-    
-    .bg-success {
-        background-color: #28a745 !important;
-        color: white !important;
-    }
-    
-    .bg-secondary {
-        background-color: #6c757d !important;
-        color: white !important;
-    }
-    
-    .bg-info {
-        background-color: #17a2b8 !important;
-        color: white !important;
-    }
 </style>
 
 <div class="main-container">
@@ -217,12 +179,9 @@
         <div class="header-section">
             <div class="d-flex justify-content-between align-items-center">
                 <h1 class="header-title">
-                    <i class="fa fa-file-invoice"></i>
-                    Invoice
+                    <i class="fa fa-check-circle"></i>
+                    Invoice Approval
                 </h1>
-                <a href="@Url.Action("Form", "RawMaterialInvoice")" class="btn add-btn">
-                    <i class="fa fa-plus-circle"></i> Add New
-                </a>
             </div>
         </div>
 
@@ -262,7 +221,7 @@
                                     </div>
                                     <small class="text-muted">
                                         <i class="fa fa-info-circle"></i> 
-                                        Filter records by transaction date range
+                                        Showing invoices waiting for approval
                                     </small>
                                 </div>
                             </div>
@@ -271,7 +230,7 @@
                 </div>
             </div>
 
-            <table id="invoiceTable" class="display table table-striped" cellspacing="0" width="100%">
+            <table id="approvalTable" class="display table table-striped" cellspacing="0" width="100%">
                 <thead>
                     <tr>
                         <th>Date</th>
@@ -304,9 +263,9 @@
         $(document).ready(function() {
             $.fn.dataTable.ext.errMode = 'console';
 
-            var table = $('#invoiceTable').DataTable({
+            var table = $('#approvalTable').DataTable({
                 ajax: {
-                    url: '@Url.Action("GetAjaxData", "RawMaterialInvoice")',
+                    url: '@Url.Action("GetAjaxData", "PurchaseInvoiceApproval")',
                     type: 'GET',
                     data: function(d) {
                         // Add date filter parameters
@@ -321,7 +280,7 @@
                         return [];
                     },
                     error: function(xhr, status, err){
-                        console.error('RawMaterialInvoice GetAjaxData error:', status, err, xhr && xhr.responseText);
+                        console.error('PurchaseInvoiceApproval GetAjaxData error:', status, err, xhr && xhr.responseText);
                         alert('Failed to load data. Please check console for details.');
                     }
                 },
@@ -355,17 +314,7 @@
                     {
                         data: 'StatusDescription',
                         render: function(data, type, row) {
-                            if (data === 'Cancel' || data === 'Cancelled') {
-                                return '<span class="badge bg-danger">' + data + '</span>';
-                            } else if (data === 'Waiting for Approval') {
-                                return '<span class="badge bg-warning text-dark">' + data + '</span>';
-                            } else if (data === 'Approved') {
-                                return '<span class="badge bg-success">' + data + '</span>';
-                            } else if (data === 'Rejected') {
-                                return '<span class="badge bg-secondary">' + data + '</span>';
-                            } else {
-                                return '<span class="badge bg-info">' + (data || 'N/A') + '</span>';
-                            }
+                            return '<span class="badge bg-warning text-dark">' + data + '</span>';
                         }
                     },
                     { 
@@ -378,10 +327,16 @@
                         data: null,
                         orderable: false,
                         render: function(data, type, row) {
-                            return '<a href="@Url.Action("Form", "RawMaterialInvoice")?id=' + row.TRANMID + '" class="btn action-btn edit-btn" title="Edit">' +
-                                   '<i class="fa fa-edit"></i> Edit</a>' +
-                                   '<button class="btn action-btn delete-btn" onclick="deleteInvoice(' + row.TRANMID + ')" title="Delete">' +
-                                   '<i class="fa fa-trash"></i> Delete</button>';
+                            var buttons = '';
+                            // Only show Edit button for "Waiting for Approval" status
+                            if (row.StatusDescription === 'Waiting for Approval') {
+                                buttons += '<a href="@Url.Action("Form", "RawMaterialInvoice")?id=' + row.TRANMID + '&source=approval" class="btn action-btn edit-btn" title="Edit">' +
+                                          '<i class="fa fa-edit"></i> Edit</a>';
+                            }
+                            // Always show Print button
+                            buttons += '<button class="btn action-btn print-btn" onclick="printInvoice(' + row.TRANMID + ')" title="Print">' +
+                                      '<i class="fa fa-print"></i> Print</button>';
+                            return buttons;
                         }
                     }
                 ],
@@ -391,7 +346,8 @@
                 order: [[0, 'desc']],
                 language: {
                     search: "_INPUT_",
-                    searchPlaceholder: "Search..."
+                    searchPlaceholder: "Search...",
+                    emptyTable: "No invoices waiting for approval"
                 }
             });
 
@@ -477,29 +433,9 @@
             updateFilterStatus();
         });
 
-        // Delete Invoice Function
-        function deleteInvoice(tranmId) {
-            if (!confirm('Are you sure you want to delete this invoice?')) {
-                return;
-            }
-
-            $.ajax({
-                url: '@Url.Action("DeleteInvoice", "RawMaterialInvoice")',
-                type: 'POST',
-                data: { id: tranmId },
-                success: function(response) {
-                    if (response.success) {
-                        alert('Invoice deleted successfully!');
-                        $('#invoiceTable').DataTable().ajax.reload();
-                    } else {
-                        alert('Error: ' + response.message);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error deleting invoice:', error);
-                    alert('Failed to delete invoice. Please try again.');
-                }
-            });
+        // Print Invoice Function
+        function printInvoice(tranmId) {
+            window.open('@Url.Action("GenerateInvoicePDF", "RawMaterialInvoice")?id=' + tranmId, '_blank');
         }
     </script>
 }

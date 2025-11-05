@@ -1475,7 +1475,8 @@
                 Status: $('#status').val(),
                 SupplierId: $('#supplierName').val(),
                 Items: [],
-                TaxFactors: taxData  // Include tax calculation data
+                TaxFactors: taxData,  // Include tax calculation data
+                IsApprovalMode: @(ViewBag.IsApprovalMode != null && ViewBag.IsApprovalMode ? "true" : "false")  // Flag for approval mode
             };
 
             // Collect items data - ONLY CHECKED items with values
@@ -1567,8 +1568,12 @@
                         
                         alert('Invoice saved successfully!\n\nInvoice No: ' + response.tranNo + '\nDocument No: ' + response.tranDNo);
                         
-                        // Redirect to index page
-                        window.location.href = '@Url.Action("Index", "RawMaterialInvoice")';
+                        // Redirect based on mode
+                        @if (ViewBag.IsApprovalMode != null && ViewBag.IsApprovalMode) {
+                            @:window.location.href = '@Url.Action("Index", "PurchaseInvoiceApproval")';
+                        } else {
+                            @:window.location.href = '@Url.Action("Index", "RawMaterialInvoice")';
+                        }
                     } else {
                         alert('Error: ' + response.message);
                         $('.save-btn').prop('disabled', false).html('<i class="fa fa-save"></i> Save Invoice');
