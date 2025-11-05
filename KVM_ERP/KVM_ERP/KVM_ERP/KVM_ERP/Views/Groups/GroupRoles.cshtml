@@ -1,8 +1,17 @@
 @model KVM_ERP.Models.AccountViewModels.SelectGroupRolesViewModel
 @{
     ViewBag.Title = "Group Role Permissions";
-    var masterRoles = Model.Roles.Where(r => !r.RoleName.Contains("Print") && !r.RoleName.Contains("Transaction")).ToList();
-    var transactionRoles = Model.Roles.Where(r => r.RoleName.Contains("Print") || r.RoleName.Contains("Transaction")).ToList();
+    // Transaction roles: All transaction-related and raw material-related roles
+    var transactionRoles = Model.Roles.Where(r => 
+        r.RoleName.Contains("RawMaterialIntake") ||      // RawMaterialIntake* (without 's')
+        r.RoleName.Contains("RawMaterialInvoice") ||     // RawMaterialInvoice* (old name)
+        r.RoleName.Contains("StockView") || 
+        r.RoleName.Contains("PurchaseInvoice") || 
+        r.RoleName.Contains("Print")
+    ).ToList();
+    
+    // Master roles: Everything else (not in transactionRoles)
+    var masterRoles = Model.Roles.Where(r => !transactionRoles.Contains(r)).ToList();
 }
 
 <div class="container">
@@ -48,10 +57,11 @@
                     <div class="row">
                         @for (int i = 0; i < masterRoles.Count; i++)
                         {
-                            @Html.HiddenFor(model => model.Roles[i].RoleName)
+                            var originalIndex = Model.Roles.IndexOf(masterRoles[i]);
+                            @Html.HiddenFor(model => model.Roles[originalIndex].RoleName)
                             <div class="col-md-6 mb-3">
                                 <div class="form-check form-switch">
-                                    @Html.CheckBoxFor(model => model.Roles[i].Selected, new { @class = "form-check-input", role = "switch", id = "master-" + i })
+                                    @Html.CheckBoxFor(model => model.Roles[originalIndex].Selected, new { @class = "form-check-input", role = "switch", id = "master-" + i })
                                     <label class="form-check-label" for="@("master-" + i)">
                                         @masterRoles[i].RoleName
                                     </label>
@@ -72,10 +82,11 @@
                     <div class="row">
                         @for (int i = 0; i < transactionRoles.Count; i++)
                         {
-                            @Html.HiddenFor(model => model.Roles[i + masterRoles.Count].RoleName)
+                            var originalIndex = Model.Roles.IndexOf(transactionRoles[i]);
+                            @Html.HiddenFor(model => model.Roles[originalIndex].RoleName)
                             <div class="col-md-6 mb-3">
                                 <div class="form-check form-switch">
-                                    @Html.CheckBoxFor(model => model.Roles[i + masterRoles.Count].Selected, new { @class = "form-check-input", role = "switch", id = "trans-" + i })
+                                    @Html.CheckBoxFor(model => model.Roles[originalIndex].Selected, new { @class = "form-check-input", role = "switch", id = "trans-" + i })
                                     <label class="form-check-label" for="@("trans-" + i)">
                                         @transactionRoles[i].RoleName
                                     </label>

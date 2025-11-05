@@ -12,6 +12,7 @@ namespace KVM_ERP.Controllers
         ApplicationDbContext context = new ApplicationDbContext();
 
         // GET: RawMaterialInvoice
+        [Authorize(Roles = "PurchaseInvoiceIndex")]
         public ActionResult Index()
         {
             try
@@ -132,6 +133,7 @@ namespace KVM_ERP.Controllers
 
         // Delete Invoice
         [HttpPost]
+        [Authorize(Roles = "PurchaseInvoiceDelete")]
         public JsonResult DeleteInvoice(int id)
         {
             try
@@ -198,6 +200,7 @@ namespace KVM_ERP.Controllers
         }
 
         // GET: Form for adding/editing invoice
+        [Authorize(Roles = "PurchaseInvoiceCreate,PurchaseInvoiceEdit")]
         public ActionResult Form(int? id)
         {
             try
@@ -777,6 +780,7 @@ namespace KVM_ERP.Controllers
 
         // Save Invoice to TRANSACTIONMASTER
         [HttpPost]
+        [Authorize(Roles = "PurchaseInvoiceCreate,PurchaseInvoiceEdit")]
         public JsonResult SaveInvoice(InvoiceSaveModel model)
         {
             try

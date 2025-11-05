@@ -271,7 +271,10 @@
                        2. Stock View (StockView)
                        3. Invoice (RawMaterialInvoice)
                     *@
-                    @if (isAdmin)
+                    @if (Model != null && (isAdmin || 
+                        User.IsInRole("RawMaterialIntakeIndex") || 
+                        User.IsInRole("StockViewIndex") || 
+                        User.IsInRole("PurchaseInvoiceIndex")))
                     {
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="transactionDropdown" role="button"
@@ -280,12 +283,15 @@
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="transactionDropdown">
                                 <!-- Raw Material Intake - Order: 1, GroupId: 1 -->
-                                <li>
-                                    <a class="dropdown-item" href="@Url.Action("Index", "RawMaterialIntake")"
-                                       data-role="RawMaterialIntake" data-menugroupid="1" data-menuorder="1">
-                                        <i class="fa fa-truck-loading"></i> Raw Material Intake
-                                    </a>
-                                </li>
+                                @if (User.IsInRole("RawMaterialIntakeIndex"))
+                                {
+                                    <li>
+                                        <a class="dropdown-item" href="@Url.Action("Index", "RawMaterialIntake")"
+                                           data-role="RawMaterialIntake" data-menugroupid="1" data-menuorder="1">
+                                            <i class="fa fa-truck-loading"></i> Raw Material Intake
+                                        </a>
+                                    </li>
+                                }
                                 @* Commented out other transaction menu items as requested
                                 <li>
                                     <a class="dropdown-item" href="@Url.Action("Index", "ComingSoon")">
@@ -314,19 +320,25 @@
                                 </li>
                                 *@
                                 <!-- Stock View - Order: 2, GroupId: 1 -->
-                                <li>
-                                    <a class="dropdown-item" href="@Url.Action("Index", "StockView")"
-                                       data-role="StockView" data-menugroupid="1" data-menuorder="2">
-                                        <i class="fa fa-chart-line"></i> Stock View
-                                    </a>
-                                </li>
+                                @if (User.IsInRole("StockViewIndex"))
+                                {
+                                    <li>
+                                        <a class="dropdown-item" href="@Url.Action("Index", "StockView")"
+                                           data-role="StockView" data-menugroupid="1" data-menuorder="2">
+                                            <i class="fa fa-chart-line"></i> Stock View
+                                        </a>
+                                    </li>
+                                }
                                 <!-- Invoice - Order: 3, GroupId: 1 -->
-                                <li>
-                                    <a class="dropdown-item" href="@Url.Action("Index", "RawMaterialInvoice")"
-                                       data-role="RawMaterialInvoice" data-menugroupid="1" data-menuorder="3">
-                                        <i class="fa fa-file-invoice"></i> Invoice
-                                    </a>
-                                </li>
+                                @if (User.IsInRole("PurchaseInvoiceIndex"))
+                                {
+                                    <li>
+                                        <a class="dropdown-item" href="@Url.Action("Index", "RawMaterialInvoice")"
+                                           data-role="RawMaterialInvoice" data-menugroupid="1" data-menuorder="3">
+                                            <i class="fa fa-file-invoice"></i> Invoice
+                                        </a>
+                                    </li>
+                                }
                             </ul>
                         </li>
                     }

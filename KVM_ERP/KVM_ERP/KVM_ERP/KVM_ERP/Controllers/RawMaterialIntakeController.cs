@@ -7,17 +7,20 @@ using Newtonsoft.Json;
 
 namespace KVM_ERP.Controllers
 {
+    [SessionExpire]
     public class RawMaterialIntakeController : Controller
     {
         private ApplicationDbContext db = new ApplicationDbContext();
 
         // GET: RawMaterialIntake
+        [Authorize(Roles = "RawMaterialIntakeIndex")]
         public ActionResult Index()
         {
             return View();
         }
 
         // GET: RawMaterialIntake/Form
+        [Authorize(Roles = "RawMaterialIntakeCreate,RawMaterialIntakeEdit")]
         public ActionResult Form(int? id)
         {
             var model = new TransactionMaster();
@@ -158,6 +161,7 @@ namespace KVM_ERP.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "RawMaterialIntakeCreate,RawMaterialIntakeEdit")]
         public ActionResult savedata(TransactionMaster tab, int? SupplierId, string detailRowsJson, string qualityCheckJson)
         {
             try
@@ -500,6 +504,7 @@ namespace KVM_ERP.Controllers
 
         // Delete method for AJAX calls (match masters pattern)
         [HttpPost]
+        [Authorize(Roles = "RawMaterialIntakeDelete")]
         public ActionResult Del(int id)
         {
             try
@@ -1608,6 +1613,7 @@ namespace KVM_ERP.Controllers
         }
 
         // Direct PDF Generation Methods
+        [Authorize(Roles = "RawMaterialIntakeCalculationPrint")]
         public ActionResult GenerateCalculationPDF(int tranmid)
         {
             try
@@ -1676,6 +1682,7 @@ namespace KVM_ERP.Controllers
         }
 
         // Generate PDF for specific TRANDID (single row)
+        [Authorize(Roles = "RawMaterialIntakeCalculationPrint")]
         public ActionResult GenerateRowCalculationPDF(int trandid)
         {
             try
@@ -2140,6 +2147,7 @@ namespace KVM_ERP.Controllers
         }
 
         // Generate Transaction PDF for Index page Print button
+        [Authorize(Roles = "RawMaterialIntakePrint")]
         public ActionResult GenerateTransactionPDF(int id)
         {
             try

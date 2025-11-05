@@ -9,11 +9,13 @@ using System.Data;
 
 namespace KVM_ERP.Controllers
 {
+    [SessionExpire]
     public class StockViewController : Controller
     {
         private ApplicationDbContext db = new ApplicationDbContext();
 
         // GET: StockView
+        [Authorize(Roles = "StockViewIndex")]
         public ActionResult Index()
         {
             ViewBag.Title = "Stock View";
