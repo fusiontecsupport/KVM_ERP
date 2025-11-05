@@ -345,6 +345,7 @@
     <Compile Include="Models\GradeMaster.cs" />
     <Compile Include="Models\ProductionColourMaster.cs" />
     <Compile Include="Models\ReceivedTypeMaster.cs" />
+    <Compile Include="Models\PurchaseInvoiceStatus.cs" />
     <Compile Include="Models\Subscription.cs" />
     <Compile Include="Models\Group.cs" />
     <Compile Include="Models\IdentityManager.cs" />

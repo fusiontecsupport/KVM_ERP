@@ -414,10 +414,13 @@
                     </div>
                     <div class="col-md-4">
                         <div class="mb-3">
-                            <label class="form-label">Status</label>
-                            <select id="status" class="form-control">
-                                <option value="0">Active</option>
-                                <option value="1">Inactive</option>
+                            <label class="form-label">Invoice Status <span class="text-danger">*</span></label>
+                            <select id="status" class="form-control" required>
+                                <option value="">-- Select Status --</option>
+                                @foreach (var status in (List<SelectListItem>)ViewBag.InvoiceStatuses)
+                                {
+                                    <option value="@status.Value" @(ViewBag.Status != null && ViewBag.Status.ToString() == status.Value ? "selected" : "")>@status.Text</option>
+                                }
                             </select>
                         </div>
                     </div>

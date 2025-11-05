@@ -41,6 +41,7 @@ namespace KVM_ERP.Models
         public DbSet<GradeMaster> GradeMasters { get; set; }
         public DbSet<ProductionColourMaster> ProductionColourMasters { get; set; }
         public DbSet<ReceivedTypeMaster> ReceivedTypeMasters { get; set; }
+        public DbSet<PurchaseInvoiceStatus> PurchaseInvoiceStatuses { get; set; }
 
         new public virtual IDbSet<ApplicationRole> Roles { get; set; }
         public virtual IDbSet<Group> Groups { get; set; }
@@ -145,6 +146,7 @@ namespace KVM_ERP.Models
             // Configure TransactionDetail decimal precision for all decimal fields
             modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANAQTY).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDQTY).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANEQTY).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDRATE).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDAMT).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANDDISCEXPRN).HasPrecision(18, 3);

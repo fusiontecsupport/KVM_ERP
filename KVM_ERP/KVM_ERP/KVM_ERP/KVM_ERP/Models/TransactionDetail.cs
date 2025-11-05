@@ -56,6 +56,10 @@ namespace KVM_ERP.Models
         public decimal TRANDQTY { get; set; }
 
         [Required]
+        [Column("TRANEQTY")]
+        public decimal TRANEQTY { get; set; }
+
+        [Required]
         [Column("TRANDRATE")]
         public decimal TRANDRATE { get; set; }
 

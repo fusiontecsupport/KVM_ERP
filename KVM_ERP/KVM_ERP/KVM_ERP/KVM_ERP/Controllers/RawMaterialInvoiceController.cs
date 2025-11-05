@@ -216,6 +216,18 @@ namespace KVM_ERP.Controllers
                     })
                     .ToList();
 
+                // Get purchase invoice statuses for dropdown - only "Cancel" and "Waiting for Approval"
+                ViewBag.InvoiceStatuses = context.PurchaseInvoiceStatuses
+                    .Where(s => (s.DISPSTATUS == 0 || s.DISPSTATUS == null) && 
+                           (s.PUINSTCODE == "PUS002" || s.PUINSTCODE == "PUS003"))
+                    .OrderBy(s => s.PUINSTDESC)
+                    .Select(s => new SelectListItem
+                    {
+                        Value = s.PUINSTID.ToString(),
+                        Text = s.PUINSTDESC
+                    })
+                    .ToList();
+
                 // If editing existing invoice, load the data
                 if (id.HasValue)
                 {
