@@ -422,7 +422,7 @@ namespace KVM_ERP.Controllers
                         td.RCVDTID as ReceivedTypeId,
                         rt.RCVDTDESC as ReceivedType,
                         td.TRANAQTY as ActualWeight,
-                        td.TRANDQTY as NetWeight,
+                        td.TRANEQTY as NetWeight,
                         td.TRANDRATE as Rate,
                         td.TRANDAMT as Amount,
                         ISNULL(td.TRANDAID, 0) as TRANPID
@@ -538,7 +538,7 @@ namespace KVM_ERP.Controllers
                         td.PCLRID as ProductionColourId,
                         td.RCVDTID as ReceivedTypeId,
                         td.TRANAQTY as ActualWeight,
-                        td.TRANDQTY as NetWeight,
+                        td.TRANEQTY as NetWeight,
                         td.TRANDRATE as Rate,
                         td.TRANDAMT as Amount,
                         ISNULL(td.TRANDAID, 0) as TRANPID
@@ -1044,7 +1044,7 @@ namespace KVM_ERP.Controllers
                             INSERT INTO TRANSACTIONDETAIL (
                                 TRANMID, MTRLGID, MTRLID, MTRLNBOX, MTRLCOUNTS,
                                 GRADEID, PCLRID, RCVDTID, HSNID,
-                                TRANAQTY, TRANDQTY, TRANDRATE, TRANDAMT,
+                                TRANAQTY, TRANDQTY, TRANEQTY, TRANDRATE, TRANDAMT,
                                 TRANDDISCEXPRN, TRANDDISCAMT, TRANDGAMT,
                                 TRANDCGSTEXPRN, TRANDSGSTEXPRN, TRANDIGSTEXPRN,
                                 TRANDCGSTAMT, TRANDSGSTAMT, TRANDIGSTAMT, TRANDNAMT, TRANDAID,
@@ -1052,11 +1052,11 @@ namespace KVM_ERP.Controllers
                             ) VALUES (
                                 @p0, @p1, @p2, @p3, @p4,
                                 @p5, @p6, @p7, @p8,
-                                @p9, @p10, @p11, @p12,
-                                @p13, @p14, @p15,
-                                @p16, @p17, @p18,
-                                @p19, @p20, @p21, @p22, @p23,
-                                @p24, @p25, @p26, @p27
+                                @p9, @p10, @p11, @p12, @p13,
+                                @p14, @p15, @p16,
+                                @p17, @p18, @p19,
+                                @p20, @p21, @p22, @p23, @p24,
+                                @p25, @p26, @p27, @p28
                             )";
 
                         // TRANDAID: Store TRANPID for reference in invoice (REGSTRID=2 only)
@@ -1075,25 +1075,26 @@ namespace KVM_ERP.Controllers
                             item.ProductionColourId, // @p6 - PCLRID
                             item.ReceivedTypeId,     // @p7 - RCVDTID
                             hsnId,                   // @p8 - HSNID (from Material Master)
-                            item.ActualWeight,       // @p9 - TRANAQTY
-                            item.NetWeight,          // @p10 - TRANDQTY
-                            item.Rate,               // @p11 - TRANDRATE
-                            item.Amount,             // @p12 - TRANDAMT
-                            0.00m,                   // @p13 - TRANDDISCEXPRN (default 0.00)
-                            0.00m,                   // @p14 - TRANDDISCAMT (default 0.00)
-                            grossAmount,             // @p15 - TRANDGAMT (Gross Amount)
-                            cgstRate,                // @p16 - TRANDCGSTEXPRN (CGST %)
-                            sgstRate,                // @p17 - TRANDSGSTEXPRN (SGST %)
-                            igstRate,                // @p18 - TRANDIGSTEXPRN (IGST %)
-                            itemCGST,                // @p19 - TRANDCGSTAMT (CGST Amount)
-                            itemSGST,                // @p20 - TRANDSGSTAMT (SGST Amount)
-                            itemIGST,                // @p21 - TRANDIGSTAMT (IGST Amount)
-                            netAmount,               // @p22 - TRANDNAMT (Net Amount = Gross + GST)
-                            trandaid,                // @p23 - TRANDAID (Stores TRANPID reference for invoice)
-                            currentUser,             // @p24 - CUSRID
-                            currentUser,             // @p25 - LMUSRID
-                            0,                       // @p26 - DISPSTATUS (0=Active)
-                            DateTime.Now             // @p27 - PRCSDATE
+                            item.ActualWeight,       // @p9 - TRANAQTY (Original from Raw Material Intake)
+                            item.NetWeight,          // @p10 - TRANDQTY (Same as TRANEQTY for compatibility)
+                            item.NetWeight,          // @p11 - TRANEQTY (Editable Net Weight entered by user)
+                            item.Rate,               // @p12 - TRANDRATE
+                            item.Amount,             // @p13 - TRANDAMT
+                            0.00m,                   // @p14 - TRANDDISCEXPRN (default 0.00)
+                            0.00m,                   // @p15 - TRANDDISCAMT (default 0.00)
+                            grossAmount,             // @p16 - TRANDGAMT (Gross Amount)
+                            cgstRate,                // @p17 - TRANDCGSTEXPRN (CGST %)
+                            sgstRate,                // @p18 - TRANDSGSTEXPRN (SGST %)
+                            igstRate,                // @p19 - TRANDIGSTEXPRN (IGST %)
+                            itemCGST,                // @p20 - TRANDCGSTAMT (CGST Amount)
+                            itemSGST,                // @p21 - TRANDSGSTAMT (SGST Amount)
+                            itemIGST,                // @p22 - TRANDIGSTAMT (IGST Amount)
+                            netAmount,               // @p23 - TRANDNAMT (Net Amount = Gross + GST)
+                            trandaid,                // @p24 - TRANDAID (Stores TRANPID reference for invoice)
+                            currentUser,             // @p25 - CUSRID
+                            currentUser,             // @p26 - LMUSRID
+                            0,                       // @p27 - DISPSTATUS (0=Active)
+                            DateTime.Now             // @p28 - PRCSDATE
                         );
 
                         // Add to totals
