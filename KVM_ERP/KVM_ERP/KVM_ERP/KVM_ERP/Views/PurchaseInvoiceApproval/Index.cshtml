@@ -163,10 +163,19 @@
         padding: 8px 14px;
         font-size: 12px;
         font-weight: 600;
-        border-radius: 20px;
+        border-radius: 4px;  /* Changed from 20px to 4px for square/rectangular shape */
         display: inline-block;
         min-width: 100px;
         text-align: center;
+    }
+    
+    /* Fix Admin badge near logo to be square/rectangular and compact like other pages */
+    .navbar .badge {
+        border-radius: 4px !important;  /* Square corners */
+        padding: 5px 12px !important;   /* More compact padding */
+        font-size: 13px !important;     /* Consistent font size */
+        font-weight: 600 !important;
+        min-width: auto !important;     /* Remove min-width for compact size */
     }
     
     .bg-warning {

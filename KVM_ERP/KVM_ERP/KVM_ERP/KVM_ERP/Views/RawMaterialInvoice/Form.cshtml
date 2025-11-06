@@ -668,11 +668,19 @@
                 loadSupplierItems(supplierId);
             });
 
-            // Initialize form for edit mode
+            // Initialize status dropdown
             @if (ViewBag.Status != null)
             {
                 <text>
+                // Edit mode - set saved status
                 $('#status').val('@ViewBag.Status');
+                </text>
+            }
+            else if (ViewBag.DefaultStatus != null)
+            {
+                <text>
+                // New invoice - set default status based on mode
+                $('#status').val('@ViewBag.DefaultStatus');
                 </text>
             }
 

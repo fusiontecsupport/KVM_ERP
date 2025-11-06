@@ -238,6 +238,14 @@ namespace KVM_ERP.Controllers
                             Text = s.PUINSTDESC
                         })
                         .ToList();
+                    
+                    // Set default status to "Approved" for approval mode
+                    var approvedStatus = context.PurchaseInvoiceStatuses
+                        .FirstOrDefault(s => s.PUINSTCODE == "PUS004");
+                    if (approvedStatus != null)
+                    {
+                        ViewBag.DefaultStatus = approvedStatus.PUINSTID;
+                    }
                 }
                 else
                 {
@@ -251,6 +259,14 @@ namespace KVM_ERP.Controllers
                             Text = s.PUINSTDESC
                         })
                         .ToList();
+                    
+                    // Set default status to "Waiting for Approval" for regular mode
+                    var waitingStatus = context.PurchaseInvoiceStatuses
+                        .FirstOrDefault(s => s.PUINSTCODE == "PUS003");
+                    if (waitingStatus != null)
+                    {
+                        ViewBag.DefaultStatus = waitingStatus.PUINSTID;
+                    }
                 }
 
                 // If editing existing invoice, load the data
@@ -266,6 +282,20 @@ namespace KVM_ERP.Controllers
 
                     if (invoice != null)
                     {
+                        // Check if invoice is already approved - prevent editing
+                        var approvedStatus = context.PurchaseInvoiceStatuses
+                            .FirstOrDefault(s => s.PUINSTCODE == "PUS004");
+                        
+                        bool isApproved = approvedStatus != null && invoice.DISPSTATUS == approvedStatus.PUINSTID;
+                        ViewBag.IsApproved = isApproved;
+                        
+                        if (isApproved && !isApprovalMode)
+                        {
+                            // Invoice is approved and not in approval mode - prevent editing
+                            TempData["ErrorMessage"] = "This invoice has been approved and cannot be edited. Please contact administrator if changes are needed.";
+                            return RedirectToAction("Index");
+                        }
+                        
                         ViewBag.InvoiceData = invoice;
                         ViewBag.InvoiceNo = invoice.TRANNO.ToString();
                         ViewBag.InvoiceDate = invoice.TRANDATE.ToString("yyyy-MM-dd");
@@ -404,10 +434,10 @@ namespace KVM_ERP.Controllers
                             SELECT DISTINCT TRANDAID 
                             FROM TRANSACTIONDETAIL invtd
                             INNER JOIN TRANSACTIONMASTER invtm ON invtd.TRANMID = invtm.TRANMID
+                            INNER JOIN PURCHASEINVOICESTATUS pis ON invtm.DISPSTATUS = pis.PUINSTID
                             WHERE invtm.REGSTRID = 2 
                                 AND invtd.TRANDAID > 0
-                                AND (invtd.DISPSTATUS = 0 OR invtd.DISPSTATUS IS NULL)
-                                AND (invtm.DISPSTATUS = 0 OR invtm.DISPSTATUS IS NULL)
+                                AND pis.PUINSTCODE != 'PUS002'  -- Exclude only Cancelled invoices
                         )
                     ORDER BY m.MTRLDESC
                 ", supplierCode).ToList();
@@ -535,17 +565,16 @@ namespace KVM_ERP.Controllers
                                 SELECT DISTINCT TRANDAID 
                                 FROM TRANSACTIONDETAIL invtd
                                 INNER JOIN TRANSACTIONMASTER invtm ON invtd.TRANMID = invtm.TRANMID
+                                INNER JOIN PURCHASEINVOICESTATUS pis ON invtm.DISPSTATUS = pis.PUINSTID
                                 WHERE invtm.REGSTRID = 2 
                                     AND invtd.TRANDAID > 0
-                                    AND (invtd.DISPSTATUS = 0 OR invtd.DISPSTATUS IS NULL)
-                                    AND (invtm.DISPSTATUS = 0 OR invtm.DISPSTATUS IS NULL)
+                                    AND pis.PUINSTCODE != 'PUS002'  -- Exclude only Cancelled invoices
                             )
                             OR tpc.TRANPID IN (
                                 SELECT DISTINCT TRANDAID 
                                 FROM TRANSACTIONDETAIL invtd
                                 WHERE invtd.TRANMID = @p1
                                     AND invtd.TRANDAID > 0
-                                    AND (invtd.DISPSTATUS = 0 OR invtd.DISPSTATUS IS NULL)
                             )
                         )
                     ORDER BY m.MTRLDESC
