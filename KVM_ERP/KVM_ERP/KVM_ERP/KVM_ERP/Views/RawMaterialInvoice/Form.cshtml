@@ -142,19 +142,33 @@
     }
 
     .save-btn {
-        background: linear-gradient(135deg, #28a745, #20c997);
-        border: none;
-        padding: 12px 30px;
-        border-radius: 25px;
-        color: white;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        background: linear-gradient(135deg, #00bcd4, #00acc1) !important;
+        border: none !important;
+        padding: 12px 35px !important;
+        border-radius: 30px !important;
+        color: white !important;
+        font-weight: 600 !important;
+        font-size: 15px !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 2px 8px rgba(0, 188, 212, 0.3) !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
     }
 
     .save-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
+        background: linear-gradient(135deg, #00acc1, #0097a7) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 4px 12px rgba(0, 188, 212, 0.4) !important;
+    }
+
+    .save-btn:active {
+        transform: translateY(0) !important;
+        box-shadow: 0 2px 4px rgba(0, 188, 212, 0.3) !important;
+    }
+
+    .save-btn i {
+        font-size: 14px;
     }
 
     .btn-actions {
@@ -164,23 +178,39 @@
         margin-top: 20px;
     }
 
-    /* Back to List Button Styling */
+    /* Back to List Button Styling - Light Design with Border */
     .btn-secondary {
-        background: linear-gradient(135deg, #6c757d, #5a6268);
-        border: none;
-        padding: 12px 30px;
-        border-radius: 25px;
-        color: white;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+        background: white !important;
+        border: 2px solid #d1d5db !important;
+        padding: 12px 30px !important;
+        border-radius: 30px !important;
+        color: #6b7280 !important;
+        font-weight: 600 !important;
+        font-size: 15px !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
     }
 
     .btn-secondary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(108, 117, 125, 0.6);
-        color: white;
-        text-decoration: none;
+        background: #f9fafb !important;
+        border-color: #9ca3af !important;
+        color: #4b5563 !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+        text-decoration: none !important;
+    }
+
+    .btn-secondary:active {
+        transform: translateY(0) !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+        background: #f3f4f6 !important;
+    }
+
+    .btn-secondary i {
+        font-size: 14px;
     }
 
     /* Select2 Custom Styling - Increased height and width */
@@ -338,38 +368,40 @@
 
     /* Modal Footer Button Styling */
     .modal-footer .btn {
-        border-radius: 25px;
+        border-radius: 30px;
         padding: 10px 25px;
         font-weight: 600;
         font-size: 14px;
-        border: none;
         transition: all 0.3s ease;
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        gap: 6px;
     }
 
     .modal-footer .btn-secondary {
-        background: #6c757d;
-        color: white;
+        background: white;
+        border: 2px solid #d1d5db;
+        color: #6b7280;
     }
 
     .modal-footer .btn-secondary:hover {
-        background: #5a6268;
+        background: #f9fafb;
+        border-color: #9ca3af;
+        color: #4b5563;
         transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     }
 
     .modal-footer .btn-success {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        background: linear-gradient(135deg, #00bcd4, #00acc1);
         color: white;
+        border: none;
     }
 
     .modal-footer .btn-success:hover {
-        background: linear-gradient(135deg, #218838 0%, #1ba87e 100%);
+        background: linear-gradient(135deg, #00acc1, #0097a7);
         transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4);
+        box-shadow: 0 4px 8px rgba(0, 188, 212, 0.4);
     }
 
     .modal-footer .btn i {

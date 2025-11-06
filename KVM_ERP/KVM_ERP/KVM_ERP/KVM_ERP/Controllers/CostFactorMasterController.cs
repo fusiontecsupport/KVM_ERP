@@ -24,6 +24,24 @@ namespace KVM_ERP.Controllers
         [Authorize(Roles = "CostFactorMasterCreate,CostFactorMasterEdit")]
         public ActionResult Form(int id = 0)
         {
+            // Check permissions based on operation mode
+            if (id > 0)
+            {
+                // Edit mode - requires CostFactorMasterEdit role
+                if (!User.IsInRole("CostFactorMasterEdit"))
+                {
+                    return new HttpUnauthorizedResult();
+                }
+            }
+            else
+            {
+                // Create mode - requires CostFactorMasterCreate role
+                if (!User.IsInRole("CostFactorMasterCreate"))
+                {
+                    return new HttpUnauthorizedResult();
+                }
+            }
+            
             CostFactorMaster tab = new CostFactorMaster();
             
             if (id == 0)
@@ -118,11 +136,31 @@ namespace KVM_ERP.Controllers
 
         // POST: CostFactorMaster/savedata
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CostFactorMasterCreate,CostFactorMasterEdit")]
         public ActionResult savedata(CostFactorMaster tab)
         {
             try
             {
+                // Check permissions based on operation mode
+                if (tab.CFID > 0)
+                {
+                    // Edit mode - requires CostFactorMasterEdit role
+                    if (!User.IsInRole("CostFactorMasterEdit"))
+                    {
+                        TempData["ErrorMessage"] = "Access Denied: You do not have permission to edit records.";
+                        return RedirectToAction("Index");
+                    }
+                }
+                else
+                {
+                    // Create mode - requires CostFactorMasterCreate role
+                    if (!User.IsInRole("CostFactorMasterCreate"))
+                    {
+                        TempData["ErrorMessage"] = "Access Denied: You do not have permission to create records.";
+                        return RedirectToAction("Index");
+                    }
+                }
+                
                 if (ModelState.IsValid)
                 {
                     // Get current user information from session

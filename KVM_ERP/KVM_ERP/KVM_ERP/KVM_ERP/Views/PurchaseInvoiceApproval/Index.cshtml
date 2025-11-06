@@ -246,8 +246,8 @@
                         <th>No</th>
                         <th>Ref No</th>
                         <th>Supplier Name</th>
-                        <th>Status</th>
                         <th>Grand Total</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -257,8 +257,8 @@
                         <th>No</th>
                         <th>Ref No</th>
                         <th>Supplier Name</th>
-                        <th>Status</th>
                         <th>Grand Total</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </tfoot>
@@ -320,16 +320,16 @@
                     { data: 'TRANDNO' },
                     { data: 'TRANREFNO' },
                     { data: 'CATENAME' },
-                    {
-                        data: 'StatusDescription',
-                        render: function(data, type, row) {
-                            return '<span class="badge bg-warning text-dark">' + data + '</span>';
-                        }
-                    },
                     { 
                         data: 'TRANNAMT',
                         render: function (data, type, row) {
                             return '<span class="amount-cell">₹ ' + parseFloat(data).toFixed(2) + '</span>';
+                        }
+                    },
+                    {
+                        data: 'StatusDescription',
+                        render: function(data, type, row) {
+                            return '<span class="badge bg-warning text-dark">' + data + '</span>';
                         }
                     },
                     {

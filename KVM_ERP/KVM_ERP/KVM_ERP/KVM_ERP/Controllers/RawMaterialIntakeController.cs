@@ -23,6 +23,24 @@ namespace KVM_ERP.Controllers
         [Authorize(Roles = "RawMaterialIntakeCreate,RawMaterialIntakeEdit")]
         public ActionResult Form(int? id)
         {
+            // Check permissions based on operation mode
+            if (id.HasValue)
+            {
+                // Edit mode - requires RawMaterialIntakeEdit role
+                if (!User.IsInRole("RawMaterialIntakeEdit"))
+                {
+                    return new HttpUnauthorizedResult();
+                }
+            }
+            else
+            {
+                // Create mode - requires RawMaterialIntakeCreate role
+                if (!User.IsInRole("RawMaterialIntakeCreate"))
+                {
+                    return new HttpUnauthorizedResult();
+                }
+            }
+            
             var model = new TransactionMaster();
 
             // Populate supplier dropdown (enabled suppliers only)
@@ -166,6 +184,28 @@ namespace KVM_ERP.Controllers
         {
             try
             {
+                // Check permissions based on operation mode
+                bool isEdit = tab.TRANMID > 0 && db.TransactionMasters.Any(x => x.TRANMID == tab.TRANMID);
+                
+                if (isEdit)
+                {
+                    // Edit mode - requires RawMaterialIntakeEdit role
+                    if (!User.IsInRole("RawMaterialIntakeEdit"))
+                    {
+                        TempData["ErrorMessage"] = "Access Denied: You do not have permission to edit records.";
+                        return RedirectToAction("Index");
+                    }
+                }
+                else
+                {
+                    // Create mode - requires RawMaterialIntakeCreate role
+                    if (!User.IsInRole("RawMaterialIntakeCreate"))
+                    {
+                        TempData["ErrorMessage"] = "Access Denied: You do not have permission to create records.";
+                        return RedirectToAction("Index");
+                    }
+                }
+                
                 var details = new List<DetailRow>();
                 if (!string.IsNullOrWhiteSpace(detailRowsJson))
                 {
@@ -189,7 +229,7 @@ namespace KVM_ERP.Controllers
                     }
                 }
 
-                if (tab.TRANMID > 0 && db.TransactionMasters.Any(x => x.TRANMID == tab.TRANMID))
+                if (isEdit)
                 {
                     // Update
                     var existing = db.TransactionMasters.FirstOrDefault(x => x.TRANMID == tab.TRANMID);

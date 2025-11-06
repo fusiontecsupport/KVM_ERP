@@ -213,6 +213,24 @@ namespace KVM_ERP.Controllers
         {
             try
             {
+                // Check permissions based on operation mode
+                if (id.HasValue)
+                {
+                    // Edit mode - requires PurchaseInvoiceEdit role
+                    if (!User.IsInRole("PurchaseInvoiceEdit"))
+                    {
+                        return new HttpUnauthorizedResult();
+                    }
+                }
+                else
+                {
+                    // Create mode - requires PurchaseInvoiceCreate role
+                    if (!User.IsInRole("PurchaseInvoiceCreate"))
+                    {
+                        return new HttpUnauthorizedResult();
+                    }
+                }
+                
                 // Check if called from Invoice Approval page
                 bool isApprovalMode = source == "approval";
                 ViewBag.IsApprovalMode = isApprovalMode;
@@ -229,14 +247,17 @@ namespace KVM_ERP.Controllers
                     .ToList();
 
                 // Get purchase invoice statuses for dropdown
-                // If from Approval page: show "Active" (PUS001) and "Approved" (PUS004)
-                // If from regular Invoice: show "Cancel" and "Waiting for Approval"
+                // If from Approval page: show "Approved" (PUS004) and "Active" (PUS001)
+                // If from regular Invoice:
+                //   - Add mode: show only "Waiting for Approval" (PUS003)
+                //   - Edit mode: show "Cancel" (PUS002) and "Waiting for Approval" (PUS003)
                 if (isApprovalMode)
                 {
+                    // Invoice Approval mode: show Approved and Active
                     ViewBag.InvoiceStatuses = context.PurchaseInvoiceStatuses
                         .Where(s => (s.DISPSTATUS == 0 || s.DISPSTATUS == null) && 
-                               (s.PUINSTCODE == "PUS001" || s.PUINSTCODE == "PUS004"))  // Active and Approved
-                        .OrderBy(s => s.PUINSTDESC)
+                               (s.PUINSTCODE == "PUS004" || s.PUINSTCODE == "PUS001"))  // Approved and Active
+                        .OrderByDescending(s => s.PUINSTCODE)  // This will put PUS004 (Approved) first
                         .Select(s => new SelectListItem
                         {
                             Value = s.PUINSTID.ToString(),
@@ -249,21 +270,41 @@ namespace KVM_ERP.Controllers
                         .FirstOrDefault(s => s.PUINSTCODE == "PUS004");
                     if (approvedStatus != null)
                     {
+                        // Always default to "Approved" in approval mode
                         ViewBag.DefaultStatus = approvedStatus.PUINSTID;
                     }
                 }
                 else
                 {
-                    ViewBag.InvoiceStatuses = context.PurchaseInvoiceStatuses
-                        .Where(s => (s.DISPSTATUS == 0 || s.DISPSTATUS == null) && 
-                               (s.PUINSTCODE == "PUS002" || s.PUINSTCODE == "PUS003"))  // Cancel and Waiting for Approval
-                        .OrderBy(s => s.PUINSTDESC)
-                        .Select(s => new SelectListItem
-                        {
-                            Value = s.PUINSTID.ToString(),
-                            Text = s.PUINSTDESC
-                        })
-                        .ToList();
+                    // Regular invoice mode
+                    if (id.HasValue)
+                    {
+                        // Edit mode: show Cancel and Waiting for Approval
+                        ViewBag.InvoiceStatuses = context.PurchaseInvoiceStatuses
+                            .Where(s => (s.DISPSTATUS == 0 || s.DISPSTATUS == null) && 
+                                   (s.PUINSTCODE == "PUS002" || s.PUINSTCODE == "PUS003"))  // Cancel and Waiting for Approval
+                            .OrderBy(s => s.PUINSTDESC)
+                            .Select(s => new SelectListItem
+                            {
+                                Value = s.PUINSTID.ToString(),
+                                Text = s.PUINSTDESC
+                            })
+                            .ToList();
+                    }
+                    else
+                    {
+                        // Add mode: show only Waiting for Approval
+                        ViewBag.InvoiceStatuses = context.PurchaseInvoiceStatuses
+                            .Where(s => (s.DISPSTATUS == 0 || s.DISPSTATUS == null) && 
+                                   s.PUINSTCODE == "PUS003")  // Only Waiting for Approval
+                            .OrderBy(s => s.PUINSTDESC)
+                            .Select(s => new SelectListItem
+                            {
+                                Value = s.PUINSTID.ToString(),
+                                Text = s.PUINSTDESC
+                            })
+                            .ToList();
+                    }
                     
                     // Set default status to "Waiting for Approval" for regular mode
                     var waitingStatus = context.PurchaseInvoiceStatuses
@@ -309,6 +350,26 @@ namespace KVM_ERP.Controllers
                         ViewBag.SupplierId = invoice.TRANREFID;
                         ViewBag.IsEdit = true;
                         ViewBag.EditId = id.Value;
+                        
+                        // If in approval mode, check if saved status is in dropdown (Approved/Active)
+                        // If not, default to "Approved"
+                        if (isApprovalMode)
+                        {
+                            var savedStatusInDropdown = context.PurchaseInvoiceStatuses
+                                .Any(s => s.PUINSTID == invoice.DISPSTATUS && 
+                                     (s.PUINSTCODE == "PUS004" || s.PUINSTCODE == "PUS001"));
+                            
+                            if (!savedStatusInDropdown)
+                            {
+                                // Saved status is not "Approved" or "Active", so default to "Approved"
+                                var defaultApprovedStatus = context.PurchaseInvoiceStatuses
+                                    .FirstOrDefault(s => s.PUINSTCODE == "PUS004");
+                                if (defaultApprovedStatus != null)
+                                {
+                                    ViewBag.Status = defaultApprovedStatus.PUINSTID;
+                                }
+                            }
+                        }
                     }
                 }
                 else
@@ -856,6 +917,26 @@ namespace KVM_ERP.Controllers
         {
             try
             {
+                // Check permissions based on operation mode
+                if (model.InvoiceId.HasValue && model.InvoiceId.Value > 0)
+                {
+                    // Edit mode - requires PurchaseInvoiceEdit role
+                    if (!User.IsInRole("PurchaseInvoiceEdit"))
+                    {
+                        Response.StatusCode = 401;
+                        return Json(new { success = false, message = "Access Denied: You do not have permission to edit invoices." });
+                    }
+                }
+                else
+                {
+                    // Create mode - requires PurchaseInvoiceCreate role
+                    if (!User.IsInRole("PurchaseInvoiceCreate"))
+                    {
+                        Response.StatusCode = 401;
+                        return Json(new { success = false, message = "Access Denied: You do not have permission to create invoices." });
+                    }
+                }
+                
                 System.Diagnostics.Debug.WriteLine($"========== SaveInvoice called ==========");
                 System.Diagnostics.Debug.WriteLine($"InvoiceId: {model.InvoiceId}, SupplierId: {model.SupplierId}");
                 System.Diagnostics.Debug.WriteLine($"InvoiceDate: {model.InvoiceDate}, RefNo: {model.RefNo}");

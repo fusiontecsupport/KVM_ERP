@@ -24,6 +24,24 @@ namespace KVM_ERP.Controllers
         [Authorize(Roles = "HSNCodeMasterCreate,HSNCodeMasterEdit")]
         public ActionResult Form(int id = 0)
         {
+            // Check permissions based on operation mode
+            if (id > 0)
+            {
+                // Edit mode - requires HSNCodeMasterEdit role
+                if (!User.IsInRole("HSNCodeMasterEdit"))
+                {
+                    return new HttpUnauthorizedResult();
+                }
+            }
+            else
+            {
+                // Create mode - requires HSNCodeMasterCreate role
+                if (!User.IsInRole("HSNCodeMasterCreate"))
+                {
+                    return new HttpUnauthorizedResult();
+                }
+            }
+            
             HSNCodeMaster tab = new HSNCodeMaster();
             
             if (id == 0)
@@ -73,11 +91,31 @@ namespace KVM_ERP.Controllers
 
         // POST: HSNCodeMaster/savedata
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "HSNCodeMasterCreate,HSNCodeMasterEdit")]
         public ActionResult savedata(HSNCodeMaster tab)
         {
             try
             {
+                // Check permissions based on operation mode
+                if (tab.HSNID > 0)
+                {
+                    // Edit mode - requires HSNCodeMasterEdit role
+                    if (!User.IsInRole("HSNCodeMasterEdit"))
+                    {
+                        TempData["ErrorMessage"] = "Access Denied: You do not have permission to edit records.";
+                        return RedirectToAction("Index");
+                    }
+                }
+                else
+                {
+                    // Create mode - requires HSNCodeMasterCreate role
+                    if (!User.IsInRole("HSNCodeMasterCreate"))
+                    {
+                        TempData["ErrorMessage"] = "Access Denied: You do not have permission to create records.";
+                        return RedirectToAction("Index");
+                    }
+                }
+                
                 if (ModelState.IsValid)
                 {
                     // Check for duplicate code on server side
