@@ -419,13 +419,19 @@
 
 @section Scripts {
     <script>
+        console.log('=== RAW MATERIAL INTAKE FORM SCRIPT STARTING ===');
         (function(){
+            console.log('IIFE started - JavaScript is running');
             var codeMap = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(supplierCodeMap));
             var $supplier = $('#supplierDropdown');
             var $code = $('#supplierCode');
             var details = @Html.Raw(ViewBag.DetailsJson ?? "[]");
             var materialGroups = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.MaterialGroups ?? new List<SelectListItem>()));
             var existingQualityCheck = @Html.Raw(ViewBag.QualityCheckJson ?? "null");
+            
+            console.log('Variables initialized');
+            console.log('Details from server:', details);
+            console.log('Material groups count:', materialGroups ? materialGroups.length : 0);
 
             function syncCode(){
                 var val = $supplier.val();
@@ -528,38 +534,38 @@
                 var lotdate = $('#lotDate').val();
                 var remarks = $('#remarks').val().trim();
 
-                // Only include quality check if at least laboratory is selected
-                if (laboid > 0 && doneby && verifiedby && lotdate && remarks) {
+                // Only include quality check if essential fields are filled (remarks is optional)
+                if (laboid > 0 && doneby && verifiedby && lotdate) {
                     qualityData = {
                         LABOID: laboid,
                         STATUS: status,
                         DONEBY: doneby,
                         VERIFIEDBY: verifiedby,
                         LOTDATE: lotdate,
-                        REMARKS: remarks
+                        REMARKS: remarks || ''
                     };
                 }
+                
+                // IMPORTANT: Populate the hidden fields with JSON data
+                var detailsJson = JSON.stringify(rows);
+                var qualityJson = qualityData ? JSON.stringify(qualityData) : '';
+                
+                $('#detailRowsJson').val(detailsJson);
+                $('#qualityCheckJson').val(qualityJson);
                 
                 // Submit via AJAX to handle JSON response
                 $.ajax({
                     url: '@Url.Action("savedata", "RawMaterialIntake")',
                     type: 'POST',
-                    data: $(this).serialize() + '&detailRowsJson=' + encodeURIComponent(JSON.stringify(rows)) + 
-                          '&qualityCheckJson=' + encodeURIComponent(qualityData ? JSON.stringify(qualityData) : ''),
+                    data: $(this).serialize(),  // Now the hidden fields have the data!
                     success: function(response) {
-                        // Check if response indicates failure
-                        if (response.success === false) {
-                            alert(response.message || 'Operation failed');
-                        } else if (typeof response === 'string' && response.indexOf('success') > -1) {
-                            // Success message - redirect to list
-                            window.location.href = '@Url.Action("Index", "RawMaterialIntake")';
-                        } else {
-                            // Default success handling
-                            window.location.href = '@Url.Action("Index", "RawMaterialIntake")';
-                        }
+                        // Server returns redirect, so we redirect to Index
+                        window.location.href = '@Url.Action("Index", "RawMaterialIntake")';
                     },
                     error: function(xhr, status, error) {
-                        alert('Error saving data: ' + error);
+                        console.error('AJAX Error:', status, error);
+                        console.error('Response:', xhr.responseText);
+                        alert('Error saving data: ' + error + '\nStatus: ' + xhr.status + '\nCheck console for details');
                     }
                 });
             });
@@ -612,7 +618,19 @@
             $intakeDetailsSection.append($detailsHeader).append($table);
 
             // Insert after the main form row
-            $('.form-body .row').last().after($intakeDetailsSection);
+            console.log('=== INSERTING INTAKE DETAILS TABLE ===');
+            console.log('Looking for selector:', '.form-body .row');
+            var $targetRow = $('.form-body .row').last();
+            console.log('Found target row:', $targetRow.length, 'elements');
+            if ($targetRow.length > 0) {
+                $targetRow.after($intakeDetailsSection);
+                console.log('✓ Intake Details table inserted successfully');
+                console.log('Table ID:', $('#detailsTable').length > 0 ? 'Found' : 'NOT FOUND');
+            } else {
+                console.error('✗ ERROR: Could not find .form-body .row element!');
+                console.log('Trying alternative: inserting at end of form-body');
+                $('.form-body').append($intakeDetailsSection);
+            }
 
             function buildGroupSelect(selectedId){
                 var $sel = $('<select class="form-control mgroup"></select>');
@@ -727,8 +745,11 @@
 
             // Product Calculation Button Click Handler
             $tbody.on('click', '.productCalcBtn', function(){
+                console.log('=== P BUTTON CLICKED ===');
                 var $row = $(this).closest('tr');
                 var trandid = parseInt($row.data('trandid')||'0',10);
+                
+                console.log('Row TRANDID:', trandid);
                 
                 if (trandid <= 0) {
                     alert('Please save the products first before calculating.');
@@ -743,6 +764,8 @@
                 var noOfBoxes = $row.find('input.nbox').val();
                 var countPerKg = $row.find('input.counts').val();
                 
+                console.log('Opening Product Calculation Modal for TRANDID:', trandid);
+                console.log('Product Type:', productType, 'Product:', product);
                 openProductCalculationModal(trandid, supplierName, supplierCode, productType, product, noOfBoxes, countPerKg);
             });
             
@@ -842,12 +865,18 @@
             console.log('Checking for existing date data for TRANDID:', trandid);
             
             // Try to get date from server immediately
+            var firstPackingId = $('#packingMasterTabs .nav-link').first().data('packing-id');
+            console.log('First packing ID for date check:', firstPackingId);
+            
             $.ajax({
                 url: '@Url.Action("GetProductCalculation", "RawMaterialIntake")',
                 type: 'GET',
-                data: { trandid: trandid, packingId: $('#packingMasterTabs .nav-link').first().data('packing-id') },
+                data: { trandid: trandid, packingId: firstPackingId },
                 success: function(data) {
-                    console.log('Immediate date check response:', data);
+                    console.log('=== IMMEDIATE DATE CHECK RESPONSE ===');
+                    console.log('Success:', data.success);
+                    console.log('Has calculation:', !!data.calculation);
+                    console.log('Full response:', data);
                     if (data.success && data.calculation && data.calculation.PRODDATE) {
                         try {
                             const prodDate = new Date(data.calculation.PRODDATE);
@@ -875,7 +904,10 @@
                         } catch (error) {
                             console.error('IMMEDIATE DATE SET - Error:', error);
                         }
+                    } else {
+                        console.log('✗ No date found in calculation data');
                     }
+                    
                     // Also set global Client Factory fields if present
                     if (data && data.success && data.calculation) {
                         if ($('#facAvgWeight').length && !$('#facAvgWeight').val() && (data.calculation.FACAVGWGT || data.calculation.FACAVGWGT === 0)) {
@@ -886,8 +918,8 @@
                         }
                     }
                 },
-                error: function() {
-                    console.log('IMMEDIATE DATE SET - Ajax error');
+                error: function(xhr, status, error) {
+                    console.log('✗ AJAX error getting date:', status, error);
                 }
             });
             
@@ -2550,13 +2582,17 @@
             
             // Get all transaction detail rows
             var trandIds = [];
+            var rowCount = 0;
             $('#detailsTable tbody tr').each(function() {
+                rowCount++;
                 var trandid = $(this).data('trandid') || 0;
+                console.log('Row', rowCount, '- TRANDID:', trandid);
                 if (trandid > 0) {
                     trandIds.push(trandid);
                 }
             });
             
+            console.log('Total detail rows:', rowCount);
             console.log('Found TRANDIDs:', trandIds);
             
             if (trandIds.length === 0) {
@@ -2569,32 +2605,41 @@
             var loadPromises = [];
             
             trandIds.forEach(function(trandid) {
+                console.log('Loading calculations for TRANDID:', trandid);
                 // Load calculations for all packing masters for this TRANDID
                 @foreach (var packing in ViewBag.PackingMasters)
                 {
                     <text>
+                    console.log('Creating AJAX request for TRANDID', trandid, 'PackingID', @packing.Value);
                     var promise = $.ajax({
                         url: '@Url.Action("GetProductCalculation", "RawMaterialIntake")',
                         type: 'GET',
                         data: { trandid: trandid, packingId: @packing.Value },
                         dataType: 'json'
                     }).done(function(data) {
+                        console.log('AJAX done for TRANDID', trandid, 'PackingID', @packing.Value, 'Response:', data);
                         if (data && data.success && data.calculation) {
                             var key = trandid + '_' + @packing.Value;
                             allCalculations[key] = data.calculation;
-                            console.log('Loaded calculation for TRANDID', trandid, 'PackingID', @packing.Value, 'FACTORYWGT:', data.calculation.FACTORYWGT);
+                            console.log('✓ Loaded calculation for TRANDID', trandid, 'PackingID', @packing.Value, 'FACTORYWGT:', data.calculation.FACTORYWGT);
+                        } else {
+                            console.log('✗ No calculation data in response for TRANDID', trandid, 'PackingID', @packing.Value);
                         }
-                    }).fail(function() {
-                        console.log('No calculation found for TRANDID', trandid, 'PackingID', @packing.Value);
+                    }).fail(function(xhr, status, error) {
+                        console.log('✗ AJAX failed for TRANDID', trandid, 'PackingID', @packing.Value, 'Status:', status, 'Error:', error);
                     });
                     loadPromises.push(promise);
                     </text>
                 }
             });
             
+            console.log('Total AJAX promises created:', loadPromises.length);
+            
             // Wait for all AJAX calls to complete
             $.when.apply($, loadPromises).always(function() {
-                console.log('All calculations loaded, populating table...');
+                console.log('All AJAX calls completed');
+                console.log('Total calculations loaded:', Object.keys(allCalculations).length);
+                console.log('All calculations:', allCalculations);
                 populateProductionTableWithData(clientWeight, allCalculations);
             });
         }

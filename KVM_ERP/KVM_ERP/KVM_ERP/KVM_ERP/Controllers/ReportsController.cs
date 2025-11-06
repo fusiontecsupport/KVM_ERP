@@ -8,16 +8,19 @@ using System.IO;
 
 namespace KVM_ERP.Controllers
 {
+    [SessionExpire]
     public class ReportsController : Controller
     {
         private readonly ApplicationDbContext db = new ApplicationDbContext();
 
+        [Authorize(Roles = "RawMaterialIntakeReportIndex")]
         public ActionResult RawMaterialsImport()
         {
             return View();
         }
 
         [HttpGet]
+        [Authorize(Roles = "RawMaterialIntakeReportIndex")]
         public JsonResult RawMaterialsImportData(DateTime? fromDate, DateTime? toDate)
         {
             try
@@ -61,6 +64,7 @@ namespace KVM_ERP.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "RawMaterialIntakeReportIndex")]
         public ActionResult RawMaterialsImportExcel(DateTime? fromDate, DateTime? toDate)
         {
             var query = db.TransactionMasters.AsQueryable();

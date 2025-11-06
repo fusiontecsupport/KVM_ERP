@@ -1,0 +1,555 @@
+@{
+    ViewBag.Title = "Stock View Report";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .main-container {
+        background: white;
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .content-wrapper {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        border: 1px solid #e9ecef;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 25px 30px;
+        border-radius: 15px 15px 0 0;
+        position: relative;
+    }
+
+    .header-title {
+        font-size: 28px;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    /* Date Filter Section */
+    .filter-section {
+        padding: 30px;
+        background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%);
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .form-label {
+        font-size: 14px;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .form-control {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 10px 12px;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #4facfe;
+        box-shadow: 0 0 0 0.2rem rgba(79, 172, 254, 0.25);
+    }
+
+    #loadDataBtn {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    #loadDataBtn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+    }
+
+    /* Tab styling - similar to packing master */
+    .nav-tabs {
+        border-bottom: 2px solid #dee2e6;
+        margin-bottom: 20px;
+    }
+
+    .nav-tabs .nav-link {
+        border: 1px solid transparent;
+        border-top-left-radius: 0.5rem;
+        border-top-right-radius: 0.5rem;
+        color: #495057;
+        font-weight: 500;
+        padding: 10px 20px;
+        margin-right: 5px;
+        transition: all 0.3s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        border-color: #e9ecef #e9ecef #dee2e6;
+        background-color: #f8f9fa;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #fff;
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border-color: #4facfe;
+        font-weight: 600;
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+        border: none;
+        padding: 10px 30px;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(56, 239, 125, 0.4);
+    }
+
+    /* Tabs Section */
+    .nav-tabs {
+        border-bottom: 2px solid #e9ecef;
+        padding: 0 30px;
+        background: white;
+    }
+
+    .nav-tabs .nav-link {
+        border: none;
+        color: #6c757d;
+        font-weight: 600;
+        padding: 15px 30px;
+        transition: all 0.3s ease;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #4facfe;
+        border-bottom: 3px solid #4facfe;
+        background: transparent;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: #4facfe;
+    }
+
+    /* Table Section */
+    .table-container {
+        padding: 30px;
+        background: white;
+        overflow-x: auto;
+    }
+
+    #stockReportTable {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+    }
+
+    #stockReportTable thead th {
+        background: #7f88e9;
+        color: white;
+        font-weight: 600;
+        padding: 12px 8px;
+        text-align: center;
+        border: 1px solid #6c75d3;
+        white-space: nowrap;
+    }
+
+    #stockReportTable tbody td {
+        padding: 8px;
+        border: 1px solid #dee2e6;
+        text-align: center;
+    }
+
+    #stockReportTable tbody tr.product-row {
+        background: #f8f9fa;
+        font-weight: 600;
+    }
+
+    #stockReportTable tbody tr.opening-stock {
+        background: #e3f2fd;
+    }
+
+    #stockReportTable tbody tr.production {
+        background: #fff3cd;
+    }
+
+    #stockReportTable tbody tr.total {
+        background: #d4edda;
+        font-weight: 600;
+    }
+
+    #stockReportTable tbody tr.rate {
+        background: #f8d7da;
+    }
+
+    #stockReportTable tbody tr.amount {
+        background: #d1ecf1;
+    }
+
+    .particulars-cell {
+        text-align: left !important;
+        padding-left: 15px !important;
+        font-weight: 600;
+    }
+
+    .total-slabs {
+        background: #ffc107 !important;
+        font-weight: bold;
+    }
+
+    /* Export Button */
+    .export-btn {
+        position: absolute;
+        top: 25px;
+        right: 30px;
+    }
+</style>
+
+<div class="main-container">
+    <div class="content-wrapper">
+        <!-- Header -->
+        <div class="header-section" style="position: relative;">
+            <h1 class="header-title">
+                <i class="fa fa-chart-bar"></i>
+                Stock View Report
+            </h1>
+            <button id="exportBtn" class="btn btn-success export-btn">
+                <i class="fa fa-file-excel"></i> Export to Excel
+            </button>
+        </div>
+
+        <!-- Date Filter Section -->
+        <div class="filter-section">
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="form-label">From Date:</label>
+                    <input type="date" id="fromDate" class="form-control" value="@DateTime.Now.AddDays(-30).ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">To Date:</label>
+                    <input type="date" id="toDate" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button id="loadDataBtn" class="btn btn-primary">
+                        <i class="fa fa-search"></i> Load Data
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Section -->
+        <ul class="nav nav-tabs" id="stockTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="hl-tab" data-bs-toggle="tab" data-bs-target="#hl"
+                        type="button" role="tab" aria-controls="hl" aria-selected="true">
+                    HL
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="ho-tab" data-bs-toggle="tab" data-bs-target="#ho"
+                        type="button" role="tab" aria-controls="ho" aria-selected="false">
+                    HO
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="stockTabContent">
+            <!-- HL Tab -->
+            <div class="tab-pane fade show active" id="hl" role="tabpanel" aria-labelledby="hl-tab">
+                <div class="table-container">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h5 style="margin: 0;">1/30, Padur Village, Kelambakkam, Kanchipuram Dist - 603 103.</h5>
+                        <h6 style="margin: 5px 0;"><strong>STOCK AS ON <span id="stockDateHL">@DateTime.Now.ToString("dd/MM/yyyy")</span></strong></h6>
+                    </div>
+                    <table id="stockReportTable" class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th rowspan="2">PARTICULARS</th>
+                                <th rowspan="2">U/S</th>
+                                <th rowspan="2">6-8</th>
+                                <th rowspan="2">8/12</th>
+                                <th rowspan="2">13/15</th>
+                                <th rowspan="2">16/20</th>
+                                <th rowspan="2">21/25</th>
+                                <th rowspan="2">26/30</th>
+                                <th rowspan="2">31/35</th>
+                                <th rowspan="2">36/40</th>
+                                <th rowspan="2">41/50</th>
+                                <th rowspan="2">51/60</th>
+                                <th rowspan="2">61/70</th>
+                                <th rowspan="2">71/90</th>
+                                <th rowspan="2">91/110</th>
+                                <th rowspan="2">TOTAL NO. OF SLABS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockTableBodyHL">
+                            <!-- Data will be loaded here -->
+                            <tr>
+                                <td colspan="16" class="text-center">Please select dates and click "Load Data"</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- HO Tab -->
+            <div class="tab-pane fade" id="ho" role="tabpanel" aria-labelledby="ho-tab">
+                <div class="table-container">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h5 style="margin: 0;">1/30, Padur Village, Kelambakkam, Kanchipuram Dist - 603 103.</h5>
+                        <h6 style="margin: 5px 0;"><strong>STOCK AS ON <span id="stockDateHO">@DateTime.Now.ToString("dd/MM/yyyy")</span></strong></h6>
+                    </div>
+                    <table id="stockReportTableHO" class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th rowspan="2">PARTICULARS</th>
+                                <th rowspan="2">U/S</th>
+                                <th rowspan="2">6-8</th>
+                                <th rowspan="2">8/12</th>
+                                <th rowspan="2">13/15</th>
+                                <th rowspan="2">16/20</th>
+                                <th rowspan="2">21/25</th>
+                                <th rowspan="2">26/30</th>
+                                <th rowspan="2">31/35</th>
+                                <th rowspan="2">36/40</th>
+                                <th rowspan="2">41/50</th>
+                                <th rowspan="2">51/60</th>
+                                <th rowspan="2">61/70</th>
+                                <th rowspan="2">71/90</th>
+                                <th rowspan="2">91/110</th>
+                                <th rowspan="2">TOTAL NO. OF SLABS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockTableBodyHO">
+                            <!-- Data will be loaded here -->
+                            <tr>
+                                <td colspan="16" class="text-center">Please select dates and click "Load Data"</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <script>
+        $(document).ready(function () {
+            let currentTab = 'HL';
+
+            // Tab switching
+            $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+                currentTab = $(e.target).text().trim();
+            });
+
+            // Load Data
+            $('#loadDataBtn').on('click', function () {
+                loadStockData();
+            });
+
+            // Export to Excel
+            $('#exportBtn').on('click', function () {
+                exportToExcel();
+            });
+
+            function loadStockData() {
+                const fromDate = $('#fromDate').val();
+                const toDate = $('#toDate').val();
+
+                if (!fromDate || !toDate) {
+                    alert('Please select both From and To dates');
+                    return;
+                }
+
+                $.ajax({
+                    url: '@Url.Action("GetStockData", "StockViewReport")',
+                    type: 'POST',
+                    data: {
+                        fromDate: fromDate,
+                        toDate: toDate,
+                        tab: currentTab
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            renderStockTable(response.data, currentTab);
+                            $('#stockDate' + currentTab).text(new Date(toDate).toLocaleDateString('en-GB'));
+                        } else {
+                            alert('Error loading data: ' + response.message);
+                        }
+                    },
+                    error: function () {
+                        alert('Error loading stock data');
+                    }
+                });
+            }
+
+            function renderStockTable(data, tab) {
+                const tbody = $('#stockTableBody' + tab);
+                tbody.empty();
+
+                if (!data || data.length === 0) {
+                    tbody.append('<tr><td colspan="16" class="text-center">No data available</td></tr>');
+                    return;
+                }
+
+                data.forEach(function (item, index) {
+                    // Product Row
+                    tbody.append(`
+                        <tr class="product-row">
+                            <td class="particulars-cell">${index + 1}. ${item.ProductName}</td>
+                            <td colspan="14"></td>
+                            <td class="total-slabs">${item.TotalSlabs || 0}</td>
+                        </tr>
+                    `);
+
+                    // OPENING STOCK Row
+                    tbody.append(`
+                        <tr class="opening-stock">
+                            <td class="particulars-cell">OPENING STOCK</td>
+                            <td>${item.US || 0}</td>
+                            <td>${item.Size6_8 || 0}</td>
+                            <td>${item.Size8_12 || 0}</td>
+                            <td>${item.Size13_15 || 0}</td>
+                            <td>${item.Size16_20 || 0}</td>
+                            <td>${item.Size21_25 || 0}</td>
+                            <td>${item.Size26_30 || 0}</td>
+                            <td>${item.Size31_35 || 0}</td>
+                            <td>${item.Size36_40 || 0}</td>
+                            <td>${item.Size41_50 || 0}</td>
+                            <td>${item.Size51_60 || 0}</td>
+                            <td>${item.Size61_70 || 0}</td>
+                            <td>${item.Size71_90 || 0}</td>
+                            <td>${item.Size91_110 || 0}</td>
+                            <td>${item.TotalSlabs || 0}</td>
+                        </tr>
+                    `);
+
+                    // PRODUCTION Row
+                    tbody.append(`
+                        <tr class="production">
+                            <td class="particulars-cell">PRODUCTION</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                        </tr>
+                    `);
+
+                    // TOTAL Row
+                    tbody.append(`
+                        <tr class="total">
+                            <td class="particulars-cell">TOTAL</td>
+                            <td>${item.US || 0}</td>
+                            <td>${item.Size6_8 || 0}</td>
+                            <td>${item.Size8_12 || 0}</td>
+                            <td>${item.Size13_15 || 0}</td>
+                            <td>${item.Size16_20 || 0}</td>
+                            <td>${item.Size21_25 || 0}</td>
+                            <td>${item.Size26_30 || 0}</td>
+                            <td>${item.Size31_35 || 0}</td>
+                            <td>${item.Size36_40 || 0}</td>
+                            <td>${item.Size41_50 || 0}</td>
+                            <td>${item.Size51_60 || 0}</td>
+                            <td>${item.Size61_70 || 0}</td>
+                            <td>${item.Size71_90 || 0}</td>
+                            <td>${item.Size91_110 || 0}</td>
+                            <td>${item.TotalSlabs || 0}</td>
+                        </tr>
+                    `);
+
+                    // RATE Row
+                    tbody.append(`
+                        <tr class="rate">
+                            <td class="particulars-cell">RATE</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                        </tr>
+                    `);
+
+                    // AMOUNT Row
+                    tbody.append(`
+                        <tr class="amount">
+                            <td class="particulars-cell">AMOUNT</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                        </tr>
+                    `);
+                });
+            }
+
+            function exportToExcel() {
+                const fromDate = $('#fromDate').val();
+                const toDate = $('#toDate').val();
+
+                if (!fromDate || !toDate) {
+                    alert('Please select both From and To dates');
+                    return;
+                }
+
+                const form = $('<form>', {
+                    method: 'POST',
+                    action: '@Url.Action("ExportToExcel", "StockViewReport")'
+                });
+
+                form.append($('<input>', { type: 'hidden', name: 'fromDate', value: fromDate }));
+                form.append($('<input>', { type: 'hidden', name: 'toDate', value: toDate }));
+                form.append($('<input>', { type: 'hidden', name: 'tab', value: currentTab }));
+
+                $('body').append(form);
+                form.submit();
+                form.remove();
+            }
+        });
+    </script>
+}

@@ -165,9 +165,12 @@
                     <i class="fa-solid fa-truck-loading"></i>
                     Raw Material Intake
                 </h1>
-                <a href="@Url.Action("Form", "RawMaterialIntake")" class="btn add-btn">
-                    <i class="fa fa-plus-circle"></i> Add New
-                </a>
+                @if (User.IsInRole("RawMaterialIntakeCreate"))
+                {
+                    <a href="@Url.Action("Form", "RawMaterialIntake")" class="btn add-btn">
+                        <i class="fa fa-plus-circle"></i> Add New
+                    </a>
+                }
             </div>
         </div>
 
@@ -299,10 +302,20 @@
                         orderable: false,
                         render: function (data, type, row) {
                             var id = row['TRANMID'];
-                            return '<a href="' + '@Url.Action("Form", "RawMaterialIntake")' + '/' + id + '" class="btn btn-action btn-edit"><i class="fa fa-edit"></i> Edit</a>' +
-                                   '&nbsp;<a href="#" class="btn btn-action btn-delete editor_remove" data-id="' + id + '"><i class="fa fa-trash"></i> Delete</a>' +
-                                   '&nbsp;<a href="#" class="btn btn-action btn-print-calc" title="Print all calculations" data-id="' + id + '"><i class="fa fa-calculator"></i> Calc</a>' +
-                                   '&nbsp;<a href="#" class="btn btn-action btn-print" data-id="' + id + '"><i class="fa fa-print"></i> Print</a>';
+                            var buttons = '';
+                            
+                            // Edit button - only if user has Edit role
+                            @if (User.IsInRole("RawMaterialIntakeEdit"))
+                            {
+                                @:buttons += '<a href="' + '@Url.Action("Form", "RawMaterialIntake")' + '/' + id + '" class="btn btn-action btn-edit"><i class="fa fa-edit"></i> Edit</a>&nbsp;';
+                            }
+                            
+                            // Delete, Calc, and Print buttons always shown (assuming they have their own permission checks or are always allowed)
+                            buttons += '<a href="#" class="btn btn-action btn-delete editor_remove" data-id="' + id + '"><i class="fa fa-trash"></i> Delete</a>' +
+                                       '&nbsp;<a href="#" class="btn btn-action btn-print-calc" title="Print all calculations" data-id="' + id + '"><i class="fa fa-calculator"></i> Calc</a>' +
+                                       '&nbsp;<a href="#" class="btn btn-action btn-print" data-id="' + id + '"><i class="fa fa-print"></i> Print</a>';
+                            
+                            return buttons;
                         }
                     }
                 ],

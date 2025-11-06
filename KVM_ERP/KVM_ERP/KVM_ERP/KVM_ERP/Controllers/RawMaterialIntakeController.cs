@@ -23,21 +23,23 @@ namespace KVM_ERP.Controllers
         [Authorize(Roles = "RawMaterialIntakeCreate,RawMaterialIntakeEdit")]
         public ActionResult Form(int? id)
         {
-            // Check permissions based on operation mode
-            if (id.HasValue)
+            // Check specific role based on operation
+            if (id.HasValue && id.Value > 0)
             {
-                // Edit mode - requires RawMaterialIntakeEdit role
+                // Edit mode - require Edit role
                 if (!User.IsInRole("RawMaterialIntakeEdit"))
                 {
-                    return new HttpUnauthorizedResult();
+                    TempData["ErrorMessage"] = "You do not have permission to edit Raw Material Intake.";
+                    return RedirectToAction("Index");
                 }
             }
             else
             {
-                // Create mode - requires RawMaterialIntakeCreate role
+                // Create mode - require Create role
                 if (!User.IsInRole("RawMaterialIntakeCreate"))
                 {
-                    return new HttpUnauthorizedResult();
+                    TempData["ErrorMessage"] = "You do not have permission to create Raw Material Intake.";
+                    return RedirectToAction("Index");
                 }
             }
             
@@ -184,24 +186,31 @@ namespace KVM_ERP.Controllers
         {
             try
             {
-                // Check permissions based on operation mode
-                bool isEdit = tab.TRANMID > 0 && db.TransactionMasters.Any(x => x.TRANMID == tab.TRANMID);
+                // Debug logging
+                System.Diagnostics.Debug.WriteLine("=== RAW MATERIAL INTAKE SAVE ===");
+                System.Diagnostics.Debug.WriteLine($"TRANMID: {tab.TRANMID}");
+                System.Diagnostics.Debug.WriteLine($"SupplierId: {SupplierId}");
+                System.Diagnostics.Debug.WriteLine($"detailRowsJson: {detailRowsJson}");
+                System.Diagnostics.Debug.WriteLine($"qualityCheckJson: {qualityCheckJson}");
                 
+                // Check if this is edit or create mode
+                bool isEdit = tab.TRANMID > 0 && db.TransactionMasters.Any(x => x.TRANMID == tab.TRANMID);
+                System.Diagnostics.Debug.WriteLine($"isEdit: {isEdit}");
+                
+                // Check specific role based on operation
                 if (isEdit)
                 {
-                    // Edit mode - requires RawMaterialIntakeEdit role
                     if (!User.IsInRole("RawMaterialIntakeEdit"))
                     {
-                        TempData["ErrorMessage"] = "Access Denied: You do not have permission to edit records.";
+                        TempData["ErrorMessage"] = "You do not have permission to edit Raw Material Intake.";
                         return RedirectToAction("Index");
                     }
                 }
                 else
                 {
-                    // Create mode - requires RawMaterialIntakeCreate role
                     if (!User.IsInRole("RawMaterialIntakeCreate"))
                     {
-                        TempData["ErrorMessage"] = "Access Denied: You do not have permission to create records.";
+                        TempData["ErrorMessage"] = "You do not have permission to create Raw Material Intake.";
                         return RedirectToAction("Index");
                     }
                 }
@@ -211,6 +220,7 @@ namespace KVM_ERP.Controllers
                 {
                     details = JsonConvert.DeserializeObject<List<DetailRow>>(detailRowsJson) ?? new List<DetailRow>();
                 }
+                System.Diagnostics.Debug.WriteLine($"Parsed {details.Count} detail rows");
 
                 // Parse quality check data
                 TransactionQualityCheck qualityCheck = null;
@@ -218,6 +228,7 @@ namespace KVM_ERP.Controllers
                 {
                     qualityCheck = JsonConvert.DeserializeObject<TransactionQualityCheck>(qualityCheckJson);
                 }
+                System.Diagnostics.Debug.WriteLine($"Quality check parsed: {(qualityCheck != null ? "YES" : "NO")}");
 
                 if (SupplierId.HasValue && SupplierId.Value > 0)
                 {
@@ -351,7 +362,6 @@ namespace KVM_ERP.Controllers
                             }
                         }
 
-                        TempData["SuccessMessage"] = "Updated successfully";
                         return RedirectToAction("Index");
                     }
                 }
@@ -418,31 +428,35 @@ namespace KVM_ERP.Controllers
                         User?.Identity?.Name ?? "System", User?.Identity?.Name ?? "System", DateTime.Now);
                 }
 
-                TempData["SuccessMessage"] = "Added successfully";
+                System.Diagnostics.Debug.WriteLine("=== SAVE COMPLETED ===");
                 return RedirectToAction("Index");
             }
             catch (Exception ex)
             {
-                ViewBag.msg = $"<div class='alert alert-danger'>Error: {ex.Message}</div>";
+                // Log the full error
+                System.Diagnostics.Debug.WriteLine($"Error saving Raw Material Intake: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack Trace: {ex.StackTrace}");
+                
+                TempData["ErrorMessage"] = $"Error saving data: {ex.Message}";
+                
+                // Repopulate dropdowns on error and return to form
+                var suppliers = db.SupplierMasters
+                    .Where(s => s.DISPSTATUS == 0)
+                    .OrderBy(s => s.CATENAME)
+                    .Select(s => new { s.CATEID, s.CATENAME, s.CATECODE })
+                    .ToList();
+                ViewBag.SupplierList = suppliers
+                    .Select(s => new SelectListItem { Text = s.CATENAME, Value = s.CATEID.ToString() })
+                    .ToList();
+                ViewBag.DISPSTATUS = new SelectList(new[]
+                {
+                    new SelectListItem { Text = "Enabled", Value = "0" },
+                    new SelectListItem { Text = "Disabled", Value = "1" }
+                }, "Value", "Text", tab.DISPSTATUS.ToString());
+                ViewBag.SupplierCodeMap = suppliers.ToDictionary(s => s.CATEID.ToString(), s => s.CATECODE ?? "");
+
+                return View("Form", tab);
             }
-
-            // Repopulate dropdowns on error
-            var suppliers = db.SupplierMasters
-                .Where(s => s.DISPSTATUS == 0)
-                .OrderBy(s => s.CATENAME)
-                .Select(s => new { s.CATEID, s.CATENAME, s.CATECODE })
-                .ToList();
-            ViewBag.SupplierList = suppliers
-                .Select(s => new SelectListItem { Text = s.CATENAME, Value = s.CATEID.ToString() })
-                .ToList();
-            ViewBag.DISPSTATUS = new SelectList(new[]
-            {
-                new SelectListItem { Text = "Enabled", Value = "0" },
-                new SelectListItem { Text = "Disabled", Value = "1" }
-            }, "Value", "Text", tab.DISPSTATUS.ToString());
-            ViewBag.SupplierCodeMap = suppliers.ToDictionary(s => s.CATEID.ToString(), s => s.CATECODE ?? "");
-
-            return View("Form", tab);
         }
 
         // JSON: Products by Material Group (enabled only)

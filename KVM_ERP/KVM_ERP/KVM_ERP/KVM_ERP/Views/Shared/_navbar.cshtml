@@ -354,8 +354,47 @@
                         </li>
                     }
 
+                    @* Reports Menu - Role Based Access Control
+                       RMenuGroupId = 5 (Reports)
+                       
+                       Report Items:
+                       1. Stock View Report (StockViewReport)
+                       2. Raw Materials Intake Report (RawMaterialIntakeReport)
+                    *@
+                    @if (Model != null && (User.IsInRole("StockViewReportIndex") || User.IsInRole("RawMaterialIntakeReportIndex")))
+                    {
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="reportsDropdownUser" role="button"
+                               data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fa fa-file-alt"></i> Reports
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="reportsDropdownUser">
+                                <!-- Stock View Report - Order: 1, GroupId: 5 -->
+                                @if (User.IsInRole("StockViewReportIndex"))
+                                {
+                                    <li>
+                                        <a class="dropdown-item" href="@Url.Action("Index", "StockViewReport")"
+                                           data-role="StockViewReport" data-menugroupid="5" data-menuorder="1">
+                                            <i class="fa fa-chart-bar"></i> Stock View Report
+                                        </a>
+                                    </li>
+                                }
+                                <!-- Raw Materials Intake Report - Order: 2, GroupId: 5 -->
+                                @if (User.IsInRole("RawMaterialIntakeReportIndex"))
+                                {
+                                    <li>
+                                        <a class="dropdown-item" href="@Url.Action("RawMaterialsImport", "Reports")"
+                                           data-role="RawMaterialIntakeReport" data-menugroupid="5" data-menuorder="2">
+                                            <i class="fa fa-truck-loading"></i> Raw Materials Intake Report
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </li>
+                    }
+
                     @* Tally Menu - Role Based Access Control
-                       RMenuGroupId = 2 (Tally)
+                       RMenuGroupId = 3 (Tally)
                        RMenuGroupOrder = 1
                        
                        Tally Items:
@@ -369,10 +408,10 @@
                                 <i class="fa fa-calculator"></i> Tally
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="tallyDropdown">
-                                <!-- Invoice Updation to Tally - Order: 1, GroupId: 2 -->
+                                <!-- Invoice Updation to Tally - Order: 1, GroupId: 3 -->
                                 <li>
                                     <a class="dropdown-item" href="@Url.Action("Index", "ComingSoon")"
-                                       data-role="TallyInvoiceUpdation" data-menugroupid="2" data-menuorder="1">
+                                       data-role="TallyInvoiceUpdation" data-menugroupid="3" data-menuorder="1">
                                         <i class="fa fa-sync-alt"></i> Invoice Updation to Tally
                                     </a>
                                 </li>
@@ -508,14 +547,11 @@
                         </li>
                     }
 
-                    @* Reports Menu - Role Based Access Control
-                       RMenuGroupId = 3 (Reports)
-                       RMenuGroupOrder = 1
-                       
-                       Report Items:
-                       1. Raw Materials Import Report (Reports)
+                    @* REMOVED: Duplicate Admin-only Reports Menu
+                       This was consolidated into the role-based Reports menu above (RMenuGroupId = 2)
+                       Admin users should be assigned the appropriate report roles instead
                     *@
-                    @if (isAdmin)
+                    @*@if (isAdmin)
                     {
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button"
@@ -523,7 +559,6 @@
                                 <i class="fa fa-chart-bar"></i> Reports
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="reportsDropdown">
-                                <!-- Raw Materials Import Report - Order: 1, GroupId: 3 -->
                                 <li>
                                     <a class="dropdown-item" href="@Url.Action("RawMaterialsImport", "Reports")"
                                        data-role="RawMaterialsImportReport" data-menugroupid="3" data-menuorder="1">
@@ -532,7 +567,7 @@
                                 </li>
                             </ul>
                         </li>
-                    }
+                    }*@
 
                     @* Masters Menu - Show if user has ANY master permission OR is Admin *@
                     @{
