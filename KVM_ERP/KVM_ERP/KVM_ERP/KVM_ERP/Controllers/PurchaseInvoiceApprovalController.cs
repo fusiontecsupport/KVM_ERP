@@ -85,6 +85,79 @@ namespace KVM_ERP.Controllers
             }
         }
 
+        // Print Invoice
+        [Authorize(Roles = "PurchaseInvoiceApprovalPrint")]
+        public ActionResult Print(int id)
+        {
+            try
+            {
+                // Get invoice header
+                var invoice = context.Database.SqlQuery<InvoicePrintViewModel>(
+                    @"SELECT tm.TRANMID, tm.TRANNO, tm.TRANDNO, tm.TRANREFNO, tm.TRANDATE,
+                             tm.CATENAME, tm.CATECODE, tm.TRANNAMT, 
+                             pis.PUINSTDESC as StatusDescription,
+                             ISNULL(tm.TRANCGSTAMT, 0) as CGSTAMT,
+                             ISNULL(tm.TRANSGSTAMT, 0) as SGSTAMT,
+                             ISNULL(tm.TRANIGSTAMT, 0) as IGSTAMT,
+                             ISNULL(tm.TRANCGSTEXPRN, 0) as CGSTPER,
+                             ISNULL(tm.TRANSGSTEXPRN, 0) as SGSTPER,
+                             ISNULL(tm.TRANIGSTEXPRN, 0) as IGSTPER
+                      FROM TRANSACTIONMASTER tm
+                      LEFT JOIN PURCHASEINVOICESTATUS pis ON tm.DISPSTATUS = pis.PUINSTID
+                      WHERE tm.TRANMID = @p0 AND tm.REGSTRID = 2",
+                    id
+                ).FirstOrDefault();
+
+                if (invoice == null)
+                {
+                    TempData["ErrorMessage"] = "Invoice not found";
+                    return RedirectToAction("Index");
+                }
+
+                // Get invoice items
+                invoice.Items = context.Database.SqlQuery<InvoiceItemPrintViewModel>(
+                    @"SELECT td.TRANDID, m.MTRLDESC as MTRLNAME, 
+                             ISNULL(g.GRADEDESC, '') as GRADEDESC,
+                             ISNULL(pcm.PCLRDESC, '') as PCLRDESC,
+                             ISNULL(rt.RCVDTDESC, '') as RCVDTDESC,
+                             td.TRANDQTY as TRANQTY, 
+                             td.TRANDRATE as TRANRATE, 
+                             td.TRANDAMT
+                      FROM TRANSACTIONDETAIL td
+                      INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
+                      LEFT JOIN GRADEMASTER g ON td.GRADEID = g.GRADEID
+                      LEFT JOIN PRODUCTIONCOLOURMASTER pcm ON td.PCLRID = pcm.PCLRID
+                      LEFT JOIN RECEIVEDTYPEMASTER rt ON td.RCVDTID = rt.RCVDTID
+                      WHERE td.TRANMID = @p0
+                      ORDER BY td.TRANDID",
+                    id
+                ).ToList();
+
+                // Get tax factors
+                invoice.TaxFactors = context.Database.SqlQuery<TaxFactorPrintViewModel>(
+                    @"SELECT tmf.TRANMFID, 
+                             ISNULL(tmf.TRANCFDESC, cf.CFDESC) as CFDESC,
+                             ISNULL(CAST(tmf.CFOPTN AS INT), 0) as OPTNVALUE,
+                             ISNULL(tmf.DEDEXPRN, 0) as CFRATE,
+                             ISNULL(tmf.DEDVALUE, 0) as CFAMT,
+                             ISNULL(CAST(tmf.DEDMODE AS INT), 0) as CFMODE
+                      FROM TRANSACTIONMASTERFACTOR tmf
+                      INNER JOIN COSTFACTORMASTER cf ON tmf.CFID = cf.CFID
+                      WHERE tmf.TRANMID = @p0
+                      ORDER BY tmf.DEDORDR",
+                    id
+                ).ToList();
+
+                return View(invoice);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading invoice for print: {ex.Message}");
+                TempData["ErrorMessage"] = "Error loading invoice: " + ex.Message;
+                return RedirectToAction("Index");
+            }
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)

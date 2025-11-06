@@ -444,7 +444,7 @@
 
         // Print Invoice Function
         function printInvoice(tranmId) {
-            window.open('@Url.Action("GenerateInvoicePDF", "RawMaterialInvoice")?id=' + tranmId, '_blank');
+            window.open('@Url.Action("Print", "PurchaseInvoiceApproval")?id=' + tranmId, '_blank');
         }
     </script>
 }

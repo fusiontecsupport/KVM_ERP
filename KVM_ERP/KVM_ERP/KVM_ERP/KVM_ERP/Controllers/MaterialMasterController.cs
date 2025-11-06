@@ -509,11 +509,16 @@ namespace KVM_ERP.Controllers
 
         // Delete method for AJAX calls
         [HttpPost]
-        [Authorize(Roles = "MaterialMasterDelete")]
         public ActionResult Del(int id)
         {
             try
             {
+                // Check if user has delete role
+                if (!User.IsInRole("MaterialMasterDelete"))
+                {
+                    return Json("Access Denied: You do not have permission to delete records. Please contact your administrator.");
+                }
+                
                 var material = db.Database.SqlQuery<MaterialMaster>(
                     "SELECT * FROM MATERIALMASTER WHERE MTRLID = @p0", id).FirstOrDefault();
 

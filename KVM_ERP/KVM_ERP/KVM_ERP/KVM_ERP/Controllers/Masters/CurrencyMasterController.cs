@@ -210,11 +210,17 @@ namespace KVM_ERP.Controllers.Masters
         }
 
         [HttpPost]
-        [Authorize(Roles = "CurrencyMasterDelete")]
         public ActionResult deletedata(int id)
         {
             try
             {
+                // Check if user has delete role
+                if (!User.IsInRole("CurrencyMasterDelete"))
+                {
+                    Response.StatusCode = 403;
+                    return Content("Access Denied: You do not have permission to delete records. Please contact your administrator.");
+                }
+                
                 context.Database.ExecuteSqlCommand("DELETE FROM CURRENCYMASTER WHERE CURNID = {0}", id);
                 return Content("Deleted Successfully ...");
             }

@@ -201,11 +201,16 @@ namespace KVM_ERP.Controllers
 
         // POST: MaterialGroupMaster/Del
         [HttpPost]
-        [Authorize(Roles = "MaterialGroupMasterDelete")]
         public ActionResult Del(int id)
         {
             try
             {
+                // Check if user has delete role
+                if (!User.IsInRole("MaterialGroupMasterDelete"))
+                {
+                    return Content("Access Denied: You do not have permission to delete records. Please contact your administrator.");
+                }
+                
                 // Delete using raw SQL
                 var rowsAffected = db.Database.ExecuteSqlCommand(
                     "DELETE FROM MATERIALGROUPMASTER WHERE MTRLGID = @p0", id);

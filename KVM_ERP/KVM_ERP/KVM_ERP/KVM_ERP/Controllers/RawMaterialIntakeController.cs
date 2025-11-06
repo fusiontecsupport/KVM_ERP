@@ -504,11 +504,16 @@ namespace KVM_ERP.Controllers
 
         // Delete method for AJAX calls (match masters pattern)
         [HttpPost]
-        [Authorize(Roles = "RawMaterialIntakeDelete")]
         public ActionResult Del(int id)
         {
             try
             {
+                // Check if user has delete role
+                if (!User.IsInRole("RawMaterialIntakeDelete"))
+                {
+                    return Json("Access Denied: You do not have permission to delete records. Please contact your administrator.");
+                }
+                
                 var exists = db.Database.SqlQuery<int>("SELECT COUNT(1) FROM TRANSACTIONMASTER WHERE TRANMID = @p0 AND REGSTRID = 1", id).FirstOrDefault();
                 if (exists == 0)
                 {

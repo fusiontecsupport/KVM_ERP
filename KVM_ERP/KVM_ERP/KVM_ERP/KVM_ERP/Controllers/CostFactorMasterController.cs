@@ -279,11 +279,16 @@ namespace KVM_ERP.Controllers
 
         // POST: CostFactorMaster/Del
         [HttpPost]
-        [Authorize(Roles = "CostFactorMasterDelete")]
         public ActionResult Del(int id)
         {
             try
             {
+                // Check if user has delete role
+                if (!User.IsInRole("CostFactorMasterDelete"))
+                {
+                    return Content("Access Denied: You do not have permission to delete records. Please contact your administrator.");
+                }
+                
                 // Delete using raw SQL
                 var rowsAffected = db.Database.ExecuteSqlCommand(
                     "DELETE FROM COSTFACTORMASTER WHERE CFID = @p0", id);

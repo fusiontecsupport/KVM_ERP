@@ -180,10 +180,10 @@ namespace KVM_ERP.Controllers.Masters
 
         public string Del(int id)
         {
-            // Check DELETE permission - return empty string if unauthorized (for AJAX detection)
+            // Check DELETE permission
             if (!User.IsInRole("CompanyMasterDelete"))
             {
-                return ""; // Empty string signals unauthorized to JavaScript
+                return "Access Denied: You do not have permission to delete records. Please contact your administrator.";
             }
 
             try

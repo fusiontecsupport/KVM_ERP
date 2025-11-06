@@ -204,11 +204,16 @@ namespace KVM_ERP.Controllers
 
         // POST: PackingMaster/Del
         [HttpPost]
-        [Authorize(Roles = "PackingMasterDelete")]
         public ActionResult Del(int id)
         {
             try
             {
+                // Check if user has delete role
+                if (!User.IsInRole("PackingMasterDelete"))
+                {
+                    return Content("Access Denied: You do not have permission to delete records. Please contact your administrator.");
+                }
+                
                 // Delete using raw SQL
                 var rowsAffected = db.Database.ExecuteSqlCommand(
                     "DELETE FROM PACKINGMASTER WHERE PACKMID = @p0", id);

@@ -260,9 +260,15 @@ namespace KVM_ERP.Controllers.Masters
             }
         }
 
-        [Authorize(Roles = "LocationMasterDelete")]
         public void Del()
         {
+            // Check if user has delete role
+            if (!User.IsInRole("LocationMasterDelete"))
+            {
+                Response.Write("Access Denied: You do not have permission to delete records. Please contact your administrator.");
+                return;
+            }
+            
             string id = Request.Form.Get("id");
             if (string.IsNullOrWhiteSpace(id)) { Response.Write("Invalid Id"); return; }
 

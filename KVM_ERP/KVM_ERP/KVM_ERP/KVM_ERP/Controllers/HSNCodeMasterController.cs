@@ -237,11 +237,16 @@ namespace KVM_ERP.Controllers
 
         // POST: HSNCodeMaster/Del
         [HttpPost]
-        [Authorize(Roles = "HSNCodeMasterDelete")]
         public ActionResult Del(int id)
         {
             try
             {
+                // Check if user has delete role
+                if (!User.IsInRole("HSNCodeMasterDelete"))
+                {
+                    return Content("Access Denied: You do not have permission to delete records. Please contact your administrator.");
+                }
+                
                 // Delete using raw SQL
                 var rowsAffected = db.Database.ExecuteSqlCommand(
                     "DELETE FROM HSNCODEMASTER WHERE HSNID = @p0", id);

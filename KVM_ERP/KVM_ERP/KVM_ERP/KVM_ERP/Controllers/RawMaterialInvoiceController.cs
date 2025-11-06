@@ -136,11 +136,16 @@ namespace KVM_ERP.Controllers
 
         // Delete Invoice
         [HttpPost]
-        [Authorize(Roles = "PurchaseInvoiceDelete")]
         public JsonResult DeleteInvoice(int id)
         {
             try
             {
+                // Check if user has delete role
+                if (!User.IsInRole("PurchaseInvoiceDelete"))
+                {
+                    return Json(new { success = false, message = "Access Denied: You do not have permission to delete records. Please contact your administrator." });
+                }
+                
                 System.Diagnostics.Debug.WriteLine($"DeleteInvoice called for TRANMID: {id}");
 
                 // Check if invoice exists
@@ -1461,6 +1466,79 @@ namespace KVM_ERP.Controllers
                 return Json(new { success = false, message = "Error saving invoice: " + ex.Message });
             }
         }
+
+        // Print Invoice
+        [Authorize(Roles = "PurchaseInvoicePrint")]
+        public ActionResult Print(int id)
+        {
+            try
+            {
+                // Get invoice header
+                var invoice = context.Database.SqlQuery<InvoicePrintViewModel>(
+                    @"SELECT tm.TRANMID, tm.TRANNO, tm.TRANDNO, tm.TRANREFNO, tm.TRANDATE,
+                             tm.CATENAME, tm.CATECODE, tm.TRANNAMT, 
+                             pis.PUINSTDESC as StatusDescription,
+                             ISNULL(tm.TRANCGSTAMT, 0) as CGSTAMT,
+                             ISNULL(tm.TRANSGSTAMT, 0) as SGSTAMT,
+                             ISNULL(tm.TRANIGSTAMT, 0) as IGSTAMT,
+                             ISNULL(tm.TRANCGSTEXPRN, 0) as CGSTPER,
+                             ISNULL(tm.TRANSGSTEXPRN, 0) as SGSTPER,
+                             ISNULL(tm.TRANIGSTEXPRN, 0) as IGSTPER
+                      FROM TRANSACTIONMASTER tm
+                      LEFT JOIN PURCHASEINVOICESTATUS pis ON tm.DISPSTATUS = pis.PUINSTID
+                      WHERE tm.TRANMID = @p0 AND tm.REGSTRID = 2",
+                    id
+                ).FirstOrDefault();
+
+                if (invoice == null)
+                {
+                    TempData["ErrorMessage"] = "Invoice not found";
+                    return RedirectToAction("Index");
+                }
+
+                // Get invoice items
+                invoice.Items = context.Database.SqlQuery<InvoiceItemPrintViewModel>(
+                    @"SELECT td.TRANDID, m.MTRLDESC as MTRLNAME, 
+                             ISNULL(g.GRADEDESC, '') as GRADEDESC,
+                             ISNULL(pcm.PCLRDESC, '') as PCLRDESC,
+                             ISNULL(rt.RCVDTDESC, '') as RCVDTDESC,
+                             td.TRANDQTY as TRANQTY, 
+                             td.TRANDRATE as TRANRATE, 
+                             td.TRANDAMT
+                      FROM TRANSACTIONDETAIL td
+                      INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
+                      LEFT JOIN GRADEMASTER g ON td.GRADEID = g.GRADEID
+                      LEFT JOIN PRODUCTIONCOLOURMASTER pcm ON td.PCLRID = pcm.PCLRID
+                      LEFT JOIN RECEIVEDTYPEMASTER rt ON td.RCVDTID = rt.RCVDTID
+                      WHERE td.TRANMID = @p0
+                      ORDER BY td.TRANDID",
+                    id
+                ).ToList();
+
+                // Get tax factors
+                invoice.TaxFactors = context.Database.SqlQuery<TaxFactorPrintViewModel>(
+                    @"SELECT tmf.TRANMFID, 
+                             ISNULL(tmf.TRANCFDESC, cf.CFDESC) as CFDESC,
+                             ISNULL(CAST(tmf.CFOPTN AS INT), 0) as OPTNVALUE,
+                             ISNULL(tmf.DEDEXPRN, 0) as CFRATE,
+                             ISNULL(tmf.DEDVALUE, 0) as CFAMT,
+                             ISNULL(CAST(tmf.DEDMODE AS INT), 0) as CFMODE
+                      FROM TRANSACTIONMASTERFACTOR tmf
+                      INNER JOIN COSTFACTORMASTER cf ON tmf.CFID = cf.CFID
+                      WHERE tmf.TRANMID = @p0
+                      ORDER BY tmf.DEDORDR",
+                    id
+                ).ToList();
+
+                return View(invoice);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading invoice for print: {ex.Message}");
+                TempData["ErrorMessage"] = "Error loading invoice: " + ex.Message;
+                return RedirectToAction("Index");
+            }
+        }
     }
 
     // ViewModel for Raw Material Invoice display
@@ -1630,5 +1708,49 @@ namespace KVM_ERP.Controllers
     {
         public int itemId { get; set; }
         public decimal amount { get; set; }
+    }
+
+    // ViewModel for Print Invoice
+    public class InvoicePrintViewModel
+    {
+        public int TRANMID { get; set; }
+        public int TRANNO { get; set; }
+        public string TRANDNO { get; set; }
+        public string TRANREFNO { get; set; }
+        public DateTime TRANDATE { get; set; }
+        public string CATENAME { get; set; }
+        public string CATECODE { get; set; }
+        public decimal TRANNAMT { get; set; }
+        public string StatusDescription { get; set; }
+        public decimal CGSTAMT { get; set; }
+        public decimal SGSTAMT { get; set; }
+        public decimal IGSTAMT { get; set; }
+        public decimal CGSTPER { get; set; }
+        public decimal SGSTPER { get; set; }
+        public decimal IGSTPER { get; set; }
+        public List<InvoiceItemPrintViewModel> Items { get; set; }
+        public List<TaxFactorPrintViewModel> TaxFactors { get; set; }
+    }
+
+    public class InvoiceItemPrintViewModel
+    {
+        public int TRANDID { get; set; }
+        public string MTRLNAME { get; set; }
+        public string GRADEDESC { get; set; }
+        public string PCLRDESC { get; set; }
+        public string RCVDTDESC { get; set; }
+        public decimal TRANQTY { get; set; }
+        public decimal TRANRATE { get; set; }
+        public decimal TRANDAMT { get; set; }
+    }
+
+    public class TaxFactorPrintViewModel
+    {
+        public int TRANMFID { get; set; }
+        public string CFDESC { get; set; }
+        public int OPTNVALUE { get; set; }
+        public decimal CFRATE { get; set; }
+        public decimal CFAMT { get; set; }
+        public int CFMODE { get; set; }  // 1 = Addition, 2 = Subtraction
     }
 }

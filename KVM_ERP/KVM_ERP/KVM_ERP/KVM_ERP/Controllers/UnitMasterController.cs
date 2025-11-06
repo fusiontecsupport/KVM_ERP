@@ -201,11 +201,16 @@ namespace KVM_ERP.Controllers
 
         // POST: UnitMaster/Del
         [HttpPost]
-        [Authorize(Roles = "UnitMasterDelete")]
         public ActionResult Del(int id)
         {
             try
             {
+                // Check if user has delete role
+                if (!User.IsInRole("UnitMasterDelete"))
+                {
+                    return Content("Access Denied: You do not have permission to delete records. Please contact your administrator.");
+                }
+                
                 // Delete using raw SQL
                 var rowsAffected = db.Database.ExecuteSqlCommand(
                     "DELETE FROM UNITMASTER WHERE UNITID = @p0", id);

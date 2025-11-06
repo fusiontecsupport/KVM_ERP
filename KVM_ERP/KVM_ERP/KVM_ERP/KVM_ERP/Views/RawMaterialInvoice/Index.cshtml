@@ -176,6 +176,17 @@
         color: white;
     }
 
+    .print-btn {
+        background: linear-gradient(135deg, #43cea2, #185a9d);
+        color: white;
+    }
+
+    .print-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(24, 90, 157, 0.4);
+        color: white;
+    }
+
     /* Status Badge Styling */
     .badge {
         padding: 8px 14px;
@@ -428,7 +439,10 @@
                             var deleteBtn = '<button class="btn action-btn delete-btn" onclick="deleteInvoice(' + row.TRANMID + ')" title="Delete">' +
                                            '<i class="fa fa-trash"></i> Delete</button>';
                             
-                            return editBtn + deleteBtn;
+                            var printBtn = '<a href="@Url.Action("Print", "RawMaterialInvoice")?id=' + row.TRANMID + '" class="btn action-btn print-btn" title="Print" target="_blank">' +
+                                          '<i class="fa fa-print"></i> Print</a>';
+                            
+                            return editBtn + deleteBtn + printBtn;
                         }
                     }
                 ],
