@@ -249,99 +249,39 @@
             </div>
         </div>
 
-        <!-- Tabs Section -->
-        <ul class="nav nav-tabs" id="stockTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="hl-tab" data-bs-toggle="tab" data-bs-target="#hl"
-                        type="button" role="tab" aria-controls="hl" aria-selected="true">
-                    HL
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="ho-tab" data-bs-toggle="tab" data-bs-target="#ho"
-                        type="button" role="tab" aria-controls="ho" aria-selected="false">
-                    HO
-                </button>
-            </li>
-        </ul>
-
-        <!-- Tab Content -->
-        <div class="tab-content" id="stockTabContent">
-            <!-- HL Tab -->
-            <div class="tab-pane fade show active" id="hl" role="tabpanel" aria-labelledby="hl-tab">
-                <div class="table-container">
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <h5 style="margin: 0;">1/30, Padur Village, Kelambakkam, Kanchipuram Dist - 603 103.</h5>
-                        <h6 style="margin: 5px 0;"><strong>STOCK AS ON <span id="stockDateHL">@DateTime.Now.ToString("dd/MM/yyyy")</span></strong></h6>
-                    </div>
-                    <table id="stockReportTable" class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th rowspan="2">PARTICULARS</th>
-                                <th rowspan="2">U/S</th>
-                                <th rowspan="2">6-8</th>
-                                <th rowspan="2">8/12</th>
-                                <th rowspan="2">13/15</th>
-                                <th rowspan="2">16/20</th>
-                                <th rowspan="2">21/25</th>
-                                <th rowspan="2">26/30</th>
-                                <th rowspan="2">31/35</th>
-                                <th rowspan="2">36/40</th>
-                                <th rowspan="2">41/50</th>
-                                <th rowspan="2">51/60</th>
-                                <th rowspan="2">61/70</th>
-                                <th rowspan="2">71/90</th>
-                                <th rowspan="2">91/110</th>
-                                <th rowspan="2">TOTAL NO. OF SLABS</th>
-                            </tr>
-                        </thead>
-                        <tbody id="stockTableBodyHL">
-                            <!-- Data will be loaded here -->
-                            <tr>
-                                <td colspan="16" class="text-center">Please select dates and click "Load Data"</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+        <!-- Single Table Section - ALL Data -->
+        <div class="table-container">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h6 style="margin: 5px 0;"><strong>STOCK AS ON <span id="stockDate">@DateTime.Now.ToString("dd/MM/yyyy")</span></strong></h6>
             </div>
-
-            <!-- HO Tab -->
-            <div class="tab-pane fade" id="ho" role="tabpanel" aria-labelledby="ho-tab">
-                <div class="table-container">
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <h5 style="margin: 0;">1/30, Padur Village, Kelambakkam, Kanchipuram Dist - 603 103.</h5>
-                        <h6 style="margin: 5px 0;"><strong>STOCK AS ON <span id="stockDateHO">@DateTime.Now.ToString("dd/MM/yyyy")</span></strong></h6>
-                    </div>
-                    <table id="stockReportTableHO" class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th rowspan="2">PARTICULARS</th>
-                                <th rowspan="2">U/S</th>
-                                <th rowspan="2">6-8</th>
-                                <th rowspan="2">8/12</th>
-                                <th rowspan="2">13/15</th>
-                                <th rowspan="2">16/20</th>
-                                <th rowspan="2">21/25</th>
-                                <th rowspan="2">26/30</th>
-                                <th rowspan="2">31/35</th>
-                                <th rowspan="2">36/40</th>
-                                <th rowspan="2">41/50</th>
-                                <th rowspan="2">51/60</th>
-                                <th rowspan="2">61/70</th>
-                                <th rowspan="2">71/90</th>
-                                <th rowspan="2">91/110</th>
-                                <th rowspan="2">TOTAL NO. OF SLABS</th>
-                            </tr>
-                        </thead>
-                        <tbody id="stockTableBodyHO">
-                            <!-- Data will be loaded here -->
-                            <tr>
-                                <td colspan="16" class="text-center">Please select dates and click "Load Data"</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <table id="stockReportTable" class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th rowspan="2">PARTICULARS</th>
+                        <th rowspan="2">U/S</th>
+                        <th rowspan="2">6-8</th>
+                        <th rowspan="2">8/12</th>
+                        <th rowspan="2">13/15</th>
+                        <th rowspan="2">16/20</th>
+                        <th rowspan="2">21/25</th>
+                        <th rowspan="2">26/30</th>
+                        <th rowspan="2">31/35</th>
+                        <th rowspan="2">36/40</th>
+                        <th rowspan="2">41/50</th>
+                        <th rowspan="2">51/60</th>
+                        <th rowspan="2">61/70</th>
+                        <th rowspan="2">71/90</th>
+                        <th rowspan="2">91/110</th>
+                        <th rowspan="2">TOTAL NO. OF SLABS</th>
+                    </tr>
+                </thead>
+                <tbody id="stockTableBody">
+                    <!-- Data will be loaded here -->
+                    <tr>
+                        <td colspan="16" class="text-center">Please select dates and click "Load Data"</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -349,13 +289,6 @@
 @section scripts {
     <script>
         $(document).ready(function () {
-            let currentTab = 'HL';
-
-            // Tab switching
-            $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
-                currentTab = $(e.target).text().trim();
-            });
-
             // Load Data
             $('#loadDataBtn').on('click', function () {
                 loadStockData();
@@ -381,12 +314,12 @@
                     data: {
                         fromDate: fromDate,
                         toDate: toDate,
-                        tab: currentTab
+                        tab: 'ALL'
                     },
                     success: function (response) {
                         if (response.success) {
-                            renderStockTable(response.data, currentTab);
-                            $('#stockDate' + currentTab).text(new Date(toDate).toLocaleDateString('en-GB'));
+                            renderStockTable(response.data);
+                            $('#stockDate').text(new Date(toDate).toLocaleDateString('en-GB'));
                         } else {
                             alert('Error loading data: ' + response.message);
                         }
@@ -397,8 +330,8 @@
                 });
             }
 
-            function renderStockTable(data, tab) {
-                const tbody = $('#stockTableBody' + tab);
+            function renderStockTable(data) {
+                const tbody = $('#stockTableBody');
                 tbody.empty();
 
                 if (!data || data.length === 0) {
@@ -544,7 +477,7 @@
 
                 form.append($('<input>', { type: 'hidden', name: 'fromDate', value: fromDate }));
                 form.append($('<input>', { type: 'hidden', name: 'toDate', value: toDate }));
-                form.append($('<input>', { type: 'hidden', name: 'tab', value: currentTab }));
+                form.append($('<input>', { type: 'hidden', name: 'tab', value: 'ALL' }));
 
                 $('body').append(form);
                 form.submit();

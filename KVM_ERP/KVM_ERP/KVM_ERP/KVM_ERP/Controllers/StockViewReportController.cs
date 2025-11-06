@@ -57,18 +57,25 @@ namespace KVM_ERP.Controllers
                 {
                     var worksheet = workbook.Worksheets.Add($"Stock View - {tab}");
 
-                    // Add header
-                    worksheet.Cell(1, 1).Value = "1/30, Padur Village, Kelambakkam, Kanchipuram Dist - 603 103.";
-                    worksheet.Cell(1, 1).Style.Font.Bold = true;
-                    worksheet.Range(1, 1, 1, 18).Merge();
-
-                    worksheet.Cell(2, 1).Value = $"STOCK AS ON {to:dd/MM/yyyy}";
-                    worksheet.Cell(2, 1).Style.Font.Bold = true;
-                    worksheet.Range(2, 1, 2, 18).Merge();
-
-                    // Add column headers
-                    int row = 4;
+                    // Add main header - "STOCK AS ON dd/MM/yyyy"
+                    int row = 1;
+                    worksheet.Cell(row, 1).Value = $"STOCK AS ON {to:dd/MM/yyyy}";
+                    worksheet.Cell(row, 1).Style.Font.Bold = true;
+                    worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    worksheet.Range(row, 1, row, 17).Merge();
+                    
+                    // Add column headers - Row 1
+                    row++;
                     worksheet.Cell(row, 1).Value = "PARTICULARS";
+                    worksheet.Cell(row, 17).Value = "TOTAL NO. OF SLABS";
+                    
+                    // Merge PARTICULARS cell from row 2 to row 3
+                    worksheet.Range(row, 1, row + 1, 1).Merge();
+                    // Merge TOTAL NO. OF SLABS cell from row 2 to row 3
+                    worksheet.Range(row, 17, row + 1, 17).Merge();
+                    
+                    // Add column headers - Row 2 (Size columns)
+                    row++;
                     worksheet.Cell(row, 2).Value = "U/S";
                     worksheet.Cell(row, 3).Value = "6-8";
                     worksheet.Cell(row, 4).Value = "8/12";
@@ -83,18 +90,31 @@ namespace KVM_ERP.Controllers
                     worksheet.Cell(row, 13).Value = "61/70";
                     worksheet.Cell(row, 14).Value = "71/90";
                     worksheet.Cell(row, 15).Value = "91/110";
-                    worksheet.Cell(row, 16).Value = "TOTAL NO. OF SLABS";
-
+                    
                     // Style headers
-                    worksheet.Range(row, 1, row, 16).Style.Font.Bold = true;
-                    worksheet.Range(row, 1, row, 16).Style.Fill.BackgroundColor = XLColor.LightGray;
-                    worksheet.Range(row, 1, row, 16).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                    worksheet.Range(2, 1, 3, 17).Style.Font.Bold = true;
+                    worksheet.Range(2, 1, 3, 17).Style.Fill.BackgroundColor = XLColor.LightGray;
+                    worksheet.Range(2, 1, 3, 17).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                    worksheet.Range(2, 1, 3, 17).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                    worksheet.Range(2, 1, 3, 17).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
                     // Add data rows
                     row++;
+                    int itemNumber = 1;
                     foreach (var item in stockData)
                     {
-                        worksheet.Cell(row, 1).Value = item.ProductName;
+                        // Product Name Row (merged across all columns except last)
+                        worksheet.Cell(row, 1).Value = $"{itemNumber}. {item.ProductName}";
+                        worksheet.Range(row, 1, row, 16).Merge();
+                        worksheet.Cell(row, 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+                        worksheet.Cell(row, 1).Style.Font.Bold = true;
+                        worksheet.Cell(row, 17).Value = item.TotalSlabs;
+                        worksheet.Cell(row, 17).Style.Fill.BackgroundColor = XLColor.FromArgb(255, 193, 7); // Yellow/Orange
+                        worksheet.Cell(row, 17).Style.Font.Bold = true;
+                        row++;
+
+                        // OPENING STOCK Row
+                        worksheet.Cell(row, 1).Value = "OPENING STOCK";
                         worksheet.Cell(row, 2).Value = item.US;
                         worksheet.Cell(row, 3).Value = item.Size6_8;
                         worksheet.Cell(row, 4).Value = item.Size8_12;
@@ -109,12 +129,68 @@ namespace KVM_ERP.Controllers
                         worksheet.Cell(row, 13).Value = item.Size61_70;
                         worksheet.Cell(row, 14).Value = item.Size71_90;
                         worksheet.Cell(row, 15).Value = item.Size91_110;
-                        worksheet.Cell(row, 16).Value = item.TotalSlabs;
-
-                        // Add sub-rows (OPENING STOCK, PRODUCTION, TOTAL, RATE, AMOUNT)
-                        // This is a simplified version - you'll need to expand this based on your data structure
+                        worksheet.Cell(row, 17).Value = item.TotalSlabs;
+                        worksheet.Range(row, 1, row, 17).Style.Fill.BackgroundColor = XLColor.FromArgb(227, 242, 253); // Light Blue
                         row++;
+
+                        // PRODUCTION Row (all zeros for now)
+                        worksheet.Cell(row, 1).Value = "PRODUCTION";
+                        for (int col = 2; col <= 17; col++)
+                        {
+                            worksheet.Cell(row, col).Value = 0;
+                        }
+                        worksheet.Range(row, 1, row, 17).Style.Fill.BackgroundColor = XLColor.FromArgb(173, 216, 230); // Blue
+                        worksheet.Range(row, 1, row, 17).Style.Font.FontColor = XLColor.Blue;
+                        row++;
+
+                        // TOTAL Row
+                        worksheet.Cell(row, 1).Value = "TOTAL";
+                        worksheet.Cell(row, 2).Value = item.US;
+                        worksheet.Cell(row, 3).Value = item.Size6_8;
+                        worksheet.Cell(row, 4).Value = item.Size8_12;
+                        worksheet.Cell(row, 5).Value = item.Size13_15;
+                        worksheet.Cell(row, 6).Value = item.Size16_20;
+                        worksheet.Cell(row, 7).Value = item.Size21_25;
+                        worksheet.Cell(row, 8).Value = item.Size26_30;
+                        worksheet.Cell(row, 9).Value = item.Size31_35;
+                        worksheet.Cell(row, 10).Value = item.Size36_40;
+                        worksheet.Cell(row, 11).Value = item.Size41_50;
+                        worksheet.Cell(row, 12).Value = item.Size51_60;
+                        worksheet.Cell(row, 13).Value = item.Size61_70;
+                        worksheet.Cell(row, 14).Value = item.Size71_90;
+                        worksheet.Cell(row, 15).Value = item.Size91_110;
+                        worksheet.Cell(row, 17).Value = item.TotalSlabs;
+                        worksheet.Range(row, 1, row, 17).Style.Fill.BackgroundColor = XLColor.FromArgb(212, 237, 218); // Light Green
+                        worksheet.Range(row, 1, row, 17).Style.Font.Bold = true;
+                        row++;
+
+                        // RATE Row (all zeros)
+                        worksheet.Cell(row, 1).Value = "RATE";
+                        for (int col = 2; col <= 17; col++)
+                        {
+                            worksheet.Cell(row, col).Value = 0;
+                        }
+                        worksheet.Range(row, 1, row, 17).Style.Fill.BackgroundColor = XLColor.FromArgb(248, 215, 218); // Light Red
+                        row++;
+
+                        // AMOUNT Row (all zeros)
+                        worksheet.Cell(row, 1).Value = "AMOUNT";
+                        for (int col = 2; col <= 17; col++)
+                        {
+                            worksheet.Cell(row, col).Value = 0;
+                        }
+                        worksheet.Range(row, 1, row, 17).Style.Fill.BackgroundColor = XLColor.FromArgb(209, 236, 241); // Light Cyan
+                        row++;
+
+                        itemNumber++;
                     }
+
+                    // Add borders to all data cells
+                    worksheet.Range(2, 1, row - 1, 17).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                    worksheet.Range(2, 1, row - 1, 17).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                    
+                    // Center align all data cells
+                    worksheet.Range(4, 2, row - 1, 17).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
                     // Auto-fit columns
                     worksheet.Columns().AdjustToContents();
@@ -143,11 +219,19 @@ namespace KVM_ERP.Controllers
 
                 var stockData = new List<StockViewReportData>();
 
-                // Get all calculations within the date range
+                // Get all calculations within the date range with additional details
                 var allCalcs = (from tpc in db.TransactionProductCalculations
                                join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
                                join m in db.MaterialMasters on td.MTRLID equals m.MTRLID
                                join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                               join packing in db.PackingMasters on tpc.PACKMID equals packing.PACKMID into packingLeft
+                               from packing in packingLeft.DefaultIfEmpty()
+                               join grade in db.GradeMasters on tpc.GRADEID equals grade.GRADEID into gradeLeft
+                               from grade in gradeLeft.DefaultIfEmpty()
+                               join color in db.ProductionColourMasters on tpc.PCLRID equals color.PCLRID into colorLeft
+                               from color in colorLeft.DefaultIfEmpty()
+                               join rcvdType in db.ReceivedTypeMasters on tpc.RCVDTID equals rcvdType.RCVDTID into rcvdLeft
+                               from rcvdType in rcvdLeft.DefaultIfEmpty()
                                where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
                                      && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
                                      && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
@@ -156,6 +240,11 @@ namespace KVM_ERP.Controllers
                                select new {
                                    ProductId = m.MTRLID,
                                    ProductName = m.MTRLDESC,
+                                   PackingValue = packing != null ? packing.PACKMNOU : 0,
+                                   PackingWithGlazing = tpc.PCKLVALUE,
+                                   GradeName = grade != null ? grade.GRADEDESC : "",
+                                   ColorName = color != null ? color.PCLRDESC : "",
+                                   ReceivedTypeName = rcvdType != null ? rcvdType.RCVDTDESC : "",
                                    PCK1 = tpc.PCK1,
                                    PCK2 = tpc.PCK2,
                                    PCK3 = tpc.PCK3,
@@ -179,11 +268,24 @@ namespace KVM_ERP.Controllers
 
                 if (allCalcs.Any())
                 {
-                    // Group by product and sum PCK values
-                    var grouped = allCalcs.GroupBy(x => new { x.ProductId, x.ProductName })
+                    // Group by product with detailed breakdown
+                    var grouped = allCalcs.GroupBy(x => new { 
+                                             x.ProductId, 
+                                             x.ProductName, 
+                                             x.PackingValue, 
+                                             x.PackingWithGlazing, 
+                                             x.GradeName, 
+                                             x.ColorName, 
+                                             x.ReceivedTypeName 
+                                         })
                                          .Select(g => new StockViewReportData
                                          {
-                                             ProductName = g.Key.ProductName,
+                                             // Format: "Product Name PackingValue x PackingWithGlazing - Grade - Color - ReceivedType"
+                                             // Example: "Head Less 6 x 7 - Grade 1 - Yellow - River"
+                                             ProductName = $"{g.Key.ProductName} {g.Key.PackingValue:F0} x {g.Key.PackingWithGlazing:F0}" +
+                                                          (!string.IsNullOrEmpty(g.Key.GradeName) ? $" - {g.Key.GradeName}" : "") +
+                                                          (!string.IsNullOrEmpty(g.Key.ColorName) ? $" - {g.Key.ColorName}" : "") +
+                                                          (!string.IsNullOrEmpty(g.Key.ReceivedTypeName) ? $" - {g.Key.ReceivedTypeName}" : ""),
                                              US = g.Sum(x => x.PCK1),
                                              Size6_8 = g.Sum(x => x.PCK2),
                                              Size8_12 = g.Sum(x => x.PCK3),
