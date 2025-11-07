@@ -158,7 +158,9 @@ namespace KVM_ERP.Controllers
                 row++;
                 for (int i = 0; i < columnHeaders.Count; i++)
                 {
-                    worksheet.Cell(row, i + 2).Value = columnHeaders[i];
+                    var cell = worksheet.Cell(row, i + 2);
+                    cell.Style.NumberFormat.Format = "@"; // Set format to text
+                    cell.Value = columnHeaders[i];
                 }
                 
                 // Style headers
@@ -280,7 +282,9 @@ namespace KVM_ERP.Controllers
             row++;
             for (int i = 0; i < columnHeaders.Count; i++)
             {
-                worksheet.Cell(row, i + 2).Value = columnHeaders[i];
+                var cell = worksheet.Cell(row, i + 2);
+                cell.Style.NumberFormat.Format = "@"; // Set format to text
+                cell.Value = columnHeaders[i];
             }
             
             // Style headers
