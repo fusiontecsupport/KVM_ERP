@@ -148,17 +148,26 @@ namespace KVM_ERP.Controllers
                 
                 System.Diagnostics.Debug.WriteLine($"DeleteInvoice called for TRANMID: {id}");
 
-                // Check if invoice exists
+                // Check if invoice exists and get its status
                 var invoice = context.Database.SqlQuery<RawMaterialInvoiceViewModel>(
-                    @"SELECT TRANMID, TRANDATE, TRANNO, TRANDNO, TRANREFNO, CATENAME, TRANNAMT, DISPSTATUS
-                      FROM TRANSACTIONMASTER
-                      WHERE TRANMID = @p0 AND REGSTRID = 2",
+                    @"SELECT tm.TRANMID, tm.TRANDATE, tm.TRANNO, tm.TRANDNO, tm.TRANREFNO, tm.CATENAME, tm.TRANNAMT, tm.DISPSTATUS,
+                             ISNULL(pis.PUINSTDESC, 'N/A') as StatusDescription
+                      FROM TRANSACTIONMASTER tm
+                      LEFT JOIN PURCHASEINVOICESTATUS pis ON tm.DISPSTATUS = pis.PUINSTID
+                      WHERE tm.TRANMID = @p0 AND tm.REGSTRID = 2",
                     id
                 ).FirstOrDefault();
 
                 if (invoice == null)
                 {
                     return Json(new { success = false, message = "Invoice not found" });
+                }
+
+                // Check if invoice is approved - prevent deletion
+                if (invoice.StatusDescription == "Approved")
+                {
+                    System.Diagnostics.Debug.WriteLine($"Deletion blocked: Invoice {id} is approved");
+                    return Json(new { success = false, message = "Cannot delete an approved invoice. Please contact administrator if changes are needed." });
                 }
 
                 // STEP 1: Get TRANDAID values for logging (items that will become available again)

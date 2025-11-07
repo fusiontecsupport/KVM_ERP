@@ -175,6 +175,22 @@
         </div>
 
         <div class="table-container">
+            <!-- Error/Success Message Display -->
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fa fa-exclamation-triangle"></i> <strong>Access Denied!</strong> @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fa fa-check-circle"></i> @TempData["SuccessMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            
             <!-- Date Filter Section -->
             <div class="row mb-4">
                 <div class="col-md-12">
@@ -252,6 +268,13 @@
 @section Scripts {
     <script type="text/javascript">
         $(document).ready(function() {
+            // Auto-dismiss alerts after 5 seconds
+            setTimeout(function() {
+                $('.alert').fadeOut('slow', function() {
+                    $(this).remove();
+                });
+            }, 5000);
+            
             $.fn.dataTable.ext.errMode = 'console';
 
             var table = $('#rawIntakeTable').DataTable({
@@ -302,17 +325,36 @@
                         orderable: false,
                         render: function (data, type, row) {
                             var id = row['TRANMID'];
+                            var hasInvoice = row['HasInvoice'];
                             var buttons = '';
                             
                             // Edit button - only if user has Edit role
                             @if (User.IsInRole("RawMaterialIntakeEdit"))
                             {
-                                @:buttons += '<a href="' + '@Url.Action("Form", "RawMaterialIntake")' + '/' + id + '" class="btn btn-action btn-edit"><i class="fa fa-edit"></i> Edit</a>&nbsp;';
+                                @:if (hasInvoice) {
+                                    @:// Disabled edit button if invoice generated
+                                    @:buttons += '<button class="btn btn-action btn-edit" style="opacity: 0.5; cursor: not-allowed;" ' +
+                                    @:           'onclick="alert(\'Cannot edit: Invoice has been generated for this Raw Material Intake. Please delete the invoice first.\'); return false;" ' +
+                                    @:           'title="Cannot edit - invoice generated">' +
+                                    @:           '<i class="fa fa-lock"></i> Invoiced</button>&nbsp;';
+                                @:} else {
+                                    @:// Regular edit button
+                                    @:buttons += '<a href="' + '@Url.Action("Form", "RawMaterialIntake")' + '/' + id + '" class="btn btn-action btn-edit"><i class="fa fa-edit"></i> Edit</a>&nbsp;';
+                                @:}
                             }
                             
-                            // Delete, Calc, and Print buttons always shown (assuming they have their own permission checks or are always allowed)
-                            buttons += '<a href="#" class="btn btn-action btn-delete editor_remove" data-id="' + id + '"><i class="fa fa-trash"></i> Delete</a>' +
-                                       '&nbsp;<a href="#" class="btn btn-action btn-print-calc" title="Print all calculations" data-id="' + id + '"><i class="fa fa-calculator"></i> Calc</a>' +
+                            // Delete button - also check if invoice generated (already handled by backend but add UI feedback)
+                            if (hasInvoice) {
+                                buttons += '<button class="btn btn-action btn-delete" style="opacity: 0.5; cursor: not-allowed;" ' +
+                                          'onclick="alert(\'Cannot delete: Invoice has been generated for this Raw Material Intake. Please delete the invoice first.\'); return false;" ' +
+                                          'title="Cannot delete - invoice generated">' +
+                                          '<i class="fa fa-lock"></i> Locked</button>&nbsp;';
+                            } else {
+                                buttons += '<a href="#" class="btn btn-action btn-delete editor_remove" data-id="' + id + '"><i class="fa fa-trash"></i> Delete</a>&nbsp;';
+                            }
+                            
+                            // Calc and Print buttons always shown
+                            buttons += '<a href="#" class="btn btn-action btn-print-calc" title="Print all calculations" data-id="' + id + '"><i class="fa fa-calculator"></i> Calc</a>' +
                                        '&nbsp;<a href="#" class="btn btn-action btn-print" data-id="' + id + '"><i class="fa fa-print"></i> Print</a>';
                             
                             return buttons;

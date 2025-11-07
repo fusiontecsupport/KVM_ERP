@@ -423,6 +423,7 @@
                         render: function(data, type, row) {
                             var isApproved = row.StatusDescription === 'Approved';
                             var editBtn = '';
+                            var deleteBtn = '';
                             
                             if (isApproved) {
                                 // Disabled edit button for approved invoices
@@ -430,14 +431,21 @@
                                           'onclick="alert(\'This invoice has been approved and cannot be edited. Please contact administrator if changes are needed.\'); return false;" ' +
                                           'title="Cannot edit approved invoice">' +
                                           '<i class="fa fa-lock"></i> Approved</button>';
+                                          
+                                // Disabled delete button for approved invoices
+                                deleteBtn = '<button class="btn action-btn delete-btn" style="opacity: 0.5; cursor: not-allowed;" ' +
+                                           'onclick="alert(\'This invoice has been approved and cannot be deleted. Please contact administrator if changes are needed.\'); return false;" ' +
+                                           'title="Cannot delete approved invoice">' +
+                                           '<i class="fa fa-lock"></i> Locked</button>';
                             } else {
                                 // Regular edit button
                                 editBtn = '<a href="@Url.Action("Form", "RawMaterialInvoice")?id=' + row.TRANMID + '" class="btn action-btn edit-btn" title="Edit">' +
                                           '<i class="fa fa-edit"></i> Edit</a>';
-                            }
-                            
-                            var deleteBtn = '<button class="btn action-btn delete-btn" onclick="deleteInvoice(' + row.TRANMID + ')" title="Delete">' +
+                                          
+                                // Regular delete button
+                                deleteBtn = '<button class="btn action-btn delete-btn" onclick="deleteInvoice(' + row.TRANMID + ')" title="Delete">' +
                                            '<i class="fa fa-trash"></i> Delete</button>';
+                            }
                             
                             var printBtn = '<a href="@Url.Action("Print", "RawMaterialInvoice")?id=' + row.TRANMID + '" class="btn action-btn print-btn" title="Print" target="_blank">' +
                                           '<i class="fa fa-print"></i> Print</a>';

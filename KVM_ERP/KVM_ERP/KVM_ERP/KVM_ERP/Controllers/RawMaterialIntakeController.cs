@@ -32,6 +32,26 @@ namespace KVM_ERP.Controllers
                     TempData["ErrorMessage"] = "You do not have permission to edit Raw Material Intake.";
                     return RedirectToAction("Index");
                 }
+                
+                // VALIDATION: Check if invoice has been generated for this intake - prevent editing
+                var checkInvoice = db.Database.SqlQuery<int>(
+                    @"SELECT COUNT(1) 
+                      FROM TRANSACTIONDETAIL invtd
+                      INNER JOIN TRANSACTIONMASTER invtm ON invtd.TRANMID = invtm.TRANMID
+                      WHERE invtm.REGSTRID = 2
+                      AND invtd.TRANDAID IN (
+                          SELECT TRANPID 
+                          FROM TRANSACTION_PRODUCT_CALCULATION tpc
+                          INNER JOIN TRANSACTIONDETAIL td ON tpc.TRANDID = td.TRANDID
+                          WHERE td.TRANMID = @p0
+                      )", 
+                    id.Value).FirstOrDefault();
+                
+                if (checkInvoice > 0)
+                {
+                    TempData["ErrorMessage"] = "Cannot edit: Invoice has been generated for this Raw Material Intake. Please delete the invoice first.";
+                    return RedirectToAction("Index");
+                }
             }
             else
             {
@@ -533,19 +553,36 @@ namespace KVM_ERP.Controllers
 
                 System.Diagnostics.Debug.WriteLine($"[GetAjaxData] Returned {rows.Count} rows");
 
-                var data = rows.Select((r, idx) => new
-                {
-                    TRANMID = r.TRANMID,
-                    TRANDATE = r.TRANDATE.ToString("yyyy-MM-dd"), // ISO for stable ordering; format on client if needed
-                    TRANDNO = r.TRANDNO ?? "0000",  // Display number
-                    CATENAME = r.CATENAME ?? string.Empty,
-                    CATECODE = r.CATECODE ?? string.Empty,
-                    VECHNO = r.VECHNO ?? string.Empty,
-                    Products = r.PRODUCTS ?? string.Empty,
-                    DISPSTATUS = r.DISPSTATUS == 0 ? "Enabled" : "Disabled",
-                    StatusBadge = r.DISPSTATUS == 0
-                        ? "<span class='badge badge-success'>Enabled</span>"
-                        : "<span class='badge badge-danger'>Disabled</span>"
+                var data = rows.Select((r, idx) => {
+                    // Check if invoice has been generated for this intake
+                    var hasInvoice = db.Database.SqlQuery<int>(
+                        @"SELECT COUNT(1) 
+                          FROM TRANSACTIONDETAIL invtd
+                          INNER JOIN TRANSACTIONMASTER invtm ON invtd.TRANMID = invtm.TRANMID
+                          WHERE invtm.REGSTRID = 2
+                          AND invtd.TRANDAID IN (
+                              SELECT TRANPID 
+                              FROM TRANSACTION_PRODUCT_CALCULATION tpc
+                              INNER JOIN TRANSACTIONDETAIL td ON tpc.TRANDID = td.TRANDID
+                              WHERE td.TRANMID = @p0
+                          )", 
+                        r.TRANMID).FirstOrDefault() > 0;
+                    
+                    return new
+                    {
+                        TRANMID = r.TRANMID,
+                        TRANDATE = r.TRANDATE.ToString("yyyy-MM-dd"), // ISO for stable ordering; format on client if needed
+                        TRANDNO = r.TRANDNO ?? "0000",  // Display number
+                        CATENAME = r.CATENAME ?? string.Empty,
+                        CATECODE = r.CATECODE ?? string.Empty,
+                        VECHNO = r.VECHNO ?? string.Empty,
+                        Products = r.PRODUCTS ?? string.Empty,
+                        DISPSTATUS = r.DISPSTATUS == 0 ? "Enabled" : "Disabled",
+                        StatusBadge = r.DISPSTATUS == 0
+                            ? "<span class='badge badge-success'>Enabled</span>"
+                            : "<span class='badge badge-danger'>Disabled</span>",
+                        HasInvoice = hasInvoice  // Flag to disable edit/delete if invoice generated
+                    };
                 }).ToList();
 
                 return Json(new { data = data }, JsonRequestBehavior.AllowGet);
