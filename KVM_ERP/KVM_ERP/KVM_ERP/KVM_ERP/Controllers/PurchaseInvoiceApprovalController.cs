@@ -18,16 +18,18 @@ namespace KVM_ERP.Controllers
             return View();
         }
 
-        // GET: Ajax data for DataTables - Only "Waiting for Approval" invoices
+        // GET: Ajax data for DataTables - "Waiting for Approval" invoices
         [Authorize(Roles = "PurchaseInvoiceApprovalIndex")]
-        public JsonResult GetAjaxData(JQueryDataTableParamModel param, string fromDate = null, string toDate = null)
+        public JsonResult GetAjaxData(JQueryDataTableParamModel param, string fromDate = null, string toDate = null, string status = "waiting")
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"PurchaseInvoiceApproval GetAjaxData called - FromDate: {fromDate}, ToDate: {toDate}");
+                System.Diagnostics.Debug.WriteLine($"PurchaseInvoiceApproval GetAjaxData called - Status: {status}, FromDate: {fromDate}, ToDate: {toDate}");
                 
-                // Build SQL query - Get only invoices with "Waiting for Approval" status
-                // Filter by PUINSTCODE = 'PUS003' (Waiting for Approval)
+                // Determine status code based on parameter
+                string statusCode = status == "approved" ? "PUS004" : "PUS003";
+                
+                // Build SQL query - Get invoices based on status
                 var sql = @"SELECT tm.TRANMID, tm.TRANDATE, tm.TRANNO, tm.TRANDNO, tm.TRANREFNO, tm.CATENAME, 
                            ISNULL(tm.TRANNAMT, 0) as TRANNAMT,
                            tm.DISPSTATUS,
@@ -35,14 +37,15 @@ namespace KVM_ERP.Controllers
                            FROM TRANSACTIONMASTER tm
                            LEFT JOIN PURCHASEINVOICESTATUS pis ON tm.DISPSTATUS = pis.PUINSTID
                            WHERE tm.REGSTRID = 2 
-                           AND pis.PUINSTCODE = 'PUS003'";  // Only "Waiting for Approval"
+                           AND pis.PUINSTCODE = @p0";
                 
                 var parameters = new List<object>();
+                parameters.Add(statusCode); // @p0 for status code
                 
                 // Add date filters if provided
                 if (!string.IsNullOrEmpty(fromDate))
                 {
-                    sql += " AND tm.TRANDATE >= @p0";
+                    sql += " AND tm.TRANDATE >= @p" + parameters.Count;
                     parameters.Add(DateTime.Parse(fromDate));
                 }
                 
@@ -57,7 +60,7 @@ namespace KVM_ERP.Controllers
                 // Get invoice data from TRANSACTIONMASTER
                 var invoices = context.Database.SqlQuery<RawMaterialInvoiceViewModel>(sql, parameters.ToArray()).ToList();
 
-                System.Diagnostics.Debug.WriteLine($"Found {invoices.Count} invoices waiting for approval");
+                System.Diagnostics.Debug.WriteLine($"Found {invoices.Count} invoices with status: {status}");
 
                 // Format data for DataTables
                 var allInvoices = invoices.Select(i => new {

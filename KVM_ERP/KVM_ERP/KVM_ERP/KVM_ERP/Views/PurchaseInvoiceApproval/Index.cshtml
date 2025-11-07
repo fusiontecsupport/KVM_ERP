@@ -37,7 +37,7 @@
 
     .table-container { padding: 30px; background: white; }
 
-    #approvalTable {
+    #waitingTable, #approvedTable {
         border-collapse: separate;
         border-spacing: 0;
         border-radius: 10px;
@@ -46,7 +46,7 @@
         width: 100%;
     }
 
-    #approvalTable thead th {
+    #waitingTable thead th, #approvedTable thead th {
         background: #9c88ff; /* purple shade */
         color: white;
         font-weight: 600;
@@ -56,16 +56,16 @@
         font-size: 14px;
         border-right: 1px solid rgba(255,255,255,0.35);
     }
-    #approvalTable thead th:last-child { border-right: none; }
+    #waitingTable thead th:last-child, #approvedTable thead th:last-child { border-right: none; }
 
-    #approvalTable tbody td {
+    #waitingTable tbody td, #approvedTable tbody td {
         padding: 12px;
         border-bottom: 1px solid #f0f0f0;
         vertical-align: middle;
         text-align: center;
     }
 
-    #approvalTable tbody tr:hover { background-color: #fef5ff; transition: all 0.2s ease; }
+    #waitingTable tbody tr:hover, #approvedTable tbody tr:hover { background-color: #fef5ff; transition: all 0.2s ease; }
 
     /* Date Filter Section Styling */
     .date-filter-card {
@@ -181,6 +181,40 @@
     .bg-warning {
         background-color: #ffc107 !important;
     }
+    
+    /* Tab Styling */
+    .nav-tabs {
+        border-bottom: 3px solid #f093fb;
+    }
+    
+    .nav-tabs .nav-link {
+        border: none;
+        color: #6c757d;
+        font-weight: 600;
+        padding: 12px 25px;
+        margin-right: 5px;
+        border-radius: 8px 8px 0 0;
+        transition: all 0.3s ease;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        color: #f5576c;
+        background-color: #fff5f8;
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: white;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border: none;
+    }
+    
+    .tab-content {
+        padding-top: 20px;
+    }
+    
+    .bg-success {
+        background-color: #28a745 !important;
+    }
 </style>
 
 <div class="main-container">
@@ -230,7 +264,7 @@
                                     </div>
                                     <small class="text-muted">
                                         <i class="fa fa-info-circle"></i> 
-                                        Showing invoices waiting for approval
+                                        Switch tabs to view different invoice statuses
                                     </small>
                                 </div>
                             </div>
@@ -239,30 +273,77 @@
                 </div>
             </div>
 
-            <table id="approvalTable" class="display table table-striped" cellspacing="0" width="100%">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>No</th>
-                        <th>Ref No</th>
-                        <th>Supplier Name</th>
-                        <th>Grand Total</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tfoot>
-                    <tr>
-                        <th>Date</th>
-                        <th>No</th>
-                        <th>Ref No</th>
-                        <th>Supplier Name</th>
-                        <th>Grand Total</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </tfoot>
-            </table>
+            <!-- Tabs for Waiting and Approved -->
+            <ul class="nav nav-tabs mb-3" id="invoiceTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="waiting-tab" data-bs-toggle="tab" data-bs-target="#waiting" type="button" role="tab">
+                        <i class="fa fa-clock"></i> Waiting for Approval
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="approved-tab" data-bs-toggle="tab" data-bs-target="#approved" type="button" role="tab">
+                        <i class="fa fa-check-circle"></i> Approved Invoice
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="invoiceTabContent">
+                <!-- Waiting for Approval Tab -->
+                <div class="tab-pane fade show active" id="waiting" role="tabpanel">
+                    <table id="waitingTable" class="display table table-striped" cellspacing="0" width="100%">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>No</th>
+                                <th>Ref No</th>
+                                <th>Supplier Name</th>
+                                <th>Grand Total</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tfoot>
+                            <tr>
+                                <th>Date</th>
+                                <th>No</th>
+                                <th>Ref No</th>
+                                <th>Supplier Name</th>
+                                <th>Grand Total</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Approved Invoice Tab -->
+                <div class="tab-pane fade" id="approved" role="tabpanel">
+                    <table id="approvedTable" class="display table table-striped" cellspacing="0" width="100%">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>No</th>
+                                <th>Ref No</th>
+                                <th>Supplier Name</th>
+                                <th>Grand Total</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tfoot>
+                            <tr>
+                                <th>Date</th>
+                                <th>No</th>
+                                <th>Ref No</th>
+                                <th>Supplier Name</th>
+                                <th>Grand Total</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -272,15 +353,18 @@
         $(document).ready(function() {
             $.fn.dataTable.ext.errMode = 'console';
 
-            var table = $('#approvalTable').DataTable({
-                ajax: {
-                    url: '@Url.Action("GetAjaxData", "PurchaseInvoiceApproval")',
-                    type: 'GET',
-                    data: function(d) {
-                        // Add date filter parameters
-                        d.fromDate = $('#fromDate').val();
-                        d.toDate = $('#toDate').val();
-                    },
+            // Common DataTable configuration
+            function createTableConfig(status, statusBadgeClass) {
+                return {
+                    ajax: {
+                        url: '@Url.Action("GetAjaxData", "PurchaseInvoiceApproval")',
+                        type: 'GET',
+                        data: function(d) {
+                            // Add date filter parameters and status
+                            d.fromDate = $('#fromDate').val();
+                            d.toDate = $('#toDate').val();
+                            d.status = status;
+                        },
                     dataSrc: function(json){
                         if (json && Array.isArray(json.aaData)) return json.aaData;
                         if (json && Array.isArray(json.data)) return json.data;
@@ -329,7 +413,7 @@
                     {
                         data: 'StatusDescription',
                         render: function(data, type, row) {
-                            return '<span class="badge bg-warning text-dark">' + data + '</span>';
+                            return '<span class="badge ' + statusBadgeClass + '">' + data + '</span>';
                         }
                     },
                     {
@@ -337,11 +421,9 @@
                         orderable: false,
                         render: function(data, type, row) {
                             var buttons = '';
-                            // Only show Edit button for "Waiting for Approval" status
-                            if (row.StatusDescription === 'Waiting for Approval') {
-                                buttons += '<a href="@Url.Action("Form", "RawMaterialInvoice")?id=' + row.TRANMID + '&source=approval" class="btn action-btn edit-btn" title="Edit">' +
-                                          '<i class="fa fa-edit"></i> Edit</a>';
-                            }
+                            // Show Edit button for all invoices (both waiting and approved)
+                            buttons += '<a href="@Url.Action("Form", "RawMaterialInvoice")?id=' + row.TRANMID + '&source=approval" class="btn action-btn edit-btn" title="Edit">' +
+                                      '<i class="fa fa-edit"></i> Edit</a>';
                             // Always show Print button
                             buttons += '<button class="btn action-btn print-btn" onclick="printInvoice(' + row.TRANMID + ')" title="Print">' +
                                       '<i class="fa fa-print"></i> Print</button>';
@@ -349,16 +431,21 @@
                         }
                     }
                 ],
-                dom: '<"row mb-3"<"col-md-6"l><"col-md-6"f>>rt<"row mt-3"<"col-md-6"i><"col-md-6"p>>',
-                responsive: true,
-                pageLength: 25,
-                order: [[0, 'desc']],
-                language: {
-                    search: "_INPUT_",
-                    searchPlaceholder: "Search...",
-                    emptyTable: "No invoices waiting for approval"
-                }
-            });
+                    dom: '<"row mb-3"<"col-md-6"l><"col-md-6"f>>rt<"row mt-3"<"col-md-6"i><"col-md-6"p>>',
+                    responsive: true,
+                    pageLength: 25,
+                    order: [[0, 'desc']],
+                    language: {
+                        search: "_INPUT_",
+                        searchPlaceholder: "Search...",
+                        emptyTable: status === 'waiting' ? "No invoices waiting for approval" : "No approved invoices"
+                    }
+                };
+            }
+
+            // Initialize both tables
+            var waitingTable = $('#waitingTable').DataTable(createTableConfig('waiting', 'bg-warning text-dark'));
+            var approvedTable = $('#approvedTable').DataTable(createTableConfig('approved', 'bg-success text-white'));
 
             // Function to update filter status display
             function updateFilterStatus() {
@@ -398,8 +485,9 @@
                 $(this).html('<i class="fa fa-spinner fa-spin"></i> Filtering...');
                 $(this).prop('disabled', true);
                 
-                // Reload table with new filters
-                table.ajax.reload(function() {
+                // Reload both tables with new filters
+                waitingTable.ajax.reload();
+                approvedTable.ajax.reload(function() {
                     // Reset button state
                     $('#filterBtn').html('<i class="fa fa-filter"></i> Filter');
                     $('#filterBtn').prop('disabled', false);
@@ -410,15 +498,9 @@
             $('#clearBtn').on('click', function() {
                 $('#fromDate').val('');
                 $('#toDate').val('');
-                updateFilterStatus();
-                
-                // Show loading state
-                $(this).html('<i class="fa fa-spinner fa-spin"></i> Clearing...');
-                $(this).prop('disabled', true);
-                
-                table.ajax.reload(function() {
-                    // Reset button state
-                    $('#clearBtn').html('<i class="fa fa-times"></i> Clear');
+                waitingTable.ajax.reload();
+                approvedTable.ajax.reload(function() {
+                    updateFilterStatus();
                     $('#clearBtn').prop('disabled', false);
                 });
             });
