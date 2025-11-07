@@ -587,11 +587,11 @@ namespace KVM_ERP.Controllers
 
         // Get ALL items for editing: saved items (checked) + available items (unchecked)
         [HttpPost]
-        public JsonResult GetInvoiceItemsForEdit(int invoiceId)
+        public JsonResult GetInvoiceItemsForEdit(int invoiceId, bool isApprovalMode = false)
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"GetInvoiceItemsForEdit called for invoiceId: {invoiceId}");
+                System.Diagnostics.Debug.WriteLine($"GetInvoiceItemsForEdit called for invoiceId: {invoiceId}, isApprovalMode: {isApprovalMode}");
                 
                 // STEP 1: Get supplier code from the invoice
                 var supplierCode = context.Database.SqlQuery<string>(@"
@@ -716,6 +716,13 @@ namespace KVM_ERP.Controllers
                     {
                         System.Diagnostics.Debug.WriteLine($"  ✓ {item.ItemName} (TRANPID={item.TRANPID})");
                     }
+                }
+                
+                // If in approval mode, show ONLY selected items
+                if (isApprovalMode)
+                {
+                    mergedItems = mergedItems.Where(i => i.IsSelected).ToList();
+                    System.Diagnostics.Debug.WriteLine($"Approval mode: Filtered to {mergedItems.Count} selected items only");
                 }
                 
                 return Json(new { success = true, data = mergedItems });

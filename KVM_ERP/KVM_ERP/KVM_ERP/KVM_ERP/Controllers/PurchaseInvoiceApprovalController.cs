@@ -29,15 +29,18 @@ namespace KVM_ERP.Controllers
                 // Determine status code based on parameter
                 string statusCode = status == "approved" ? "PUS004" : "PUS003";
                 
-                // Build SQL query - Get invoices based on status
-                var sql = @"SELECT tm.TRANMID, tm.TRANDATE, tm.TRANNO, tm.TRANDNO, tm.TRANREFNO, tm.CATENAME, 
+                // Build SQL query - Get ONLY invoices with selected/checked items based on TRANDAID
+                var sql = @"SELECT DISTINCT tm.TRANMID, tm.TRANDATE, tm.TRANNO, tm.TRANDNO, tm.TRANREFNO, tm.CATENAME, 
                            ISNULL(tm.TRANNAMT, 0) as TRANNAMT,
                            tm.DISPSTATUS,
                            ISNULL(pis.PUINSTDESC, 'N/A') as StatusDescription
                            FROM TRANSACTIONMASTER tm
                            LEFT JOIN PURCHASEINVOICESTATUS pis ON tm.DISPSTATUS = pis.PUINSTID
+                           INNER JOIN TRANSACTIONDETAIL td ON tm.TRANMID = td.TRANMID
                            WHERE tm.REGSTRID = 2 
-                           AND pis.PUINSTCODE = @p0";
+                           AND pis.PUINSTCODE = @p0
+                           AND td.TRANDAID IS NOT NULL 
+                           AND td.TRANDAID > 0";
                 
                 var parameters = new List<object>();
                 parameters.Add(statusCode); // @p0 for status code

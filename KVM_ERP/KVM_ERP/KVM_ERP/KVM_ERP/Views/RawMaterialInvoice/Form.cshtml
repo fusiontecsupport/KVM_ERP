@@ -863,10 +863,14 @@
 
         // Load ALL items for EDIT mode: saved items (checked) + available items (unchecked)
         function loadInvoiceItemsForEdit(invoiceId) {
+            var isApprovalMode = @(ViewBag.IsApprovalMode != null && ViewBag.IsApprovalMode == true ? "true" : "false");
             $.ajax({
                 url: '@Url.Action("GetInvoiceItemsForEdit", "RawMaterialInvoice")',
                 type: 'POST',
-                data: { invoiceId: invoiceId },
+                data: { 
+                    invoiceId: invoiceId,
+                    isApprovalMode: isApprovalMode
+                },
                 beforeSend: function () {
                     $('#itemsTableBody').html('<tr><td colspan="10" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading items...</td></tr>');
                 },
