@@ -6,6 +6,9 @@
     var supplierCodeMap = ViewBag.SupplierCodeMap as System.Collections.Generic.Dictionary<string, string> ?? new System.Collections.Generic.Dictionary<string, string>();
 }
 
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
 <style>
     .main-container { background: white; min-height: 100vh; padding: 20px 0; }
     .form-container { background: white; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,.1); margin: 20px; overflow: hidden; border: 1px solid #e9ecef; }
@@ -280,6 +283,116 @@
         text-decoration: none;
     }
     
+    /* Select2 Custom Styling */
+    .select2-container {
+        width: 100% !important;
+    }
+
+    .select2-container--default .select2-selection--single {
+        height: 42px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        transition: all 0.3s ease;
+    }
+
+    .select2-container--default .select2-selection--single:hover {
+        border-color: #4facfe;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #4facfe;
+        outline: 0;
+        background: white;
+        box-shadow: 0 0 0 0.2rem rgba(79, 172, 254, 0.25);
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        color: #495057;
+        font-size: 14px;
+        padding-left: 0;
+        line-height: 38px;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__placeholder {
+        color: #6c757d;
+        font-size: 14px;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 38px;
+        right: 10px;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow b {
+        border-color: #495057 transparent transparent transparent;
+        border-width: 6px 5px 0 5px;
+    }
+
+    .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+        border-color: transparent transparent #495057 transparent;
+        border-width: 0 5px 6px 5px;
+    }
+
+    /* Select2 Dropdown Styling */
+    .select2-dropdown {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        margin-top: 4px;
+        background: white;
+    }
+
+    .select2-container--default .select2-search--dropdown {
+        padding: 8px;
+        background: white;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        border: 2px solid #e9ecef;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+        border-color: #4facfe;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(79, 172, 254, 0.25);
+    }
+
+    /* Select2 Results Styling */
+    .select2-container--default .select2-results__option {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+
+    .select2-container--default .select2-results__option[aria-selected=true] {
+        background-color: #e7f3ff;
+        color: #495057;
+    }
+
+    /* Select2 Clear Button Styling */
+    .select2-container--default .select2-selection--single .select2-selection__clear {
+        color: #6c757d;
+        font-size: 18px;
+        margin-right: 5px;
+        cursor: pointer;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+        color: #dc3545;
+    }
+    
 </style>
 
 <div class="main-container">
@@ -418,10 +531,21 @@
 </div>
 
 @section Scripts {
+    <!-- Select2 JS from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    
     <script>
         console.log('=== RAW MATERIAL INTAKE FORM SCRIPT STARTING ===');
         (function(){
             console.log('IIFE started - JavaScript is running');
+            
+            // Initialize Select2 on Supplier dropdown with search functionality
+            $('#supplierDropdown').select2({
+                placeholder: '-- Select Supplier --',
+                allowClear: true,
+                width: '100%'
+            });
+            console.log('Select2 initialized on supplier dropdown');
             var codeMap = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(supplierCodeMap));
             var $supplier = $('#supplierDropdown');
             var $code = $('#supplierCode');
@@ -650,8 +774,24 @@
 
             function loadProducts($row, groupId, selectedProductId){
                 var $prod = $row.find('select.product');
+                
+                // Destroy existing Select2 instance before modifying options
+                if ($prod.hasClass('select2-hidden-accessible')) {
+                    $prod.select2('destroy');
+                }
+                
                 $prod.empty().append('<option value="">Loading...</option>');
-                if (!groupId) { $prod.html('<option value="">-- Select Product --</option>'); return; }
+                if (!groupId) { 
+                    $prod.html('<option value="">-- Select Product --</option>');
+                    // Reinitialize Select2
+                    $prod.select2({
+                        placeholder: '-- Select Product --',
+                        allowClear: true,
+                        width: '100%',
+                        dropdownParent: $prod.parent()
+                    });
+                    return; 
+                }
                 $.getJSON('@Url.Action("GetProducts","RawMaterialIntake")', { groupId: groupId })
                  .done(function(list){
                     $prod.empty().append('<option value="">-- Select Product --</option>');
@@ -660,8 +800,28 @@
                         if (selectedProductId && selectedProductId.toString() === item.id.toString()) opt.prop('selected', true);
                         $prod.append(opt);
                     });
+                    // Reinitialize Select2 after loading products
+                    $prod.select2({
+                        placeholder: '-- Select Product --',
+                        allowClear: true,
+                        width: '100%',
+                        dropdownParent: $prod.parent()
+                    });
+                    // Set selected value if provided
+                    if (selectedProductId) {
+                        $prod.val(selectedProductId).trigger('change.select2');
+                    }
                  })
-                 .fail(function(){ $prod.html('<option value="">-- Select Product --</option>'); });
+                 .fail(function(){ 
+                    $prod.html('<option value="">-- Select Product --</option>');
+                    // Reinitialize Select2 even on failure
+                    $prod.select2({
+                        placeholder: '-- Select Product --',
+                        allowClear: true,
+                        width: '100%',
+                        dropdownParent: $prod.parent()
+                    });
+                 });
             }
 
             function addRow(init){
@@ -699,6 +859,21 @@
 
                 $tr.append($sno, $gtd, $ptd, $box, $cnt, $weight, $act);
                 $tbody.append($tr);
+
+                // Initialize Select2 on newly added dropdowns
+                $gsel.select2({
+                    placeholder: '-- Select Group --',
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $gtd
+                });
+                
+                $psel.select2({
+                    placeholder: '-- Select Product --',
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $ptd
+                });
 
                 // carry TRANDID for existing rows (0 for new)
                 $tr.data('trandid', (init && init.TRANDID) ? init.TRANDID : 0);
