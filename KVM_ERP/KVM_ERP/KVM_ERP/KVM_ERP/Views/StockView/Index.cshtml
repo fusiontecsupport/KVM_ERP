@@ -366,7 +366,9 @@
                     if (response.data && response.data.length > 0) {
                         initializeTableWithData(response.data);
                     } else {
-                        console.error('No data received');
+                        console.log('No data available for selected date');
+                        // Initialize empty table instead of showing alert
+                        initializeTableWithData([]);
                         alert('No data available');
                     }
                 },
@@ -380,6 +382,13 @@
 
         function initializeTableWithData(data) {
             console.log('Initializing table with', data.length, 'items');
+            
+            // Ensure any previous DataTable instance is destroyed
+            if ($.fn.DataTable.isDataTable('#stockTable')) {
+                console.log('Destroying previous DataTable instance before reinitialization');
+                $('#stockTable').DataTable().destroy();
+                $('#stockTable tbody').empty();
+            }
             
             stockTable = $('#stockTable').DataTable({
                 "data": data,
@@ -598,8 +607,13 @@
         function refreshTable() {
             console.log('Refreshing table...');
             if (stockTable) {
+                console.log('Destroying existing DataTable instance');
                 stockTable.destroy();
+                stockTable = null;
             }
+            // Clear the table body to ensure clean state
+            $('#stockTable tbody').empty();
+            // Reinitialize
             initializeStockTable();
         }
 

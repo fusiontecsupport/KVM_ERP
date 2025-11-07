@@ -249,39 +249,15 @@
             </div>
         </div>
 
-        <!-- Single Table Section - ALL Data -->
-        <div class="table-container">
+        <!-- Grouped Table Section - Data by ReceivedType -->
+        <div class="table-container" id="tablesContainer">
             <div style="text-align: center; margin-bottom: 20px;">
                 <h6 style="margin: 5px 0;"><strong>STOCK AS ON <span id="stockDate">@DateTime.Now.ToString("dd/MM/yyyy")</span></strong></h6>
             </div>
-            <table id="stockReportTable" class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th rowspan="2">PARTICULARS</th>
-                        <th rowspan="2">U/S</th>
-                        <th rowspan="2">6-8</th>
-                        <th rowspan="2">8/12</th>
-                        <th rowspan="2">13/15</th>
-                        <th rowspan="2">16/20</th>
-                        <th rowspan="2">21/25</th>
-                        <th rowspan="2">26/30</th>
-                        <th rowspan="2">31/35</th>
-                        <th rowspan="2">36/40</th>
-                        <th rowspan="2">41/50</th>
-                        <th rowspan="2">51/60</th>
-                        <th rowspan="2">61/70</th>
-                        <th rowspan="2">71/90</th>
-                        <th rowspan="2">91/110</th>
-                        <th rowspan="2">TOTAL NO. OF SLABS</th>
-                    </tr>
-                </thead>
-                <tbody id="stockTableBody">
-                    <!-- Data will be loaded here -->
-                    <tr>
-                        <td colspan="16" class="text-center">Please select dates and click "Load Data"</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div id="stockTablesWrapper">
+                <!-- Data will be loaded here grouped by ReceivedType -->
+                <p class="text-center">Please select dates and click "Load Data"</p>
+            </div>
         </div>
     </div>
 </div>
@@ -331,134 +307,126 @@
             }
 
             function renderStockTable(data) {
-                const tbody = $('#stockTableBody');
-                tbody.empty();
+                const wrapper = $('#stockTablesWrapper');
+                wrapper.empty();
 
                 if (!data || data.length === 0) {
-                    tbody.append('<tr><td colspan="16" class="text-center">No data available</td></tr>');
+                    wrapper.append('<p class="text-center">No data available</p>');
                     return;
                 }
 
-                data.forEach(function (item, index) {
-                    // Product Row
-                    tbody.append(`
-                        <tr class="product-row">
-                            <td class="particulars-cell">${index + 1}. ${item.ProductName}</td>
-                            <td colspan="14"></td>
-                            <td class="total-slabs">${item.TotalSlabs || 0}</td>
-                        </tr>
-                    `);
-
-                    // OPENING STOCK Row
-                    tbody.append(`
-                        <tr class="opening-stock">
-                            <td class="particulars-cell">OPENING STOCK</td>
-                            <td>${item.US || 0}</td>
-                            <td>${item.Size6_8 || 0}</td>
-                            <td>${item.Size8_12 || 0}</td>
-                            <td>${item.Size13_15 || 0}</td>
-                            <td>${item.Size16_20 || 0}</td>
-                            <td>${item.Size21_25 || 0}</td>
-                            <td>${item.Size26_30 || 0}</td>
-                            <td>${item.Size31_35 || 0}</td>
-                            <td>${item.Size36_40 || 0}</td>
-                            <td>${item.Size41_50 || 0}</td>
-                            <td>${item.Size51_60 || 0}</td>
-                            <td>${item.Size61_70 || 0}</td>
-                            <td>${item.Size71_90 || 0}</td>
-                            <td>${item.Size91_110 || 0}</td>
-                            <td>${item.TotalSlabs || 0}</td>
-                        </tr>
-                    `);
-
-                    // PRODUCTION Row
-                    tbody.append(`
-                        <tr class="production">
-                            <td class="particulars-cell">PRODUCTION</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                        </tr>
-                    `);
-
-                    // TOTAL Row
-                    tbody.append(`
-                        <tr class="total">
-                            <td class="particulars-cell">TOTAL</td>
-                            <td>${item.US || 0}</td>
-                            <td>${item.Size6_8 || 0}</td>
-                            <td>${item.Size8_12 || 0}</td>
-                            <td>${item.Size13_15 || 0}</td>
-                            <td>${item.Size16_20 || 0}</td>
-                            <td>${item.Size21_25 || 0}</td>
-                            <td>${item.Size26_30 || 0}</td>
-                            <td>${item.Size31_35 || 0}</td>
-                            <td>${item.Size36_40 || 0}</td>
-                            <td>${item.Size41_50 || 0}</td>
-                            <td>${item.Size51_60 || 0}</td>
-                            <td>${item.Size61_70 || 0}</td>
-                            <td>${item.Size71_90 || 0}</td>
-                            <td>${item.Size91_110 || 0}</td>
-                            <td>${item.TotalSlabs || 0}</td>
-                        </tr>
-                    `);
-
-                    // RATE Row
-                    tbody.append(`
-                        <tr class="rate">
-                            <td class="particulars-cell">RATE</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                        </tr>
-                    `);
-
-                    // AMOUNT Row
-                    tbody.append(`
-                        <tr class="amount">
-                            <td class="particulars-cell">AMOUNT</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                            <td>0</td>
-                        </tr>
-                    `);
+                // Group data by ReceivedType
+                const groupedData = {};
+                data.forEach(function(item) {
+                    const receivedType = item.ReceivedType || 'Unknown';
+                    if (!groupedData[receivedType]) {
+                        groupedData[receivedType] = {
+                            items: [],
+                            columnHeaders: item.ColumnHeaders || []
+                        };
+                    }
+                    groupedData[receivedType].items.push(item);
                 });
+
+                // Render each group as a separate table
+                let groupIndex = 0;
+                for (const receivedType in groupedData) {
+                    const group = groupedData[receivedType];
+                    const items = group.items;
+                    const columnHeaders = group.columnHeaders;
+                    
+                    // Add section header
+                    if (groupIndex > 0) {
+                        wrapper.append('<div style="margin-top: 40px;"></div>');
+                    }
+                    wrapper.append(`
+                        <div style="margin-bottom: 20px;">
+                            <h5 style="color: #4facfe; font-weight: 600; border-bottom: 2px solid #4facfe; padding-bottom: 10px;">
+                                <i class="fa fa-box"></i> ${receivedType}
+                            </h5>
+                        </div>
+                    `);
+
+                    // Create table header dynamically based on column headers
+                    let headerRow = '<tr><th rowspan="2">PARTICULARS</th>';
+                    columnHeaders.forEach(function(header) {
+                        headerRow += `<th rowspan="2">${header}</th>`;
+                    });
+                    headerRow += '<th rowspan="2">TOTAL NO. OF SLABS</th></tr>';
+
+                    // Create table for this group with dynamic headers
+                    const tableHtml = `
+                        <table class="table table-bordered" style="margin-bottom: 30px;">
+                            <thead>
+                                ${headerRow}
+                            </thead>
+                            <tbody class="group-tbody-${groupIndex}">
+                            </tbody>
+                        </table>
+                    `;
+                    wrapper.append(tableHtml);
+
+                    const tbody = $(`.group-tbody-${groupIndex}`);
+                    
+                    // Render items for this group
+                    items.forEach(function (item, index) {
+                        const openingData = item.OpeningData || [];
+                        const productionData = item.ProductionData || [];
+                        const totalData = item.TotalData || [];
+                        const colCount = columnHeaders.length;
+
+                        // Product Row
+                        tbody.append(`
+                            <tr class="product-row">
+                                <td class="particulars-cell">${index + 1}. ${item.ProductName}</td>
+                                <td colspan="${colCount}"></td>
+                                <td class="total-slabs">${item.TotalSlabs || 0}</td>
+                            </tr>
+                        `);
+
+                        // OPENING STOCK Row (data up to toDate - 1) - Dynamic columns
+                        let openingRow = '<tr class="opening-stock"><td class="particulars-cell">OPENING STOCK</td>';
+                        for (let i = 0; i < colCount; i++) {
+                            openingRow += `<td>${openingData[i] || 0}</td>`;
+                        }
+                        openingRow += `<td>${item.OpeningTotalSlabs || 0}</td></tr>`;
+                        tbody.append(openingRow);
+
+                        // PRODUCTION Row (data on toDate only) - Dynamic columns
+                        let productionRow = '<tr class="production"><td class="particulars-cell">PRODUCTION</td>';
+                        for (let i = 0; i < colCount; i++) {
+                            productionRow += `<td>${productionData[i] || 0}</td>`;
+                        }
+                        productionRow += `<td>${item.ProductionTotalSlabs || 0}</td></tr>`;
+                        tbody.append(productionRow);
+
+                        // TOTAL Row (Opening + Production) - Dynamic columns
+                        let totalRow = '<tr class="total"><td class="particulars-cell">TOTAL</td>';
+                        for (let i = 0; i < colCount; i++) {
+                            totalRow += `<td>${totalData[i] || 0}</td>`;
+                        }
+                        totalRow += `<td>${item.TotalSlabs || 0}</td></tr>`;
+                        tbody.append(totalRow);
+
+                        // RATE Row (all zeros) - Dynamic columns
+                        let rateRow = '<tr class="rate"><td class="particulars-cell">RATE</td>';
+                        for (let i = 0; i < colCount; i++) {
+                            rateRow += '<td>0</td>';
+                        }
+                        rateRow += '<td>0</td></tr>';
+                        tbody.append(rateRow);
+
+                        // AMOUNT Row (all zeros) - Dynamic columns
+                        let amountRow = '<tr class="amount"><td class="particulars-cell">AMOUNT</td>';
+                        for (let i = 0; i < colCount; i++) {
+                            amountRow += '<td>0</td>';
+                        }
+                        amountRow += '<td>0</td></tr>';
+                        tbody.append(amountRow);
+                    });
+
+                    groupIndex++;
+                }
             }
 
             function exportToExcel() {
@@ -477,7 +445,6 @@
 
                 form.append($('<input>', { type: 'hidden', name: 'fromDate', value: fromDate }));
                 form.append($('<input>', { type: 'hidden', name: 'toDate', value: toDate }));
-                form.append($('<input>', { type: 'hidden', name: 'tab', value: 'ALL' }));
 
                 $('body').append(form);
                 form.submit();

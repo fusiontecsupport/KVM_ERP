@@ -111,124 +111,165 @@ namespace KVM_ERP.Controllers
 
         private void CreateExcelSheet(XLWorkbook workbook, string sheetName, List<StockViewReportData> stockData, DateTime toDate)
         {
-            if (stockData == null || !stockData.Any())
-                return;
-
             var worksheet = workbook.Worksheets.Add(sheetName);
-            
-            // Get column headers from first item (all items in same sheet have same headers)
-            var columnHeaders = stockData.First().ColumnHeaders ?? new List<string>();
-            int totalColumns = columnHeaders.Count + 2; // +2 for Particulars and Total
 
             // Add main header - "STOCK AS ON dd/MM/yyyy"
             int row = 1;
             worksheet.Cell(row, 1).Value = $"STOCK AS ON {toDate:dd/MM/yyyy}";
             worksheet.Cell(row, 1).Style.Font.Bold = true;
             worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            worksheet.Range(row, 1, row, totalColumns).Merge();
+            worksheet.Range(row, 1, row, 20).Merge();
                     
-            // Add column headers - Row 1
-            row++;
-            worksheet.Cell(row, 1).Value = "PARTICULARS";
-            worksheet.Cell(row, totalColumns).Value = "TOTAL NO. OF SLABS";
-            
-            // Merge PARTICULARS cell from row 2 to row 3
-            worksheet.Range(row, 1, row + 1, 1).Merge();
-            // Merge TOTAL NO. OF SLABS cell from row 2 to row 3
-            worksheet.Range(row, totalColumns, row + 1, totalColumns).Merge();
-            
-            // Add dynamic column headers - Row 2 (Size columns from PackingTypeMaster)
-            row++;
-            for (int i = 0; i < columnHeaders.Count; i++)
-            {
-                worksheet.Cell(row, i + 2).Value = columnHeaders[i];
-            }
-            
-            // Style headers
-            worksheet.Range(2, 1, 3, totalColumns).Style.Font.Bold = true;
-            worksheet.Range(2, 1, 3, totalColumns).Style.Fill.BackgroundColor = XLColor.LightGray;
-            worksheet.Range(2, 1, 3, totalColumns).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-            worksheet.Range(2, 1, 3, totalColumns).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
-            worksheet.Range(2, 1, 3, totalColumns).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    // Add column headers - Row 1
+                    row++;
+                    worksheet.Cell(row, 1).Value = "PARTICULARS";
+                    worksheet.Cell(row, 20).Value = "TOTAL NO. OF SLABS";
+                    
+                    // Merge PARTICULARS cell from row 2 to row 3
+                    worksheet.Range(row, 1, row + 1, 1).Merge();
+                    // Merge TOTAL NO. OF SLABS cell from row 2 to row 3
+                    worksheet.Range(row, 20, row + 1, 20).Merge();
+                    
+                    // Add column headers - Row 2 (Size columns)
+                    row++;
+                    worksheet.Cell(row, 2).Value = "U - 5";
+                    worksheet.Cell(row, 3).Value = "6 - 8";
+                    worksheet.Cell(row, 4).Value = "8 - 12";
+                    worksheet.Cell(row, 5).Value = "13 - 15";
+                    worksheet.Cell(row, 6).Value = "16 - 20";
+                    worksheet.Cell(row, 7).Value = "21 - 25";
+                    worksheet.Cell(row, 8).Value = "26 - 30";
+                    worksheet.Cell(row, 9).Value = "31 - 35";
+                    worksheet.Cell(row, 10).Value = "36 - 40";
+                    worksheet.Cell(row, 11).Value = "41 - 50";
+                    worksheet.Cell(row, 12).Value = "51 - 60";
+                    worksheet.Cell(row, 13).Value = "61 - 70";
+                    worksheet.Cell(row, 14).Value = "71 - 90";
+                    worksheet.Cell(row, 15).Value = "91 - 110";
+                    worksheet.Cell(row, 16).Value = "111 - 130";
+                    worksheet.Cell(row, 17).Value = "131 - 150";
+                    worksheet.Cell(row, 18).Value = "151 - 200";
+                    
+                    // Style headers
+                    worksheet.Range(2, 1, 3, 20).Style.Font.Bold = true;
+                    worksheet.Range(2, 1, 3, 20).Style.Fill.BackgroundColor = XLColor.LightGray;
+                    worksheet.Range(2, 1, 3, 20).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                    worksheet.Range(2, 1, 3, 20).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                    worksheet.Range(2, 1, 3, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
             // Add data rows
             row++;
             int itemNumber = 1;
             foreach (var item in stockData)
             {
-                var openingData = item.OpeningData ?? new List<decimal>();
-                var productionData = item.ProductionData ?? new List<decimal>();
-                var totalData = item.TotalData ?? new List<decimal>();
-                
                 // Product Name Row (merged across all columns except last)
                 worksheet.Cell(row, 1).Value = $"{itemNumber}. {item.ProductName}";
-                worksheet.Range(row, 1, row, totalColumns - 1).Merge();
+                worksheet.Range(row, 1, row, 19).Merge();
                 worksheet.Cell(row, 1).Style.Fill.BackgroundColor = XLColor.LightGray;
                 worksheet.Cell(row, 1).Style.Font.Bold = true;
-                worksheet.Cell(row, totalColumns).Value = item.TotalSlabs;
-                worksheet.Cell(row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(255, 193, 7); // Yellow/Orange
-                worksheet.Cell(row, totalColumns).Style.Font.Bold = true;
+                worksheet.Cell(row, 20).Value = item.TotalSlabs;
+                worksheet.Cell(row, 20).Style.Fill.BackgroundColor = XLColor.FromArgb(255, 193, 7); // Yellow/Orange
+                worksheet.Cell(row, 20).Style.Font.Bold = true;
                 row++;
 
-                // OPENING STOCK Row (data up to toDate - 1) - Dynamic
+                // OPENING STOCK Row (data up to toDate - 1)
                 worksheet.Cell(row, 1).Value = "OPENING STOCK";
-                for (int i = 0; i < openingData.Count; i++)
-                {
-                    worksheet.Cell(row, i + 2).Value = openingData[i];
-                }
-                worksheet.Cell(row, totalColumns).Value = item.OpeningTotalSlabs;
-                worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(227, 242, 253); // Light Blue
+                worksheet.Cell(row, 2).Value = item.OpeningUS;
+                worksheet.Cell(row, 3).Value = item.OpeningSize6_8;
+                worksheet.Cell(row, 4).Value = item.OpeningSize8_12;
+                worksheet.Cell(row, 5).Value = item.OpeningSize13_15;
+                worksheet.Cell(row, 6).Value = item.OpeningSize16_20;
+                worksheet.Cell(row, 7).Value = item.OpeningSize21_25;
+                worksheet.Cell(row, 8).Value = item.OpeningSize26_30;
+                worksheet.Cell(row, 9).Value = item.OpeningSize31_35;
+                worksheet.Cell(row, 10).Value = item.OpeningSize36_40;
+                worksheet.Cell(row, 11).Value = item.OpeningSize41_50;
+                worksheet.Cell(row, 12).Value = item.OpeningSize51_60;
+                worksheet.Cell(row, 13).Value = item.OpeningSize61_70;
+                worksheet.Cell(row, 14).Value = item.OpeningSize71_90;
+                worksheet.Cell(row, 15).Value = item.OpeningSize91_110;
+                worksheet.Cell(row, 16).Value = item.OpeningSize111_130;
+                worksheet.Cell(row, 17).Value = item.OpeningSize131_150;
+                worksheet.Cell(row, 18).Value = item.OpeningSize151_200;
+                worksheet.Cell(row, 20).Value = item.OpeningTotalSlabs;
+                worksheet.Range(row, 1, row, 20).Style.Fill.BackgroundColor = XLColor.FromArgb(227, 242, 253); // Light Blue
                 row++;
 
-                // PRODUCTION Row (data on toDate only) - Dynamic
+                // PRODUCTION Row (data on toDate only)
                 worksheet.Cell(row, 1).Value = "PRODUCTION";
-                for (int i = 0; i < productionData.Count; i++)
-                {
-                    worksheet.Cell(row, i + 2).Value = productionData[i];
-                }
-                worksheet.Cell(row, totalColumns).Value = item.ProductionTotalSlabs;
-                worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(173, 216, 230); // Blue
-                worksheet.Range(row, 1, row, totalColumns).Style.Font.FontColor = XLColor.Blue;
+                worksheet.Cell(row, 2).Value = item.ProductionUS;
+                worksheet.Cell(row, 3).Value = item.ProductionSize6_8;
+                worksheet.Cell(row, 4).Value = item.ProductionSize8_12;
+                worksheet.Cell(row, 5).Value = item.ProductionSize13_15;
+                worksheet.Cell(row, 6).Value = item.ProductionSize16_20;
+                worksheet.Cell(row, 7).Value = item.ProductionSize21_25;
+                worksheet.Cell(row, 8).Value = item.ProductionSize26_30;
+                worksheet.Cell(row, 9).Value = item.ProductionSize31_35;
+                worksheet.Cell(row, 10).Value = item.ProductionSize36_40;
+                worksheet.Cell(row, 11).Value = item.ProductionSize41_50;
+                worksheet.Cell(row, 12).Value = item.ProductionSize51_60;
+                worksheet.Cell(row, 13).Value = item.ProductionSize61_70;
+                worksheet.Cell(row, 14).Value = item.ProductionSize71_90;
+                worksheet.Cell(row, 15).Value = item.ProductionSize91_110;
+                worksheet.Cell(row, 16).Value = item.ProductionSize111_130;
+                worksheet.Cell(row, 17).Value = item.ProductionSize131_150;
+                worksheet.Cell(row, 18).Value = item.ProductionSize151_200;
+                worksheet.Cell(row, 20).Value = item.ProductionTotalSlabs;
+                worksheet.Range(row, 1, row, 20).Style.Fill.BackgroundColor = XLColor.FromArgb(173, 216, 230); // Blue
+                worksheet.Range(row, 1, row, 20).Style.Font.FontColor = XLColor.Blue;
                 row++;
 
-                // TOTAL Row (Opening + Production) - Dynamic
+                // TOTAL Row (Opening + Production)
                 worksheet.Cell(row, 1).Value = "TOTAL";
-                for (int i = 0; i < totalData.Count; i++)
-                {
-                    worksheet.Cell(row, i + 2).Value = totalData[i];
-                }
-                worksheet.Cell(row, totalColumns).Value = item.TotalSlabs;
-                worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(212, 237, 218); // Light Green
-                worksheet.Range(row, 1, row, totalColumns).Style.Font.Bold = true;
+                worksheet.Cell(row, 2).Value = item.TotalUS;
+                worksheet.Cell(row, 3).Value = item.TotalSize6_8;
+                worksheet.Cell(row, 4).Value = item.TotalSize8_12;
+                worksheet.Cell(row, 5).Value = item.TotalSize13_15;
+                worksheet.Cell(row, 6).Value = item.TotalSize16_20;
+                worksheet.Cell(row, 7).Value = item.TotalSize21_25;
+                worksheet.Cell(row, 8).Value = item.TotalSize26_30;
+                worksheet.Cell(row, 9).Value = item.TotalSize31_35;
+                worksheet.Cell(row, 10).Value = item.TotalSize36_40;
+                worksheet.Cell(row, 11).Value = item.TotalSize41_50;
+                worksheet.Cell(row, 12).Value = item.TotalSize51_60;
+                worksheet.Cell(row, 13).Value = item.TotalSize61_70;
+                worksheet.Cell(row, 14).Value = item.TotalSize71_90;
+                worksheet.Cell(row, 15).Value = item.TotalSize91_110;
+                worksheet.Cell(row, 16).Value = item.TotalSize111_130;
+                worksheet.Cell(row, 17).Value = item.TotalSize131_150;
+                worksheet.Cell(row, 18).Value = item.TotalSize151_200;
+                worksheet.Cell(row, 20).Value = item.TotalSlabs;
+                worksheet.Range(row, 1, row, 20).Style.Fill.BackgroundColor = XLColor.FromArgb(212, 237, 218); // Light Green
+                worksheet.Range(row, 1, row, 20).Style.Font.Bold = true;
                 row++;
 
-                // RATE Row (all zeros) - Dynamic
+                // RATE Row (all zeros)
                 worksheet.Cell(row, 1).Value = "RATE";
-                for (int col = 2; col <= totalColumns; col++)
+                for (int col = 2; col <= 20; col++)
                 {
                     worksheet.Cell(row, col).Value = 0;
                 }
-                worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(248, 215, 218); // Light Red
+                worksheet.Range(row, 1, row, 20).Style.Fill.BackgroundColor = XLColor.FromArgb(248, 215, 218); // Light Red
                 row++;
 
-                // AMOUNT Row (all zeros) - Dynamic
+                // AMOUNT Row (all zeros)
                 worksheet.Cell(row, 1).Value = "AMOUNT";
-                for (int col = 2; col <= totalColumns; col++)
+                for (int col = 2; col <= 20; col++)
                 {
                     worksheet.Cell(row, col).Value = 0;
                 }
-                worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(209, 236, 241); // Light Cyan
+                worksheet.Range(row, 1, row, 20).Style.Fill.BackgroundColor = XLColor.FromArgb(209, 236, 241); // Light Cyan
                 row++;
 
                 itemNumber++;
             }
 
             // Add borders to all data cells
-            worksheet.Range(2, 1, row - 1, totalColumns).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-            worksheet.Range(2, 1, row - 1, totalColumns).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+            worksheet.Range(2, 1, row - 1, 20).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            worksheet.Range(2, 1, row - 1, 20).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
             
             // Center align all data cells
-            worksheet.Range(4, 2, row - 1, totalColumns).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Range(4, 2, row - 1, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
             // Auto-fit columns
             worksheet.Columns().AdjustToContents();
@@ -306,17 +347,17 @@ namespace KVM_ERP.Controllers
                         var prop = typeof(TransactionProductCalculation).GetProperty(pckProperties[i]);
                         
                         decimal openingSum = 0;
-                        foreach (var dataItem in openingData)
+                        foreach (var item in openingData)
                         {
-                            var value = prop.GetValue(dataItem.Calculation);
+                            var value = prop.GetValue(item.Calculation);
                             openingSum += value != null ? (decimal)value : 0;
                         }
                         openingDataArray.Add(openingSum);
 
                         decimal productionSum = 0;
-                        foreach (var dataItem in productionData)
+                        foreach (var item in productionData)
                         {
-                            var value = prop.GetValue(dataItem.Calculation);
+                            var value = prop.GetValue(item.Calculation);
                             productionSum += value != null ? (decimal)value : 0;
                         }
                         productionDataArray.Add(productionSum);
