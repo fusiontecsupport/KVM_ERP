@@ -375,12 +375,10 @@
                         const totalData = item.TotalData || [];
                         const colCount = columnHeaders.length;
 
-                        // Product Row
+                        // Product Row (no yellow box, merged across all columns)
                         tbody.append(`
                             <tr class="product-row">
-                                <td class="particulars-cell">${index + 1}. ${item.ProductName}</td>
-                                <td colspan="${colCount}"></td>
-                                <td class="total-slabs">${item.TotalSlabs || 0}</td>
+                                <td class="particulars-cell" colspan="${colCount + 2}">${index + 1}. ${item.ProductName}</td>
                             </tr>
                         `);
 
@@ -423,6 +421,9 @@
                         }
                         amountRow += '<td>0</td></tr>';
                         tbody.append(amountRow);
+                        
+                        // Add blank row for spacing between products
+                        tbody.append('<tr class="spacing-row"><td colspan="' + (colCount + 2) + '" style="height: 15px; background: transparent; border: none;"></td></tr>');
                     });
 
                     groupIndex++;

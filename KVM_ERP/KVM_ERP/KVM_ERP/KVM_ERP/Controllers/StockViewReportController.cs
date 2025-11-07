@@ -63,8 +63,8 @@ namespace KVM_ERP.Controllers
                         .OrderBy(x => x)
                         .ToList();
                     
-                    // Tab 1: Overall (all data)
-                    CreateExcelSheet(workbook, "Overall", allStockData, to);
+                    // Tab 1: Overall (all data grouped by packing type)
+                    CreateExcelSheetGrouped(workbook, "Overall", allStockData, to);
                     
                     // Tab 2+: Individual ReceivedTypes
                     foreach (var receivedType in receivedTypes)
@@ -107,6 +107,145 @@ namespace KVM_ERP.Controllers
                 TempData["ErrorMessage"] = "Error exporting to Excel: " + ex.Message;
                 return RedirectToAction("Index");
             }
+        }
+
+        private void CreateExcelSheetGrouped(XLWorkbook workbook, string sheetName, List<StockViewReportData> stockData, DateTime toDate)
+        {
+            if (stockData == null || !stockData.Any())
+                return;
+
+            var worksheet = workbook.Worksheets.Add(sheetName);
+            
+            // Group data by packing type
+            var groupedByPackingType = stockData
+                .GroupBy(x => new { x.PackingMasterId, x.ReceivedType })
+                .OrderBy(g => g.Key.ReceivedType)
+                .ToList();
+
+            int row = 1;
+            
+            // Add main header
+            worksheet.Cell(row, 1).Value = $"STOCK AS ON {toDate:dd/MM/yyyy}";
+            worksheet.Cell(row, 1).Style.Font.Bold = true;
+            worksheet.Cell(row, 1).Style.Font.FontSize = 14;
+            worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Range(row, 1, row, 20).Merge();
+            row += 2;
+
+            // Process each packing type group
+            foreach (var group in groupedByPackingType)
+            {
+                var groupData = group.ToList();
+                var columnHeaders = groupData.First().ColumnHeaders ?? new List<string>();
+                int totalColumns = columnHeaders.Count + 2;
+
+                // Add packing type header
+                worksheet.Cell(row, 1).Value = $"=== {group.Key.ReceivedType} ===";
+                worksheet.Cell(row, 1).Style.Font.Bold = true;
+                worksheet.Cell(row, 1).Style.Font.FontSize = 12;
+                worksheet.Cell(row, 1).Style.Fill.BackgroundColor = XLColor.FromArgb(100, 149, 237); // Cornflower Blue
+                worksheet.Cell(row, 1).Style.Font.FontColor = XLColor.White;
+                worksheet.Range(row, 1, row, totalColumns).Merge();
+                worksheet.Range(row, 1, row, totalColumns).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                row++;
+
+                // Add column headers
+                worksheet.Cell(row, 1).Value = "PARTICULARS";
+                worksheet.Cell(row, totalColumns).Value = "TOTAL NO. OF SLABS";
+                worksheet.Range(row, 1, row + 1, 1).Merge();
+                worksheet.Range(row, totalColumns, row + 1, totalColumns).Merge();
+                
+                row++;
+                for (int i = 0; i < columnHeaders.Count; i++)
+                {
+                    worksheet.Cell(row, i + 2).Value = columnHeaders[i];
+                }
+                
+                // Style headers
+                worksheet.Range(row - 1, 1, row, totalColumns).Style.Font.Bold = true;
+                worksheet.Range(row - 1, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.LightGray;
+                worksheet.Range(row - 1, 1, row, totalColumns).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                worksheet.Range(row - 1, 1, row, totalColumns).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                worksheet.Range(row - 1, 1, row, totalColumns).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                row++;
+
+                // Add data rows for this group
+                int itemNumber = 1;
+                foreach (var item in groupData)
+                {
+                    var openingData = item.OpeningData ?? new List<decimal>();
+                    var productionData = item.ProductionData ?? new List<decimal>();
+                    var totalData = item.TotalData ?? new List<decimal>();
+                    
+                    // Product Name Row (merged, NO total value shown)
+                    worksheet.Cell(row, 1).Value = $"{itemNumber}. {item.ProductName}";
+                    worksheet.Range(row, 1, row, totalColumns).Merge();
+                    worksheet.Cell(row, 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+                    worksheet.Cell(row, 1).Style.Font.Bold = true;
+                    row++;
+
+                    // OPENING STOCK Row
+                    worksheet.Cell(row, 1).Value = "OPENING STOCK";
+                    for (int i = 0; i < openingData.Count; i++)
+                    {
+                        worksheet.Cell(row, i + 2).Value = openingData[i];
+                    }
+                    worksheet.Cell(row, totalColumns).Value = item.OpeningTotalSlabs;
+                    worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(227, 242, 253);
+                    row++;
+
+                    // PRODUCTION Row
+                    worksheet.Cell(row, 1).Value = "PRODUCTION";
+                    for (int i = 0; i < productionData.Count; i++)
+                    {
+                        worksheet.Cell(row, i + 2).Value = productionData[i];
+                    }
+                    worksheet.Cell(row, totalColumns).Value = item.ProductionTotalSlabs;
+                    worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(173, 216, 230);
+                    worksheet.Range(row, 1, row, totalColumns).Style.Font.FontColor = XLColor.Blue;
+                    row++;
+
+                    // TOTAL Row
+                    worksheet.Cell(row, 1).Value = "TOTAL";
+                    for (int i = 0; i < totalData.Count; i++)
+                    {
+                        worksheet.Cell(row, i + 2).Value = totalData[i];
+                    }
+                    worksheet.Cell(row, totalColumns).Value = item.TotalSlabs;
+                    worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(212, 237, 218);
+                    worksheet.Range(row, 1, row, totalColumns).Style.Font.Bold = true;
+                    row++;
+
+                    // RATE Row
+                    worksheet.Cell(row, 1).Value = "RATE";
+                    for (int col = 2; col <= totalColumns; col++)
+                    {
+                        worksheet.Cell(row, col).Value = 0;
+                    }
+                    worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(248, 215, 218);
+                    row++;
+
+                    // AMOUNT Row
+                    worksheet.Cell(row, 1).Value = "AMOUNT";
+                    for (int col = 2; col <= totalColumns; col++)
+                    {
+                        worksheet.Cell(row, col).Value = 0;
+                    }
+                    worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(209, 236, 241);
+                    row++;
+                    
+                    // Add blank row after AMOUNT
+                    row++;
+
+                    itemNumber++;
+                }
+
+                // Add spacing between groups
+                row += 2;
+            }
+
+            // Auto-fit columns
+            worksheet.Columns().AdjustToContents();
         }
 
         private void CreateExcelSheet(XLWorkbook workbook, string sheetName, List<StockViewReportData> stockData, DateTime toDate)
@@ -160,14 +299,11 @@ namespace KVM_ERP.Controllers
                 var productionData = item.ProductionData ?? new List<decimal>();
                 var totalData = item.TotalData ?? new List<decimal>();
                 
-                // Product Name Row (merged across all columns except last)
+                // Product Name Row (merged across ALL columns, NO total value shown)
                 worksheet.Cell(row, 1).Value = $"{itemNumber}. {item.ProductName}";
-                worksheet.Range(row, 1, row, totalColumns - 1).Merge();
+                worksheet.Range(row, 1, row, totalColumns).Merge();
                 worksheet.Cell(row, 1).Style.Fill.BackgroundColor = XLColor.LightGray;
                 worksheet.Cell(row, 1).Style.Font.Bold = true;
-                worksheet.Cell(row, totalColumns).Value = item.TotalSlabs;
-                worksheet.Cell(row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(255, 193, 7); // Yellow/Orange
-                worksheet.Cell(row, totalColumns).Style.Font.Bold = true;
                 row++;
 
                 // OPENING STOCK Row (data up to toDate - 1) - Dynamic
@@ -218,6 +354,9 @@ namespace KVM_ERP.Controllers
                     worksheet.Cell(row, col).Value = 0;
                 }
                 worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(209, 236, 241); // Light Cyan
+                row++;
+                
+                // Add blank row after AMOUNT for spacing between products
                 row++;
 
                 itemNumber++;
