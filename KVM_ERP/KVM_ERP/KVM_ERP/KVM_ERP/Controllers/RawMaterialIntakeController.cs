@@ -1848,6 +1848,45 @@ namespace KVM_ERP.Controllers
         private string GenerateRowPDFContent(TransactionMaster transaction, PDFTransactionDetail transactionDetail, 
             List<TransactionProductCalculation> calculations)
         {
+            // Get first calculation to extract Grade, ProductionColour, ReceivedType
+            var firstCalc = calculations?.FirstOrDefault();
+            string gradeName = "N/A";
+            string productionColour = "N/A";
+            string receivedType = "N/A";
+            
+            if (firstCalc != null)
+            {
+                try
+                {
+                    if (firstCalc.GRADEID > 0)
+                    {
+                        var grade = db.GradeMasters.FirstOrDefault(g => g.GRADEID == firstCalc.GRADEID);
+                        gradeName = grade?.GRADEDESC ?? "N/A";
+                    }
+                }
+                catch { gradeName = "N/A"; }
+                
+                try
+                {
+                    if (firstCalc.PCLRID > 0)
+                    {
+                        var pColour = db.ProductionColourMasters.FirstOrDefault(p => p.PCLRID == firstCalc.PCLRID);
+                        productionColour = pColour?.PCLRDESC ?? "N/A";
+                    }
+                }
+                catch { productionColour = "N/A"; }
+                
+                try
+                {
+                    if (firstCalc.RCVDTID > 0)
+                    {
+                        var rType = db.ReceivedTypeMasters.FirstOrDefault(r => r.RCVDTID == firstCalc.RCVDTID);
+                        receivedType = rType?.RCVDTDESC ?? "N/A";
+                    }
+                }
+                catch { receivedType = "N/A"; }
+            }
+            
             var html = $@"
 <!DOCTYPE html>
 <html>
@@ -1855,49 +1894,97 @@ namespace KVM_ERP.Controllers
     <meta charset='utf-8'>
     <title>Product Calculation Report - Single Row</title>
     <style>
-        body {{ font-family: Arial, sans-serif; margin: 20px; line-height: 1.4; }}
-        .header {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }}
-        .section {{ margin-bottom: 20px; page-break-inside: avoid; }}
-        .table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; }}
-        .table th, .table td {{ border: 1px solid #333; padding: 8px; text-align: left; }}
-        .table th {{ background-color: #f8f9fa; font-weight: bold; }}
-        .page-break {{ page-break-before: always; }}
-        .calculation-header {{ background-color: #e9ecef; padding: 10px; margin: 10px 0; font-weight: bold; }}
-        .packing-section {{ margin: 15px 0; }}
-        .calculation-section {{ margin: 15px 0; }}
-        .value {{ font-weight: bold; color: #007bff; }}
-        h2 {{ color: #333; margin-bottom: 5px; }}
-        h3 {{ color: #666; margin-bottom: 10px; }}
-        h4 {{ color: #333; margin-bottom: 8px; }}
-        .transaction-info {{ background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
-        .no-calculations {{ text-align: center; color: #666; font-style: italic; padding: 20px; }}
+        @page {{ margin: 0; size: auto; }}
+        @media print {{ 
+            body {{ margin: 1cm; }} 
+            .no-print {{ display: none; }}
+        }}
+        * {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; line-height: 1.6; color: #000; background-color: #f8f9fa; }}
+        .header {{ text-align: center; border-bottom: 3px solid #000; padding: 20px; margin-bottom: 10px; background-color: #2c3e50; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+        .report-date {{ text-align: center; font-size: 13px; color: #666; margin: 10px 0 20px 0; padding: 8px; background-color: #fff; border-radius: 4px; }}
+        .transaction-row {{ display: table; width: 100%; margin-bottom: 20px; border-spacing: 10px; page-break-after: always; }}
+        .transaction-left {{ display: table-cell; width: 50%; vertical-align: top; padding: 15px; background-color: #fff; border: 1px solid #dee2e6; border-radius: 4px; }}
+        .transaction-right {{ display: table-cell; width: 50%; vertical-align: top; padding: 15px; background-color: #fff; border: 1px solid #dee2e6; border-radius: 4px; }}
+        .info-box {{ padding: 10px 0; border-bottom: 1px solid #f0f0f0; }}
+        .info-box:last-child {{ border-bottom: none; }}
+        .info-label {{ font-weight: 600; color: #495057; display: inline-block; min-width: 140px; }}
+        .info-value {{ color: #212529; display: inline-block; }}
+        .section {{ margin-bottom: 25px; page-break-inside: avoid; background-color: #fff; padding: 20px; border-radius: 4px; border: 1px solid #dee2e6; }}
+        .product-header {{ background-color: #2c3e50; color: white; padding: 12px 15px; margin: 20px 0 20px 0; font-size: 15px; font-weight: 600; border-radius: 4px; page-break-before: always; }}
+        .calculation-header {{ background-color: #495057; color: white; padding: 10px 15px; margin: 0 0 15px 0; font-weight: 600; font-size: 14px; }}
+        .inline-row {{ display: table; width: 100%; margin: 15px 0; border-spacing: 10px; }}
+        .inline-cell {{ display: table-cell; width: 33.33%; padding: 0; }}
+        .inline-cell-50 {{ display: table-cell; width: 50%; padding: 0; }}
+        .detail-box {{ background-color: #fff; padding: 10px 15px; border: 1px solid #dee2e6; border-radius: 4px; }}
+        .detail-box-alt {{ background-color: #fff; padding: 10px 15px; border: 1px solid #dee2e6; border-radius: 4px; }}
+        .detail-box-purple {{ background-color: #fff; padding: 10px 15px; border: 1px solid #dee2e6; border-radius: 4px; }}
+        .detail-box strong {{ color: #495057; font-size: 12px; font-weight: 600; }}
+        .detail-box, .detail-box-alt, .detail-box-purple {{ font-size: 13px; color: #212529; }}
+        .horizontal-table {{ width: 100%; border-collapse: collapse; margin: 15px 0; background-color: white; border: 1px solid #dee2e6; table-layout: fixed; }}
+        .horizontal-table th {{ background-color: #495057; color: white; padding: 8px 4px; text-align: center; font-size: 11px; font-weight: 600; border: 1px solid #dee2e6; word-wrap: break-word; }}
+        .horizontal-table td {{ border: 1px solid #dee2e6; padding: 8px 4px; text-align: center; font-weight: 600; color: #212529; background-color: #f8f9fa; font-size: 13px; }}
+        .horizontal-table td:last-child {{ background-color: #e9ecef; color: #2c3e50; font-weight: 700; }}
+        .calc-columns {{ display: table; width: 100%; margin-top: 15px; border-spacing: 10px; }}
+        .calc-left {{ display: table-cell; width: 50%; vertical-align: top; }}
+        .calc-right {{ display: table-cell; width: 50%; vertical-align: top; }}
+        .calc-box {{ background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #dee2e6; }}
+        .calc-title {{ background-color: #6c757d; color: white; padding: 8px; font-weight: 600; margin: -15px -15px 12px -15px; text-align: center; font-size: 13px; }}
+        .calc-row {{ padding: 8px 0; border-bottom: 1px solid #e9ecef; display: table; width: 100%; }}
+        .calc-row:last-child {{ border-bottom: none; }}
+        .calc-label {{ display: table-cell; font-weight: 500; color: #495057; width: 60%; font-size: 13px; }}
+        .calc-value {{ display: table-cell; font-weight: 700; color: #212529; text-align: right; width: 40%; font-size: 14px; }}
+        .total-row {{ background-color: #e9ecef; border-radius: 4px; padding: 10px 8px; margin-top: 8px; border: 1px solid #dee2e6; display: block; overflow: hidden; }}
+        .total-row .calc-label {{ font-weight: 700; color: #2c3e50; display: table-cell; width: 60%; }}
+        .total-row .calc-value {{ color: #2c3e50; font-size: 15px; display: table-cell; width: 40%; text-align: right; }}
+        .no-calculations {{ text-align: center; color: #6c757d; font-style: italic; padding: 40px; background-color: #f8f9fa; border-radius: 4px; }}
+        h2 {{ margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; color: #fff; }}
+        h3 {{ margin: 5px 0 0 0; font-size: 15px; font-weight: 500; color: #fff; opacity: 1; }}
     </style>
 </head>
 <body>
     <div class='header'>
         <h2>MARINEX - Product Calculation Report</h2>
-        <h3>Raw Material Intake - Single Product Calculation</h3>
+        <h3>Raw Material Intake Calculation Details</h3>
     </div>
     
-    <div class='transaction-info'>
-        <h4>Transaction Information</h4>
-        <table class='table'>
-            <tr><th>Transaction ID:</th><td>{transaction.TRANMID}</td></tr>
-            <tr><th>Transaction Date:</th><td>{transaction.TRANDATE:dd/MM/yyyy}</td></tr>
-            <tr><th>Supplier Name:</th><td>{transaction.CATENAME ?? "N/A"}</td></tr>
-            <tr><th>Supplier Code:</th><td>{transaction.CATECODE ?? "N/A"}</td></tr>
-            <tr><th>Vehicle No:</th><td>{transaction.VECHNO ?? "N/A"}</td></tr>
-            <tr><th>Client Weight (KG):</th><td>{transaction.CLIENTWGHT:F3}</td></tr>
-        </table>
-        
-        <h4>Product Information</h4>
-        <table class='table'>
-            <tr><th>Product Type:</th><td>{transactionDetail.ProductType}</td></tr>
-            <tr><th>Product:</th><td>{transactionDetail.Product}</td></tr>
-            <tr><th>No. of Boxes:</th><td>{transactionDetail.MTRLNBOX}</td></tr>
-            <tr><th>Count (Per KG):</th><td>{transactionDetail.MTRLCOUNTS}</td></tr>
-            <tr><th>Report Generated:</th><td>{DateTime.Now:dd/MM/yyyy HH:mm:ss}</td></tr>
-        </table>
+    <div class='report-date'>
+        <strong>Report Generated:</strong> {DateTime.Now:dd-MM-yyyy HH:mm:ss}
+    </div>
+    
+    <div class='transaction-row'>
+        <div class='transaction-left'>
+            <div class='info-box'>
+                <span class='info-label'>Transaction No:</span>
+                <span class='info-value'>{transaction.TRANDNO ?? "N/A"}</span>
+            </div>
+            <div class='info-box'>
+                <span class='info-label'>Transaction Date:</span>
+                <span class='info-value'>{transaction.TRANDATE:dd-MM-yyyy}</span>
+            </div>
+        </div>
+        <div class='transaction-right'>
+            <div class='info-box'>
+                <span class='info-label'>Supplier Name:</span>
+                <span class='info-value'>{transaction.CATENAME ?? "N/A"}</span>
+            </div>
+            <div class='info-box'>
+                <span class='info-label'>Supplier Code:</span>
+                <span class='info-value'>{transaction.CATECODE ?? "N/A"}</span>
+            </div>
+            <div class='info-box'>
+                <span class='info-label'>Vehicle No:</span>
+                <span class='info-value'>{transaction.VECHNO ?? "N/A"}</span>
+            </div>
+            <div class='info-box'>
+                <span class='info-label'>Client Weight (KG):</span>
+                <span class='info-value'>{transaction.CLIENTWGHT:F3}</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class='product-header'>
+        Product: {transactionDetail.Product} ({transactionDetail.ProductType}) - Boxes: {transactionDetail.MTRLNBOX}, Count: {transactionDetail.MTRLCOUNTS}
     </div>";
 
             // Add calculations for this specific product
@@ -1915,36 +2002,60 @@ namespace KVM_ERP.Controllers
                     var packingMaster = db.PackingMasters.FirstOrDefault(p => p.PACKMID == packingId);
                     var packingName = packingMaster?.PACKMDESC ?? $"Packing {packingId}";
 
+                    var calculationMode = calculation.CALCULATIONMODE == 2 ? "Grade Weight Mode" : "Packing Mode";
+                    
                     html += $@"
     <div class='section'>
         <div class='calculation-header'>
             {packingName} Calculation
         </div>
         
-        <div class='packing-section'>";
-
-                    // Add production date if available
+        <div class='inline-row'>
+            <div class='inline-cell-50'>
+                <div class='detail-box'>";
+                    
                     if (calculation.PRODDATE.HasValue)
                     {
                         html += $@"
-            <p><strong>Production Date:</strong> {calculation.PRODDATE.Value:dd/MM/yyyy}</p>";
+                    <strong>Production Date:</strong> {calculation.PRODDATE.Value:dd-MM-yyyy}";
                     }
-
-                    // Add calculation mode
-                    var calculationMode = calculation.CALCULATIONMODE == 2 ? "Grade Weight Mode" : "Packing Mode";
+                    else
+                    {
+                        html += @"
+                    <strong>Production Date:</strong> N/A";
+                    }
+                    
                     html += $@"
-            <p><strong>Calculation Mode:</strong> {calculationMode}</p>";
+                </div>
+            </div>
+            <div class='inline-cell-50'>
+                <div class='detail-box-alt'>
+                    <strong>Calculation Mode:</strong> {calculationMode}
+                </div>
+            </div>
+        </div>
+        
+        <div class='inline-row'>
+            <div class='inline-cell'>
+                <div class='detail-box-purple'>
+                    <strong>Grade:</strong> {gradeName}
+                </div>
+            </div>
+            <div class='inline-cell'>
+                <div class='detail-box-purple'>
+                    <strong>Production Colour:</strong> {productionColour}
+                </div>
+            </div>
+            <div class='inline-cell'>
+                <div class='detail-box-purple'>
+                    <strong>Received Type:</strong> {receivedType}
+                </div>
+            </div>
+        </div>";
 
                     // Get packing type fields for this packing master
                     var packingFields = GetPackingTypeFieldsForPDF(packingId);
                     
-                    // Display packing details
-                    html += $@"
-            <div class='calculation-section'>
-                <h5>Packing Details</h5>
-                <table class='table'>
-                    <tr><th>Slab Size</th><th>Count</th></tr>";
-
                     var pckValues = new[] { 
                         calculation.PCK1, calculation.PCK2, calculation.PCK3, calculation.PCK4, 
                         calculation.PCK5, calculation.PCK6, calculation.PCK7, calculation.PCK8, 
@@ -1953,59 +2064,132 @@ namespace KVM_ERP.Controllers
                         calculation.PCK17 
                     };
 
+                    // Build horizontal table with non-zero values
+                    var nonZeroPackings = new System.Collections.Generic.List<(string label, decimal value)>();
                     for (int i = 0; i < pckValues.Length && i < packingFields.Count; i++)
                     {
                         if (pckValues[i] > 0)
                         {
-                            html += $@"
-                    <tr><td>{packingFields[i]}</td><td class='value'>{pckValues[i]:F3}</td></tr>";
+                            nonZeroPackings.Add((packingFields[i], pckValues[i]));
                         }
                     }
-
+                    
+                    html += @"
+        <div style='margin: 15px 0;'>
+            <div style='background-color: #6c757d; color: white; padding: 10px; font-weight: 600; margin-bottom: 10px; text-align: center; font-size: 13px;'>Packing Details</div>
+            <table class='horizontal-table'>
+                <tr>";
+                    
+                    // Add header row
+                    foreach (var pck in nonZeroPackings)
+                    {
+                        html += $@"
+                    <th>{pck.label}</th>";
+                    }
                     html += $@"
-                    <tr style='background-color: #e9ecef;'><th>Total (Slab):</th><th class='value'>{calculation.TOPCK:F3}</th></tr>
-                </table>
-            </div>";
+                    <th style='background-color: #495057;'>Total</th>";
+                    
+                    html += @"
+                </tr>
+                <tr>";
+                    
+                    // Add value row
+                    foreach (var pck in nonZeroPackings)
+                    {
+                        html += $@"
+                    <td>{pck.value:F3}</td>";
+                    }
+                    html += $@"
+                    <td style='background-color: #e9ecef; font-size: 15px; color: #2c3e50; font-weight: 700;'>{calculation.TOPCK:F3}</td>";
+                    
+                    html += @"
+                </tr>
+            </table>
+        </div>";
 
                     // Display calculation results based on mode
                     if (calculation.CALCULATIONMODE == 2) // Grade Weight Mode
                     {
                         html += $@"
-            <div class='calculation-section'>
-                <h5>Grade Weight Calculation</h5>
-                <table class='table'>
-                    <tr><th>Slab:</th><td class='value'>{calculation.TOPCK:F3}</td></tr>
-                    <tr><th>Peeled:</th><td class='value'>{calculation.WASTEWGT:F3}</td></tr>
-                    <tr style='background-color: #e9ecef;'><th>Factory Weight:</th><th class='value'>{calculation.FACTORYWGT:F3}</th></tr>
-                </table>
-            </div>";
+        <div class='calc-box'>
+            <div class='calc-title'>Grade Weight Calculation</div>
+            <div class='calc-row'>
+                <span class='calc-label'>Slab:</span>
+                <span class='calc-value'>{calculation.TOPCK:F3}</span>
+            </div>
+            <div class='calc-row'>
+                <span class='calc-label'>Peeled:</span>
+                <span class='calc-value'>{calculation.WASTEWGT:F3}</span>
+            </div>
+            <div class='calc-row total-row'>
+                <span class='calc-label'>Factory Weight:</span>
+                <span class='calc-value'>{calculation.FACTORYWGT:F3}</span>
+            </div>
+        </div>";
                     }
                     else // Packing Mode
                     {
-                        html += $@"
-            <div class='calculation-section'>
-                <h5>Slab Calculation</h5>
-                <table class='table'>
-                    <tr><th>Total PCK:</th><td class='value'>{calculation.TOPCK:F3}</td></tr>
-                    <tr><th>PCK L Value:</th><td class='value'>{calculation.PCKLVALUE:F3}</td></tr>
-                    <tr><th>Avg PCK Value:</th><td class='value'>{calculation.AVGPCKVALUE:F3}</td></tr>
-                    <tr><th>PNDS Value:</th><td class='value'>{calculation.PNDSVALUE:F3}</td></tr>
-                    <tr><th>Total PNDS:</th><td class='value'>{calculation.TOTALPNDS:F3}</td></tr>
-                </table>
+                        html += @"
+        <div class='calc-columns'>
+            <div class='calc-left'>
+                <div class='calc-box'>
+                    <div class='calc-title'>Slab Calculation</div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>Total PCK:</span>
+                        <span class='calc-value'>" + $"{calculation.TOPCK:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>PCK L Value:</span>
+                        <span class='calc-value'>" + $"{calculation.PCKLVALUE:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>Avg PCK Value:</span>
+                        <span class='calc-value'>" + $"{calculation.AVGPCKVALUE:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>PNDS Value:</span>
+                        <span class='calc-value'>" + $"{calculation.PNDSVALUE:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>Total PNDS:</span>
+                        <span class='calc-value'>" + $"{calculation.TOTALPNDS:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>Yield Percent:</span>
+                        <span class='calc-value'>" + $"{calculation.YELDPERCENT:F3}%" + @"</span>
+                    </div>
+                    <div class='total-row'>
+                        <span class='calc-label'>Total Yield Counts:</span>
+                        <span class='calc-value'>" + $"{calculation.TOTALYELDCOUNTS:F3}" + @"</span>
+                    </div>
+                </div>
             </div>
-
-            <div class='calculation-section'>
-                <h5>Total Weight Calculation</h5>
-                <table class='table'>
-                    <tr><th>Yield Percent:</th><td class='value'>{calculation.YELDPERCENT:F3}%</td></tr>
-                    <tr><th>Total Yield Counts:</th><td class='value'>{calculation.TOTALYELDCOUNTS:F3}</td></tr>
-                    <tr><th>KG Weight:</th><td class='value'>{calculation.KGWGT:F3}</td></tr>
-                    <tr><th>PCK KG Weight:</th><td class='value'>{calculation.PCKKGWGT:F3}</td></tr>
-                    <tr><th>Waste Weight:</th><td class='value'>{calculation.WASTEWGT:F3}</td></tr>
-                    <tr><th>Waste P Weight:</th><td class='value'>{calculation.WASTEPWGT:F3}</td></tr>
-                    <tr style='background-color: #e9ecef;'><th>Factory Weight:</th><th class='value'>{calculation.FACTORYWGT:F3}</th></tr>
-                </table>
-            </div>";
+            <div class='calc-right'>
+                <div class='calc-box'>
+                    <div class='calc-title'>Weight Details</div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>KG Weight:</span>
+                        <span class='calc-value'>" + $"{calculation.KGWGT:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>PCK KG Weight:</span>
+                        <span class='calc-value'>" + $"{calculation.PCKKGWGT:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>Waste Weight:</span>
+                        <span class='calc-value'>" + $"{calculation.WASTEWGT:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>Waste P Weight:</span>
+                        <span class='calc-value'>" + $"{calculation.WASTEPWGT:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row total-row'>
+                        <span class='calc-label'>Factory Weight:</span>
+                        <span class='calc-value'>" + $"{calculation.FACTORYWGT:F3}" + @"</span>
+                    </div>
+                </div>
+            </div>
+        </div>";
                     }
 
                     html += @"
@@ -2038,22 +2222,53 @@ namespace KVM_ERP.Controllers
     <meta charset='utf-8'>
     <title>Product Calculation Report</title>
     <style>
-        body {{ font-family: Arial, sans-serif; margin: 20px; line-height: 1.4; }}
-        .header {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }}
-        .section {{ margin-bottom: 20px; page-break-inside: avoid; }}
-        .table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; }}
-        .table th, .table td {{ border: 1px solid #333; padding: 8px; text-align: left; }}
-        .table th {{ background-color: #f8f9fa; font-weight: bold; }}
+        @page {{ margin: 0; size: auto; }}
+        @media print {{ 
+            body {{ margin: 1cm; }} 
+            .no-print {{ display: none; }}
+        }}
+        * {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; line-height: 1.6; color: #000; background-color: #f8f9fa; }}
+        .header {{ text-align: center; border-bottom: 3px solid #000; padding: 20px; margin-bottom: 10px; background-color: #2c3e50; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+        .report-date {{ text-align: center; font-size: 13px; color: #666; margin: 10px 0 20px 0; padding: 8px; background-color: #fff; border-radius: 4px; }}
+        .transaction-row {{ display: table; width: 100%; margin-bottom: 20px; border-spacing: 10px; }}
+        .transaction-left {{ display: table-cell; width: 50%; vertical-align: top; padding: 15px; background-color: #fff; border: 1px solid #dee2e6; border-radius: 4px; }}
+        .transaction-right {{ display: table-cell; width: 50%; vertical-align: top; padding: 15px; background-color: #fff; border: 1px solid #dee2e6; border-radius: 4px; }}
+        .info-box {{ padding: 10px 0; border-bottom: 1px solid #f0f0f0; }}
+        .info-box:last-child {{ border-bottom: none; }}
+        .info-label {{ font-weight: 600; color: #495057; display: inline-block; min-width: 140px; }}
+        .info-value {{ color: #212529; display: inline-block; }}
+        .section {{ margin-bottom: 25px; page-break-inside: avoid; background-color: #fff; padding: 20px; border-radius: 4px; border: 1px solid #dee2e6; }}
+        .product-header {{ background-color: #2c3e50; color: white; padding: 12px 15px; margin: -20px -20px 20px -20px; font-size: 15px; font-weight: 600; border-radius: 4px 4px 0 0; }}
+        .calculation-header {{ background-color: #495057; color: white; padding: 10px 15px; margin: 0 0 15px 0; font-weight: 600; font-size: 14px; }}
+        .inline-row {{ display: table; width: 100%; margin: 15px 0; border-spacing: 10px; }}
+        .inline-cell {{ display: table-cell; width: 33.33%; padding: 0; }}
+        .inline-cell-50 {{ display: table-cell; width: 50%; padding: 0; }}
+        .detail-box {{ background-color: #fff; padding: 10px 15px; border: 1px solid #dee2e6; border-radius: 4px; }}
+        .detail-box-alt {{ background-color: #fff; padding: 10px 15px; border: 1px solid #dee2e6; border-radius: 4px; }}
+        .detail-box-purple {{ background-color: #fff; padding: 10px 15px; border: 1px solid #dee2e6; border-radius: 4px; }}
+        .detail-box strong {{ color: #495057; font-size: 12px; font-weight: 600; }}
+        .detail-box, .detail-box-alt, .detail-box-purple {{ font-size: 13px; color: #212529; }}
+        .horizontal-table {{ width: 100%; border-collapse: collapse; margin: 15px 0; background-color: white; border: 1px solid #dee2e6; table-layout: fixed; }}
+        .horizontal-table th {{ background-color: #495057; color: white; padding: 8px 4px; text-align: center; font-size: 11px; font-weight: 600; border: 1px solid #dee2e6; word-wrap: break-word; }}
+        .horizontal-table td {{ border: 1px solid #dee2e6; padding: 8px 4px; text-align: center; font-weight: 600; color: #212529; background-color: #f8f9fa; font-size: 13px; }}
+        .horizontal-table td:last-child {{ background-color: #e9ecef; color: #2c3e50; font-weight: 700; }}
+        .calc-columns {{ display: table; width: 100%; margin-top: 15px; border-spacing: 10px; }}
+        .calc-left {{ display: table-cell; width: 50%; vertical-align: top; }}
+        .calc-right {{ display: table-cell; width: 50%; vertical-align: top; }}
+        .calc-box {{ background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #dee2e6; }}
+        .calc-title {{ background-color: #6c757d; color: white; padding: 8px; font-weight: 600; margin: -15px -15px 12px -15px; text-align: center; font-size: 13px; }}
+        .calc-row {{ padding: 8px 0; border-bottom: 1px solid #e9ecef; display: table; width: 100%; }}
+        .calc-row:last-child {{ border-bottom: none; }}
+        .calc-label {{ display: table-cell; font-weight: 500; color: #495057; width: 60%; font-size: 13px; }}
+        .calc-value {{ display: table-cell; font-weight: 700; color: #212529; text-align: right; width: 40%; font-size: 14px; }}
+        .total-row {{ background-color: #e9ecef; border-radius: 4px; padding: 10px 8px; margin-top: 8px; border: 1px solid #dee2e6; display: block; overflow: hidden; }}
+        .total-row .calc-label {{ font-weight: 700; color: #2c3e50; display: table-cell; width: 60%; }}
+        .total-row .calc-value {{ color: #2c3e50; font-size: 15px; display: table-cell; width: 40%; text-align: right; }}
+        .no-calculations {{ text-align: center; color: #6c757d; font-style: italic; padding: 40px; background-color: #f8f9fa; border-radius: 4px; }}
         .page-break {{ page-break-before: always; }}
-        .calculation-header {{ background-color: #e9ecef; padding: 10px; margin: 10px 0; font-weight: bold; }}
-        .packing-section {{ margin: 15px 0; }}
-        .calculation-section {{ margin: 15px 0; }}
-        .value {{ font-weight: bold; color: #007bff; }}
-        h2 {{ color: #333; margin-bottom: 5px; }}
-        h3 {{ color: #666; margin-bottom: 10px; }}
-        h4 {{ color: #333; margin-bottom: 8px; }}
-        .transaction-info {{ background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
-        .no-calculations {{ text-align: center; color: #666; font-style: italic; padding: 20px; }}
+        h2 {{ margin: 0; font-size: 22px; font-weight: 600; letter-spacing: 0.5px; }}
+        h3 {{ margin: 5px 0 0 0; font-size: 14px; font-weight: 400; opacity: 0.9; }}
     </style>
 </head>
 <body>
@@ -2062,17 +2277,39 @@ namespace KVM_ERP.Controllers
         <h3>Raw Material Intake Calculation Details</h3>
     </div>
     
-    <div class='transaction-info'>
-        <h4>Transaction Information</h4>
-        <table class='table'>
-            <tr><th>Transaction ID:</th><td>{transaction.TRANMID}</td></tr>
-            <tr><th>Transaction Date:</th><td>{transaction.TRANDATE:dd/MM/yyyy}</td></tr>
-            <tr><th>Supplier Name:</th><td>{transaction.CATENAME ?? "N/A"}</td></tr>
-            <tr><th>Supplier Code:</th><td>{transaction.CATECODE ?? "N/A"}</td></tr>
-            <tr><th>Vehicle No:</th><td>{transaction.VECHNO ?? "N/A"}</td></tr>
-            <tr><th>Client Weight (KG):</th><td>{transaction.CLIENTWGHT:F3}</td></tr>
-            <tr><th>Report Generated:</th><td>{DateTime.Now:dd/MM/yyyy HH:mm:ss}</td></tr>
-        </table>
+    <div class='report-date'>
+        <strong>Report Generated:</strong> {DateTime.Now:dd-MM-yyyy HH:mm:ss}
+    </div>
+    
+    <div class='transaction-row'>
+        <div class='transaction-left'>
+            <div class='info-box'>
+                <span class='info-label'>Transaction No:</span>
+                <span class='info-value'>{transaction.TRANDNO ?? "N/A"}</span>
+            </div>
+            <div class='info-box'>
+                <span class='info-label'>Transaction Date:</span>
+                <span class='info-value'>{transaction.TRANDATE:dd-MM-yyyy}</span>
+            </div>
+        </div>
+        <div class='transaction-right'>
+            <div class='info-box'>
+                <span class='info-label'>Supplier Name:</span>
+                <span class='info-value'>{transaction.CATENAME ?? "N/A"}</span>
+            </div>
+            <div class='info-box'>
+                <span class='info-label'>Supplier Code:</span>
+                <span class='info-value'>{transaction.CATECODE ?? "N/A"}</span>
+            </div>
+            <div class='info-box'>
+                <span class='info-label'>Vehicle No:</span>
+                <span class='info-value'>{transaction.VECHNO ?? "N/A"}</span>
+            </div>
+            <div class='info-box'>
+                <span class='info-label'>Client Weight (KG):</span>
+                <span class='info-value'>{transaction.CLIENTWGHT:F3}</span>
+            </div>
+        </div>
     </div>";
 
             // Add calculations for each transaction detail
@@ -2086,7 +2323,7 @@ namespace KVM_ERP.Controllers
 
                 html += $@"
     <div class='section'>
-        <div class='calculation-header'>
+        <div class='product-header'>
             Product: {product} ({productType}) - Boxes: {boxes}, Count: {counts}
         </div>";
 
@@ -2106,32 +2343,94 @@ namespace KVM_ERP.Controllers
                         var packingMaster = db.PackingMasters.FirstOrDefault(p => p.PACKMID == packingId);
                         var packingName = packingMaster?.PACKMDESC ?? $"Packing {packingId}";
 
+                        // Get Grade, Production Colour, Received Type with error handling
+                        string gradeName = "N/A";
+                        string productionColour = "N/A";
+                        string receivedType = "N/A";
+                        
+                        try
+                        {
+                            if (calculation.GRADEID > 0)
+                            {
+                                var grade = db.GradeMasters.FirstOrDefault(g => g.GRADEID == calculation.GRADEID);
+                                gradeName = grade?.GRADEDESC ?? "N/A";
+                            }
+                        }
+                        catch { gradeName = "N/A"; }
+                        
+                        try
+                        {
+                            if (calculation.PCLRID > 0)
+                            {
+                                var pColour = db.ProductionColourMasters.FirstOrDefault(p => p.PCLRID == calculation.PCLRID);
+                                productionColour = pColour?.PCLRDESC ?? "N/A";
+                            }
+                        }
+                        catch { productionColour = "N/A"; }
+                        
+                        try
+                        {
+                            if (calculation.RCVDTID > 0)
+                            {
+                                var rType = db.ReceivedTypeMasters.FirstOrDefault(r => r.RCVDTID == calculation.RCVDTID);
+                                receivedType = rType?.RCVDTDESC ?? "N/A";
+                            }
+                        }
+                        catch { receivedType = "N/A"; }
+                        
+                        var calculationMode = calculation.CALCULATIONMODE == 2 ? "Grade Weight Mode" : "Packing Mode";
+                        
                         html += $@"
-        <div class='packing-section'>
-            <h4>{packingName} Calculation</h4>";
-
-                        // Add production date if available
+        <div class='calculation-header'>
+            {packingName} Calculation
+        </div>
+        
+        <div class='inline-row'>
+            <div class='inline-cell-50'>
+                <div class='detail-box'>";
+                        
                         if (calculation.PRODDATE.HasValue)
                         {
                             html += $@"
-            <p><strong>Production Date:</strong> {calculation.PRODDATE.Value:dd/MM/yyyy}</p>";
+                    <strong>Production Date:</strong> {calculation.PRODDATE.Value:dd-MM-yyyy}";
                         }
-
-                        // Add calculation mode
-                        var calculationMode = calculation.CALCULATIONMODE == 2 ? "Grade Weight Mode" : "Packing Mode";
+                        else
+                        {
+                            html += @"
+                    <strong>Production Date:</strong> N/A";
+                        }
+                        
                         html += $@"
-            <p><strong>Calculation Mode:</strong> {calculationMode}</p>";
+                </div>
+            </div>
+            <div class='inline-cell-50'>
+                <div class='detail-box-alt'>
+                    <strong>Calculation Mode:</strong> {calculationMode}
+                </div>
+            </div>
+        </div>
+        
+        <div class='inline-row'>
+            <div class='inline-cell'>
+                <div class='detail-box-purple'>
+                    <strong>Grade:</strong> {gradeName}
+                </div>
+            </div>
+            <div class='inline-cell'>
+                <div class='detail-box-purple'>
+                    <strong>Production Colour:</strong> {productionColour}
+                </div>
+            </div>
+            <div class='inline-cell'>
+                <div class='detail-box-purple'>
+                    <strong>Received Type:</strong> {receivedType}
+                </div>
+            </div>
+        </div>";
 
                         // Get packing type fields for this packing master
                         var packingFields = GetPackingTypeFieldsForPDF(packingId);
                         
-                        // Display packing details
-                        html += $@"
-            <div class='calculation-section'>
-                <h5>Packing Details</h5>
-                <table class='table'>
-                    <tr><th>Slab Size</th><th>Count</th></tr>";
-
                         var pckValues = new[] { 
                             calculation.PCK1, calculation.PCK2, calculation.PCK3, calculation.PCK4, 
                             calculation.PCK5, calculation.PCK6, calculation.PCK7, calculation.PCK8, 
@@ -2140,59 +2439,132 @@ namespace KVM_ERP.Controllers
                             calculation.PCK17 
                         };
 
+                        // Build horizontal table with non-zero values
+                        var nonZeroPackings = new System.Collections.Generic.List<(string label, decimal value)>();
                         for (int i = 0; i < pckValues.Length && i < packingFields.Count; i++)
                         {
                             if (pckValues[i] > 0)
                             {
-                                html += $@"
-                    <tr><td>{packingFields[i]}</td><td class='value'>{pckValues[i]:F3}</td></tr>";
+                                nonZeroPackings.Add((packingFields[i], pckValues[i]));
                             }
                         }
-
+                        
+                        html += @"
+        <div style='margin: 15px 0;'>
+            <div style='background-color: #6c757d; color: white; padding: 10px; font-weight: 600; margin-bottom: 10px; text-align: center; font-size: 13px;'>Packing Details</div>
+            <table class='horizontal-table'>
+                <tr>";
+                        
+                        // Add header row
+                        foreach (var pck in nonZeroPackings)
+                        {
+                            html += $@"
+                    <th>{pck.label}</th>";
+                        }
                         html += $@"
-                    <tr style='background-color: #e9ecef;'><th>Total (Slab):</th><th class='value'>{calculation.TOPCK:F3}</th></tr>
-                </table>
-            </div>";
+                    <th style='background-color: #495057;'>Total</th>";
+                        
+                        html += @"
+                </tr>
+                <tr>";
+                        
+                        // Add value row
+                        foreach (var pck in nonZeroPackings)
+                        {
+                            html += $@"
+                    <td>{pck.value:F3}</td>";
+                        }
+                        html += $@"
+                    <td style='background-color: #e9ecef; font-size: 15px; color: #2c3e50; font-weight: 700;'>{calculation.TOPCK:F3}</td>";
+                        
+                        html += @"
+                </tr>
+            </table>
+        </div>";
 
                         // Display calculation results based on mode
                         if (calculation.CALCULATIONMODE == 2) // Grade Weight Mode
                         {
                             html += $@"
-            <div class='calculation-section'>
-                <h5>Grade Weight Calculation</h5>
-                <table class='table'>
-                    <tr><th>Slab:</th><td class='value'>{calculation.TOPCK:F3}</td></tr>
-                    <tr><th>Peeled:</th><td class='value'>{calculation.WASTEWGT:F3}</td></tr>
-                    <tr style='background-color: #e9ecef;'><th>Factory Weight:</th><th class='value'>{calculation.FACTORYWGT:F3}</th></tr>
-                </table>
-            </div>";
+        <div class='calc-box'>
+            <div class='calc-title'>Grade Weight Calculation</div>
+            <div class='calc-row'>
+                <span class='calc-label'>Slab:</span>
+                <span class='calc-value'>{calculation.TOPCK:F3}</span>
+            </div>
+            <div class='calc-row'>
+                <span class='calc-label'>Peeled:</span>
+                <span class='calc-value'>{calculation.WASTEWGT:F3}</span>
+            </div>
+            <div class='calc-row total-row'>
+                <span class='calc-label'>Factory Weight:</span>
+                <span class='calc-value'>{calculation.FACTORYWGT:F3}</span>
+            </div>
+        </div>";
                         }
                         else // Packing Mode
                         {
-                            html += $@"
-            <div class='calculation-section'>
-                <h5>Slab Calculation</h5>
-                <table class='table'>
-                    <tr><th>Total PCK:</th><td class='value'>{calculation.TOPCK:F3}</td></tr>
-                    <tr><th>PCK L Value:</th><td class='value'>{calculation.PCKLVALUE:F3}</td></tr>
-                    <tr><th>Avg PCK Value:</th><td class='value'>{calculation.AVGPCKVALUE:F3}</td></tr>
-                    <tr><th>PNDS Value:</th><td class='value'>{calculation.PNDSVALUE:F3}</td></tr>
-                    <tr><th>Total PNDS:</th><td class='value'>{calculation.TOTALPNDS:F3}</td></tr>
-                </table>
+                            html += @"
+        <div class='calc-columns'>
+            <div class='calc-left'>
+                <div class='calc-box'>
+                    <div class='calc-title'>Slab Calculation</div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>Total PCK:</span>
+                        <span class='calc-value'>" + $"{calculation.TOPCK:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>PCK L Value:</span>
+                        <span class='calc-value'>" + $"{calculation.PCKLVALUE:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>Avg PCK Value:</span>
+                        <span class='calc-value'>" + $"{calculation.AVGPCKVALUE:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>PNDS Value:</span>
+                        <span class='calc-value'>" + $"{calculation.PNDSVALUE:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>Total PNDS:</span>
+                        <span class='calc-value'>" + $"{calculation.TOTALPNDS:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>Yield Percent:</span>
+                        <span class='calc-value'>" + $"{calculation.YELDPERCENT:F3}%" + @"</span>
+                    </div>
+                    <div class='total-row'>
+                        <span class='calc-label'>Total Yield Counts:</span>
+                        <span class='calc-value'>" + $"{calculation.TOTALYELDCOUNTS:F3}" + @"</span>
+                    </div>
+                </div>
             </div>
-
-            <div class='calculation-section'>
-                <h5>Total Weight Calculation</h5>
-                <table class='table'>
-                    <tr><th>Yield Percent:</th><td class='value'>{calculation.YELDPERCENT:F3}%</td></tr>
-                    <tr><th>Total Yield Counts:</th><td class='value'>{calculation.TOTALYELDCOUNTS:F3}</td></tr>
-                    <tr><th>KG Weight:</th><td class='value'>{calculation.KGWGT:F3}</td></tr>
-                    <tr><th>PCK KG Weight:</th><td class='value'>{calculation.PCKKGWGT:F3}</td></tr>
-                    <tr><th>Waste Weight:</th><td class='value'>{calculation.WASTEWGT:F3}</td></tr>
-                    <tr><th>Waste P Weight:</th><td class='value'>{calculation.WASTEPWGT:F3}</td></tr>
-                    <tr style='background-color: #e9ecef;'><th>Factory Weight:</th><th class='value'>{calculation.FACTORYWGT:F3}</th></tr>
-                </table>
-            </div>";
+            <div class='calc-right'>
+                <div class='calc-box'>
+                    <div class='calc-title'>Weight Details</div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>KG Weight:</span>
+                        <span class='calc-value'>" + $"{calculation.KGWGT:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>PCK KG Weight:</span>
+                        <span class='calc-value'>" + $"{calculation.PCKKGWGT:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>Waste Weight:</span>
+                        <span class='calc-value'>" + $"{calculation.WASTEWGT:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row'>
+                        <span class='calc-label'>Waste P Weight:</span>
+                        <span class='calc-value'>" + $"{calculation.WASTEPWGT:F3}" + @"</span>
+                    </div>
+                    <div class='calc-row total-row'>
+                        <span class='calc-label'>Factory Weight:</span>
+                        <span class='calc-value'>" + $"{calculation.FACTORYWGT:F3}" + @"</span>
+                    </div>
+                </div>
+            </div>
+        </div>";
                         }
 
                         html += @"
