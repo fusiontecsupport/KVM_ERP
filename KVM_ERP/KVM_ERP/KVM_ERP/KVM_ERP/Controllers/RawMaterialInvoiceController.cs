@@ -533,13 +533,17 @@ namespace KVM_ERP.Controllers
 
         // Get invoice items for editing
         [HttpPost]
-        public JsonResult GetInvoiceItems(int invoiceId)
+        public JsonResult GetInvoiceItems(int invoiceId, bool isApprovalMode = false)
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"GetInvoiceItems called for invoiceId: {invoiceId}");
+                System.Diagnostics.Debug.WriteLine($"GetInvoiceItems called for invoiceId: {invoiceId}, isApprovalMode: {isApprovalMode}");
                 
-                var items = context.Database.SqlQuery<InvoiceItemEditViewModel>(@"
+                // In Approval Mode: Show TRANDQTY (approved quantity)
+                // In Regular Mode: Show TRANEQTY (original invoice quantity)
+                string netWeightColumn = isApprovalMode ? "td.TRANDQTY" : "td.TRANEQTY";
+                
+                var items = context.Database.SqlQuery<InvoiceItemEditViewModel>($@"
                     SELECT 
                         td.TRANDID,
                         td.MTRLID as ItemId,
@@ -552,7 +556,7 @@ namespace KVM_ERP.Controllers
                         td.RCVDTID as ReceivedTypeId,
                         rt.RCVDTDESC as ReceivedType,
                         td.TRANAQTY as ActualWeight,
-                        td.TRANEQTY as NetWeight,
+                        {netWeightColumn} as NetWeight,
                         td.TRANDRATE as Rate,
                         td.TRANDAMT as Amount,
                         ISNULL(td.TRANDAID, 0) as TRANPID
@@ -658,7 +662,11 @@ namespace KVM_ERP.Controllers
                 System.Diagnostics.Debug.WriteLine($"Found {allItems.Count} total available items");
                 
                 // STEP 3: Get saved items from THIS invoice
-                var savedItems = context.Database.SqlQuery<InvoiceItemEditViewModel>(@"
+                // In Approval Mode: Use TRANDQTY (approved quantity)
+                // In Regular Mode: Use TRANEQTY (original invoice quantity)
+                string netWeightColumn = isApprovalMode ? "td.TRANDQTY" : "td.TRANEQTY";
+                
+                var savedItems = context.Database.SqlQuery<InvoiceItemEditViewModel>($@"
                     SELECT 
                         td.TRANDID,
                         td.MTRLID as ItemId,
@@ -667,7 +675,7 @@ namespace KVM_ERP.Controllers
                         td.PCLRID as ProductionColourId,
                         td.RCVDTID as ReceivedTypeId,
                         td.TRANAQTY as ActualWeight,
-                        td.TRANEQTY as NetWeight,
+                        {netWeightColumn} as NetWeight,
                         td.TRANDRATE as Rate,
                         td.TRANDAMT as Amount,
                         ISNULL(td.TRANDAID, 0) as TRANPID
@@ -1243,11 +1251,11 @@ namespace KVM_ERP.Controllers
                         decimal tranaqty, traneqty, trandqty;
                         if (model.IsApprovalMode && existingQuantities != null && existingQuantities.ContainsKey(trandaid))
                         {
-                            // Approval Mode: Keep original TRANAQTY and TRANEQTY, only update TRANDQTY
-                            tranaqty = existingQuantities[trandaid].Item1;  // Original TRANAQTY
-                            traneqty = existingQuantities[trandaid].Item2;  // Previous TRANEQTY
-                            trandqty = item.NetWeight;                       // New value goes to TRANDQTY
-                            System.Diagnostics.Debug.WriteLine($"  Approval Mode: TRANAQTY={tranaqty}, TRANEQTY={traneqty}, TRANDQTY={trandqty}");
+                            // Approval Mode: Keep original TRANAQTY and TRANEQTY, only update TRANDQTY with new Net Weight
+                            tranaqty = existingQuantities[trandaid].Item1;  // Original TRANAQTY (unchanged)
+                            traneqty = existingQuantities[trandaid].Item2;  // Original TRANEQTY (unchanged - for reference/checking)
+                            trandqty = item.NetWeight;                       // Update TRANDQTY with new Net Weight (approval quantity)
+                            System.Diagnostics.Debug.WriteLine($"  Approval Mode: TRANAQTY={tranaqty}, TRANEQTY={traneqty} (ORIGINAL), TRANDQTY={trandqty} (NEW)");
                         }
                         else
                         {
@@ -1269,9 +1277,9 @@ namespace KVM_ERP.Controllers
                             item.ProductionColourId, // @p6 - PCLRID
                             item.ReceivedTypeId,     // @p7 - RCVDTID
                             hsnId,                   // @p8 - HSNID (from Material Master)
-                            tranaqty,                // @p9 - TRANAQTY (Original from Raw Material Intake)
-                            trandqty,                // @p10 - TRANDQTY (Approval: new value, Regular: same as TRANEQTY)
-                            traneqty,                // @p11 - TRANEQTY (Approval: unchanged, Regular: NetWeight)
+                            tranaqty,                // @p9 - TRANAQTY (Approval: unchanged, Regular: ActualWeight)
+                            trandqty,                // @p10 - TRANDQTY (Approval: new NetWeight, Regular: NetWeight)
+                            traneqty,                // @p11 - TRANEQTY (Approval: unchanged for reference, Regular: NetWeight)
                             item.Rate,               // @p12 - TRANDRATE
                             item.Amount,             // @p13 - TRANDAMT
                             0.00m,                   // @p14 - TRANDDISCEXPRN (default 0.00)

@@ -814,10 +814,14 @@
         }
 
         function loadInvoiceItems(invoiceId) {
+            var isApprovalMode = @(ViewBag.IsApprovalMode != null && ViewBag.IsApprovalMode == true ? "true" : "false");
             $.ajax({
                 url: '@Url.Action("GetInvoiceItems", "RawMaterialInvoice")',
                 type: 'POST',
-                data: { invoiceId: invoiceId },
+                data: { 
+                    invoiceId: invoiceId,
+                    isApprovalMode: isApprovalMode
+                },
                 beforeSend: function () {
                     $('#itemsTableBody').html('<tr><td colspan="10" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading saved items...</td></tr>');
                 },
