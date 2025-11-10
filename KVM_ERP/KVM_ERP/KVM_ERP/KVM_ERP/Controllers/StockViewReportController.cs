@@ -186,7 +186,7 @@ namespace KVM_ERP.Controllers
                     worksheet.Cell(row, 1).Style.Font.Bold = true;
                     row++;
 
-                    // OPENING STOCK Row
+                    // OPENING STOCK Row (data before fromDate)
                     worksheet.Cell(row, 1).Value = "OPENING STOCK";
                     for (int i = 0; i < openingData.Count; i++)
                     {
@@ -196,7 +196,7 @@ namespace KVM_ERP.Controllers
                     worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(227, 242, 253);
                     row++;
 
-                    // PRODUCTION Row
+                    // PRODUCTION Row (data from fromDate to toDate)
                     worksheet.Cell(row, 1).Value = "PRODUCTION";
                     for (int i = 0; i < productionData.Count; i++)
                     {
@@ -310,7 +310,7 @@ namespace KVM_ERP.Controllers
                 worksheet.Cell(row, 1).Style.Font.Bold = true;
                 row++;
 
-                // OPENING STOCK Row (data up to toDate - 1) - Dynamic
+                // OPENING STOCK Row (data before fromDate) - Dynamic
                 worksheet.Cell(row, 1).Value = "OPENING STOCK";
                 for (int i = 0; i < openingData.Count; i++)
                 {
@@ -320,7 +320,7 @@ namespace KVM_ERP.Controllers
                 worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(227, 242, 253); // Light Blue
                 row++;
 
-                // PRODUCTION Row (data on toDate only) - Dynamic
+                // PRODUCTION Row (data from fromDate to toDate) - Dynamic
                 worksheet.Cell(row, 1).Value = "PRODUCTION";
                 for (int i = 0; i < productionData.Count; i++)
                 {
@@ -382,43 +382,28 @@ namespace KVM_ERP.Controllers
             try
             {
                 System.Diagnostics.Debug.WriteLine($"GetStockViewReportData - From: {fromDate:yyyy-MM-dd}, To: {toDate:yyyy-MM-dd}, Tab: {tab}");
+                System.Diagnostics.Debug.WriteLine($"Opening Stock: Data BEFORE {fromDate:yyyy-MM-dd}");
+                System.Diagnostics.Debug.WriteLine($"Production: Data FROM {fromDate:yyyy-MM-dd} TO {toDate:yyyy-MM-dd}");
 
                 var stockData = new List<StockViewReportData>();
-                DateTime openingStockDate = toDate.AddDays(-1);
 
-                // Get all transaction data with packing master info
-                var allData = (from tpc in db.TransactionProductCalculations
-                               join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
-                               join m in db.MaterialMasters on td.MTRLID equals m.MTRLID
-                               join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
-                               join packing in db.PackingMasters on tpc.PACKMID equals packing.PACKMID
-                               join grade in db.GradeMasters on tpc.GRADEID equals grade.GRADEID into gradeLeft
-                               from grade in gradeLeft.DefaultIfEmpty()
-                               join color in db.ProductionColourMasters on tpc.PCLRID equals color.PCLRID into colorLeft
-                               from color in colorLeft.DefaultIfEmpty()
-                               join rcvdType in db.ReceivedTypeMasters on tpc.RCVDTID equals rcvdType.RCVDTID into rcvdLeft
-                               from rcvdType in rcvdLeft.DefaultIfEmpty()
-                               where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
-                                     && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
-                                     && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                     && tm.TRANDATE <= toDate
-                               select new {
-                                   tm.TRANDATE,
-                                   ProductId = m.MTRLID,
-                                   ProductName = m.MTRLDESC,
-                                   PackingMasterId = packing.PACKMID,
-                                   PackingMasterName = packing.PACKMDESC,
-                                   KGWGT = tpc.KGWGT,
-                                   GradeName = grade != null ? grade.GRADEDESC : "",
-                                   ColorName = color != null ? color.PCLRDESC : "",
-                                   ReceivedTypeName = rcvdType != null ? rcvdType.RCVDTDESC : "",
-                                   Calculation = tpc
-                               }).ToList();
+                // Call stored procedure to get stock data with proper date filtering
+                // Opening Stock: Data BEFORE fromDate (DateCategory = 0)
+                // Production: Data FROM fromDate TO toDate (DateCategory = 1)
+                var allData = db.Database.SqlQuery<StockDataDTO>(
+                    "EXEC pr_GetStockViewReportData @FromDate, @ToDate",
+                    new System.Data.SqlClient.SqlParameter("@FromDate", fromDate),
+                    new System.Data.SqlClient.SqlParameter("@ToDate", toDate)
+                ).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Stored procedure returned {allData.Count} records");
 
                 // Group by packing master and product
                 var groupedByPackingAndProduct = allData
                     .GroupBy(x => new { x.PackingMasterId, x.PackingMasterName, x.ProductId, x.ProductName, x.KGWGT, x.GradeName, x.ColorName, x.ReceivedTypeName })
                     .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Grouped into {groupedByPackingAndProduct.Count} unique products");
 
                 foreach (var productGroup in groupedByPackingAndProduct)
                 {
@@ -432,9 +417,11 @@ namespace KVM_ERP.Controllers
                         .Select(pt => pt.PACKTMDESC)
                         .ToList();
 
-                    // Split data into opening and production
-                    var openingData = productGroup.Where(x => x.TRANDATE <= openingStockDate).ToList();
-                    var productionData = productGroup.Where(x => x.TRANDATE == toDate).ToList();
+                    // Split data based on DateCategory from stored procedure
+                    // DateCategory 0 = Opening Stock (before fromDate)
+                    // DateCategory 1 = Production (fromDate to toDate)
+                    var openingData = productGroup.Where(x => x.DateCategory == 0).ToList();
+                    var productionData = productGroup.Where(x => x.DateCategory == 1).ToList();
 
                     // Build dynamic data arrays
                     var openingDataArray = new List<decimal>();
@@ -446,12 +433,12 @@ namespace KVM_ERP.Controllers
                     
                     for (int i = 0; i < columnHeaders.Count && i < pckProperties.Length; i++)
                     {
-                        var prop = typeof(TransactionProductCalculation).GetProperty(pckProperties[i]);
+                        var prop = typeof(StockDataDTO).GetProperty(pckProperties[i]);
                         
                         decimal openingSum = 0;
                         foreach (var dataItem in openingData)
                         {
-                            var value = prop.GetValue(dataItem.Calculation);
+                            var value = prop.GetValue(dataItem);
                             openingSum += value != null ? (decimal)value : 0;
                         }
                         openingDataArray.Add(openingSum);
@@ -459,7 +446,7 @@ namespace KVM_ERP.Controllers
                         decimal productionSum = 0;
                         foreach (var dataItem in productionData)
                         {
-                            var value = prop.GetValue(dataItem.Calculation);
+                            var value = prop.GetValue(dataItem);
                             productionSum += value != null ? (decimal)value : 0;
                         }
                         productionDataArray.Add(productionSum);
@@ -528,16 +515,52 @@ namespace KVM_ERP.Controllers
         // Dynamic column headers for this packing type
         public List<string> ColumnHeaders { get; set; }
         
-        // Opening Stock (up to toDate - 1) - Dynamic data
+        // Opening Stock (before fromDate) - Dynamic data
         public List<decimal> OpeningData { get; set; }
         public decimal OpeningTotalSlabs { get; set; }
         
-        // Production (on toDate only) - Dynamic data
+        // Production (fromDate to toDate) - Dynamic data
         public List<decimal> ProductionData { get; set; }
         public decimal ProductionTotalSlabs { get; set; }
         
         // Total (Opening + Production) - Dynamic data
         public List<decimal> TotalData { get; set; }
         public decimal TotalSlabs { get; set; }
+    }
+
+    // DTO for Stored Procedure pr_GetStockViewReportData
+    public class StockDataDTO
+    {
+        public DateTime TRANDATE { get; set; }
+        public int ProductId { get; set; }
+        public string ProductName { get; set; }
+        public int PackingMasterId { get; set; }
+        public string PackingMasterName { get; set; }
+        public decimal KGWGT { get; set; }
+        public string GradeName { get; set; }
+        public string ColorName { get; set; }
+        public string ReceivedTypeName { get; set; }
+        
+        // PCK columns
+        public decimal PCK1 { get; set; }
+        public decimal PCK2 { get; set; }
+        public decimal PCK3 { get; set; }
+        public decimal PCK4 { get; set; }
+        public decimal PCK5 { get; set; }
+        public decimal PCK6 { get; set; }
+        public decimal PCK7 { get; set; }
+        public decimal PCK8 { get; set; }
+        public decimal PCK9 { get; set; }
+        public decimal PCK10 { get; set; }
+        public decimal PCK11 { get; set; }
+        public decimal PCK12 { get; set; }
+        public decimal PCK13 { get; set; }
+        public decimal PCK14 { get; set; }
+        public decimal PCK15 { get; set; }
+        public decimal PCK16 { get; set; }
+        public decimal PCK17 { get; set; }
+        
+        // Date category: 0 = Opening (before fromDate), 1 = Production (fromDate to toDate)
+        public int DateCategory { get; set; }
     }
 }

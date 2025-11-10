@@ -382,7 +382,7 @@
                             </tr>
                         `);
 
-                        // OPENING STOCK Row (data up to toDate - 1) - Dynamic columns
+                        // OPENING STOCK Row (data before fromDate) - Dynamic columns
                         let openingRow = '<tr class="opening-stock"><td class="particulars-cell">OPENING STOCK</td>';
                         for (let i = 0; i < colCount; i++) {
                             openingRow += `<td>${openingData[i] || 0}</td>`;
@@ -390,7 +390,7 @@
                         openingRow += `<td>${item.OpeningTotalSlabs || 0}</td></tr>`;
                         tbody.append(openingRow);
 
-                        // PRODUCTION Row (data on toDate only) - Dynamic columns
+                        // PRODUCTION Row (data from fromDate to toDate) - Dynamic columns
                         let productionRow = '<tr class="production"><td class="particulars-cell">PRODUCTION</td>';
                         for (let i = 0; i < colCount; i++) {
                             productionRow += `<td>${productionData[i] || 0}</td>`;
