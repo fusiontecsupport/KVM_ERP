@@ -166,6 +166,192 @@ namespace KVM_ERP.Controllers
         public ActionResult AdminDashboard()
         {
             // Dashboard accessible to all users (Admin and regular users)
+            try
+            {
+                var statsDict = new Dictionary<string, DashboardStat>();
+
+                System.Diagnostics.Debug.WriteLine("=== Dashboard Data Loading Started ===");
+
+                // 1. SHRIMP TYPES - Different material types (Active only)
+                var shrimpTypesCount = _db.MaterialMasters
+                    .Where(m => m.DISPSTATUS == 0 || m.DISPSTATUS == null)
+                    .Select(m => m.MTRLID)
+                    .Distinct()
+                    .Count();
+                statsDict["ShrimpTypes"] = new DashboardStat { StatType = "ShrimpTypes", TotalCount = shrimpTypesCount, Details = "" };
+                System.Diagnostics.Debug.WriteLine($"✓ Shrimp Types (Active Materials): {shrimpTypesCount}");
+
+                // 2. TOTAL INVOICES (REGSTRID = 2 means Raw Material Invoice)
+                var totalInvoices = _db.TransactionMasters
+                    .Where(tm => tm.REGSTRID == 2)
+                    .Count();
+                statsDict["TotalInvoices"] = new DashboardStat { StatType = "TotalInvoices", TotalCount = totalInvoices, Details = "" };
+                System.Diagnostics.Debug.WriteLine($"✓ Total Invoices (REGSTRID=2): {totalInvoices}");
+
+                // DEBUG: Show all status codes with counts
+                var statusBreakdown = (from tm in _db.TransactionMasters
+                                      join pis in _db.PurchaseInvoiceStatuses on tm.DISPSTATUS equals pis.PUINSTID into pisJoin
+                                      from pis in pisJoin.DefaultIfEmpty()
+                                      where tm.REGSTRID == 2
+                                      group tm by new { StatusCode = pis != null ? pis.PUINSTCODE : "NULL", StatusDesc = pis != null ? pis.PUINSTDESC : "No Status" } into g
+                                      select new { g.Key.StatusCode, g.Key.StatusDesc, Count = g.Count() })
+                                      .ToList();
+                
+                System.Diagnostics.Debug.WriteLine("--- Invoice Status Breakdown ---");
+                foreach (var status in statusBreakdown)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  {status.StatusCode} ({status.StatusDesc}): {status.Count} invoices");
+                }
+
+                // 3. INVOICES WAITING APPROVAL - Only invoices with PUS003 (Waiting for Approval) status
+                var waitingApprovalCount = (from tm in _db.TransactionMasters
+                                           join pis in _db.PurchaseInvoiceStatuses on tm.DISPSTATUS equals pis.PUINSTID
+                                           where tm.REGSTRID == 2
+                                               && pis.PUINSTCODE == "PUS003"  // Waiting for Approval status
+                                           select tm.TRANMID).Count();
+                
+                statsDict["InvoicesWaitingApproval"] = new DashboardStat { StatType = "InvoicesWaitingApproval", TotalCount = waitingApprovalCount, Details = "" };
+                System.Diagnostics.Debug.WriteLine($"✓ Invoices Waiting Approval (PUS003): {waitingApprovalCount}");
+
+                // 4. INVOICES APPROVED - Only invoices with PUS004 (Approved) status
+                var approvedInvoicesCount = (from tm in _db.TransactionMasters
+                                            join pis in _db.PurchaseInvoiceStatuses on tm.DISPSTATUS equals pis.PUINSTID
+                                            where tm.REGSTRID == 2
+                                                && pis.PUINSTCODE == "PUS004"  // Approved status
+                                            select tm.TRANMID).Count();
+                statsDict["InvoicesApproved"] = new DashboardStat { StatType = "InvoicesApproved", TotalCount = approvedInvoicesCount, Details = "" };
+                System.Diagnostics.Debug.WriteLine($"✓ Invoices Approved (PUS004): {approvedInvoicesCount}");
+
+                // 5. RAW MATERIAL INTAKE (REGSTRID = 1)
+                var rawMaterialIntake = _db.TransactionMasters
+                    .Where(tm => tm.REGSTRID == 1)
+                    .Count();
+                statsDict["RawMaterialIntake"] = new DashboardStat { StatType = "RawMaterialIntake", TotalCount = rawMaterialIntake, Details = "" };
+                System.Diagnostics.Debug.WriteLine($"✓ Raw Material Intake (REGSTRID=1): {rawMaterialIntake}");
+
+                // 6. TOTAL SUPPLIERS (Active only)
+                var totalSuppliers = _db.SupplierMasters
+                    .Where(s => s.DISPSTATUS == 0 || s.DISPSTATUS == null)
+                    .Count();
+                statsDict["TotalSuppliers"] = new DashboardStat { StatType = "TotalSuppliers", TotalCount = totalSuppliers, Details = "" };
+                System.Diagnostics.Debug.WriteLine($"✓ Total Suppliers (Active): {totalSuppliers}");
+
+                // 7. TOTAL CUSTOMERS (Active only)
+                var totalCustomers = _db.CustomerMasters
+                    .Where(c => c.DISPSTATUS == 0 || c.DISPSTATUS == null)
+                    .Count();
+                statsDict["TotalCustomers"] = new DashboardStat { StatType = "TotalCustomers", TotalCount = totalCustomers, Details = "" };
+                System.Diagnostics.Debug.WriteLine($"✓ Total Customers (Active): {totalCustomers}");
+
+                // 8. THIS MONTH INVOICES (Current month/year, REGSTRID=2)
+                var thisMonthInvoices = _db.TransactionMasters
+                    .Where(tm => tm.REGSTRID == 2
+                        && tm.TRANDATE.Month == DateTime.Now.Month
+                        && tm.TRANDATE.Year == DateTime.Now.Year)
+                    .Count();
+                statsDict["ThisMonthInvoices"] = new DashboardStat { StatType = "ThisMonthInvoices", TotalCount = thisMonthInvoices, Details = "" };
+                System.Diagnostics.Debug.WriteLine($"✓ This Month Invoices: {thisMonthInvoices}");
+
+                // 9. TODAY'S TRANSACTIONS (All types)
+                var todayTransactions = _db.TransactionMasters
+                    .Where(tm => DbFunctions.TruncateTime(tm.TRANDATE) == DbFunctions.TruncateTime(DateTime.Now))
+                    .Count();
+                statsDict["TodayTransactions"] = new DashboardStat { StatType = "TodayTransactions", TotalCount = todayTransactions, Details = "" };
+                System.Diagnostics.Debug.WriteLine($"✓ Today's Transactions: {todayTransactions}");
+
+                ViewBag.DashboardStats = statsDict;
+
+                // SHRIMP TYPES BY RECEIVED TYPE (for chart) - Active transactions only
+                var shrimpByType = (from tpc in _db.TransactionProductCalculations
+                                   join td in _db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                   join tm in _db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                   join rt in _db.ReceivedTypeMasters on tpc.RCVDTID equals rt.RCVDTID into rtLeft
+                                   from rt in rtLeft.DefaultIfEmpty()
+                                   where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                       && (td.DISPSTATUS == 0 || td.DISPSTATUS == null)
+                                       && tm.REGSTRID == 1  // Raw Material Intake only
+                                   group tpc by new { ReceivedType = rt != null ? rt.RCVDTDESC : "Unknown" } into g
+                                   select new ShrimpByTypeDTO
+                                   {
+                                       ReceivedType = g.Key.ReceivedType,
+                                       Count = g.Count()
+                                   })
+                                   .OrderByDescending(x => x.Count)
+                                   .ToList();
+                ViewBag.ShrimpByType = shrimpByType;
+                System.Diagnostics.Debug.WriteLine($"✓ Shrimp By Type: {shrimpByType.Count} types found");
+
+                // MONTHLY INVOICE TREND (Last 6 months, REGSTRID=2 only)
+                var sixMonthsAgo = DateTime.Now.AddMonths(-6);
+                var monthlyInvoicesRaw = (from tm in _db.TransactionMasters
+                                         where tm.REGSTRID == 2  // Only invoices
+                                             && tm.TRANDATE >= sixMonthsAgo
+                                         group tm by new { tm.TRANDATE.Month, tm.TRANDATE.Year } into g
+                                         orderby g.Key.Year, g.Key.Month
+                                         select new 
+                                         {
+                                             Month = g.Key.Month,
+                                             Year = g.Key.Year,
+                                             InvoiceCount = g.Count()
+                                         })
+                                         .ToList();
+                
+                // Convert month number to name in memory (not in SQL)
+                var monthlyInvoices = monthlyInvoicesRaw.Select(m => new MonthlyInvoiceDTO
+                {
+                    MonthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m.Month),
+                    InvoiceCount = m.InvoiceCount
+                }).ToList();
+                
+                ViewBag.MonthlyInvoices = monthlyInvoices;
+                System.Diagnostics.Debug.WriteLine($"✓ Monthly Invoices: {monthlyInvoices.Count} months with data");
+
+                // TOP 5 SHRIMP TYPES BY QUANTITY (Active records only)
+                var topShrimpTypes = (from tpc in _db.TransactionProductCalculations
+                                     join td in _db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                     join tm in _db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                     join m in _db.MaterialMasters on td.MTRLID equals m.MTRLID
+                                     where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                         && (td.DISPSTATUS == 0 || td.DISPSTATUS == null)
+                                         && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
+                                         && tm.REGSTRID == 1  // Raw Material Intake
+                                     group tpc by m.MTRLDESC into g
+                                     select new TopShrimpTypeDTO
+                                     {
+                                         ShrimpType = g.Key,
+                                         Transactions = g.Count(),
+                                         TotalQuantity = g.Sum(x =>
+                                             x.PCK1 + x.PCK2 + x.PCK3 + x.PCK4 + x.PCK5 +
+                                             x.PCK6 + x.PCK7 + x.PCK8 + x.PCK9 + x.PCK10 +
+                                             x.PCK11 + x.PCK12 + x.PCK13 + x.PCK14 + x.PCK15 +
+                                             x.PCK16 + x.PCK17)
+                                     })
+                                     .OrderByDescending(x => x.TotalQuantity)
+                                     .Take(5)
+                                     .ToList();
+                ViewBag.TopShrimpTypes = topShrimpTypes;
+                System.Diagnostics.Debug.WriteLine($"✓ Top Shrimp Types: {topShrimpTypes.Count} items");
+
+                System.Diagnostics.Debug.WriteLine("=== Dashboard Data Loading Completed Successfully ===");
+
+                System.Diagnostics.Debug.WriteLine($"Dashboard stats loaded successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ERROR loading dashboard stats: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                }
+                
+                ViewBag.DashboardStats = new Dictionary<string, DashboardStat>();
+                ViewBag.ShrimpByType = new List<ShrimpByTypeDTO>();
+                ViewBag.MonthlyInvoices = new List<MonthlyInvoiceDTO>();
+                ViewBag.TopShrimpTypes = new List<TopShrimpTypeDTO>();
+                ViewBag.ErrorMessage = ex.Message;
+            }
+
             return View();
         }
 
@@ -214,5 +400,32 @@ namespace KVM_ERP.Controllers
         {
             return HttpNotFound();
         }
+    }
+
+    // Dashboard DTOs
+    public class DashboardStat
+    {
+        public string StatType { get; set; }
+        public int TotalCount { get; set; }
+        public string Details { get; set; }
+    }
+
+    public class ShrimpByTypeDTO
+    {
+        public string ReceivedType { get; set; }
+        public int Count { get; set; }
+    }
+
+    public class MonthlyInvoiceDTO
+    {
+        public string MonthName { get; set; }
+        public int InvoiceCount { get; set; }
+    }
+
+    public class TopShrimpTypeDTO
+    {
+        public string ShrimpType { get; set; }
+        public int Transactions { get; set; }
+        public decimal TotalQuantity { get; set; }
     }
 }

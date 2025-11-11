@@ -25,7 +25,8 @@ namespace KVM_ERP.Controllers
         {
             try
             {
-                var query = db.TransactionMasters.AsQueryable();
+                // Filter only Raw Material Intake (REGSTRID = 1)
+                var query = db.TransactionMasters.Where(t => t.REGSTRID == 1);
                 if (fromDate.HasValue)
                 {
                     query = query.Where(t => t.TRANDATE >= fromDate.Value);
@@ -67,7 +68,8 @@ namespace KVM_ERP.Controllers
         [Authorize(Roles = "RawMaterialIntakeReportIndex")]
         public ActionResult RawMaterialsImportExcel(DateTime? fromDate, DateTime? toDate)
         {
-            var query = db.TransactionMasters.AsQueryable();
+            // Filter only Raw Material Intake (REGSTRID = 1)
+            var query = db.TransactionMasters.Where(t => t.REGSTRID == 1);
             if (fromDate.HasValue) query = query.Where(t => t.TRANDATE >= fromDate.Value);
             if (toDate.HasValue) query = query.Where(t => t.TRANDATE <= toDate.Value);
 
