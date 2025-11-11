@@ -1021,11 +1021,13 @@
             // Store TRANDID for saving
             $('#productCalculationModal').data('trandid', trandid);
             
-            // IMPORTANT: Clear cached data from previous modal opens
+            // IMPORTANT: Clear cached data AND field containers from previous modal opens
             $('.tab-pane').each(function() {
                 $(this).removeData('existing-calculation');
+                // Also clear the field containers so fields will be reloaded
+                $(this).find('.packing-fields-container').empty();
             });
-            console.log('Cleared cached calculation data for fresh load');
+            console.log('Cleared cached calculation data and field containers for fresh load');
             
             // Clear all tab calculations
             $('.tab-pane .calculation-result').text('0.000');
@@ -1395,57 +1397,33 @@
                 }, isGradeWeightMode ? 0 : 50); // No delay for Grade Weight, 50ms for Packing
             } else {
                 // Fields don't exist, need to load and populate
-                if (storedCalculation) {
-                    console.log('Found stored calculation data, populating tab...');
-                    setTimeout(function() {
-                        populateTabCalculation(storedCalculation, packingId);
-                    }, 200); // Reduced from 500ms to 200ms
-                } else {
+                // NOTE: Don't populate here! The renderPackingTypeFieldsForTab() function
+                // will handle population after fields are loaded via AJAX.
+                // Calling populate here causes race condition where fields aren't ready yet.
+                console.log('Fields need to be loaded. Population will happen after field rendering.');
+                
+                // If no stored calculation, load from server
+                if (!storedCalculation) {
                     console.log('No stored calculation found, loading from server...');
                     loadExistingCalculationForTab(packingId);
                 }
-                
-                // Trigger calculation after fields are loaded
-                setTimeout(function() {
-                    const hasData = tabPane.find('.pck-field').filter(function() {
-                        return $(this).val() && parseFloat($(this).val()) > 0;
-                    }).length > 0;
-                    
-                    if (hasData) {
-                        console.log('Tab switched (new fields) - triggering calculation for:', packingId);
-                        calculateTabTotals(tabPane);
-                    }
-                }, 300); // Reduced from 800ms to 300ms
+                // If stored calculation exists, it will be populated by renderPackingTypeFieldsForTab
             }
         }
 
         // Handle packing master tab change (backup event handler)
+        // NOTE: This is a fallback handler in case Bootstrap's tab event fires
+        // The main tab switching is handled by the direct click handler and switchTab() function
         $(document).on('shown.bs.tab', '#packingMasterTabs a[data-toggle="tab"]', function (e) {
             const packingId = $(e.target).data('packing-id');
-            console.log('Tab changed via event:', packingId);
+            console.log('Bootstrap tab event fired for:', packingId);
             if (packingId) {
-                loadPackingTypeFieldsForTab(packingId);
-                loadExistingCalculationForTab(packingId);
-                
                 // Update radio buttons for this tab
                 setTimeout(function() {
                     updateRadioButtonsForActiveTab();
                 }, 200);
                 // Re-ensure factory fields after tab change
                 ensureFactoryFieldsPopulated();
-                
-                // Trigger calculation after tab change
-                setTimeout(function() {
-                    const tabPane = $(`#pane-${packingId}`);
-                    const hasData = tabPane.find('.pck-field').filter(function() {
-                        return $(this).val() && parseFloat($(this).val()) > 0;
-                    }).length > 0;
-                    
-                    if (hasData) {
-                        console.log('Bootstrap tab event - triggering calculation for:', packingId);
-                        calculateTabTotals(tabPane);
-                    }
-                }, 300); // Reduced from 1000ms to 300ms for faster response
             }
         });
 
@@ -1456,25 +1434,9 @@
             console.log('Tab clicked:', packingId);
             switchTab(packingId);
             
-            // Update radio buttons for this tab
-            setTimeout(function() {
-                updateRadioButtonsForActiveTab();
-            }, 300);
-            // Re-ensure factory fields on manual tab click
+            // Note: Radio button updates and calculations are handled within switchTab()
+            // Just ensure factory fields are populated
             ensureFactoryFieldsPopulated();
-            
-            // Trigger calculation after direct tab click
-            setTimeout(function() {
-                const tabPane = $(`#pane-${packingId}`);
-                const hasData = tabPane.find('.pck-field').filter(function() {
-                    return $(this).val() && parseFloat($(this).val()) > 0;
-                }).length > 0;
-                
-                if (hasData) {
-                    console.log('Direct tab click - triggering calculation for:', packingId);
-                    calculateTabTotals(tabPane);
-                }
-            }, 1200);
         });
 
         // Handle modal shown event to update radio buttons for initial tab
