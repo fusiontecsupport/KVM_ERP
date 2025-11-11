@@ -644,7 +644,7 @@
                     var nbox = parseInt($(this).find('input.nbox').val()||'0',10);
                     var cnt = parseInt($(this).find('input.counts').val()||'0',10);
                     var trandid = parseInt($(this).data('trandid')||'0',10);
-                    if (gid>0 && pid>0 && nbox>0 && cnt>0){
+                    if (gid>0 && pid>0 && nbox>=0 && cnt>=0){
                         rows.push({ TRANDID: trandid, MTRLGID: gid, MTRLID: pid, MTRLNBOX: nbox, MTRLCOUNTS: cnt });
                     }
                 });
@@ -830,8 +830,8 @@
                 var $sno = $('<td class="text-center align-middle"></td>').text(idx);
                 var $gtd = $('<td></td>');
                 var $ptd = $('<td></td>');
-                var $box = $('<td></td>').append('<input type="number" min="1" class="form-control nbox" placeholder="0" />');
-                var $cnt = $('<td></td>').append('<input type="number" min="1" class="form-control counts" placeholder="0" />');
+                var $box = $('<td></td>').append('<input type="number" min="0" class="form-control nbox" placeholder="0" />');
+                var $cnt = $('<td></td>').append('<input type="number" min="0" class="form-control counts" placeholder="0" />');
                 var $weight = $('<td class="text-center align-middle"></td>').append('<span class="factory-weight-display text-muted">-</span>');
                 var $act = $('<td class="text-center"></td>');
                 var $del = $('<button type="button" class="btn btn-danger btn-sm removeRow"><i class="fa fa-trash"></i></button>');

@@ -327,7 +327,7 @@ namespace KVM_ERP.Controllers
                         // Upsert rows
                         foreach (var d in details)
                         {
-                            if (d.MTRLGID > 0 && d.MTRLID > 0 && d.MTRLNBOX > 0 && d.MTRLCOUNTS > 0)
+                            if (d.MTRLGID > 0 && d.MTRLID > 0 && d.MTRLNBOX >= 0 && d.MTRLCOUNTS >= 0)
                             {
                                 if (d.TRANDID > 0 && existingDetails.Any(ed => ed.TRANDID == d.TRANDID))
                                 {
@@ -427,7 +427,7 @@ namespace KVM_ERP.Controllers
                 // Insert details
                 foreach (var d in details)
                 {
-                    if (d.MTRLGID > 0 && d.MTRLID > 0 && d.MTRLNBOX > 0 && d.MTRLCOUNTS > 0)
+                    if (d.MTRLGID > 0 && d.MTRLID > 0 && d.MTRLNBOX >= 0 && d.MTRLCOUNTS >= 0)
                     {
                         db.Database.ExecuteSqlCommand(@"
                             INSERT INTO TRANSACTIONDETAIL (TRANMID, MTRLGID, MTRLID, MTRLNBOX, MTRLCOUNTS, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
