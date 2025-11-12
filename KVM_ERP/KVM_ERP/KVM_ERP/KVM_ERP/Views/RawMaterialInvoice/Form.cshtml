@@ -855,8 +855,11 @@
                     }
                     
                     if (isEditMode && editId > 0) {
-                        // Load ALL items for editing (saved + available)
-                        loadInvoiceItemsForEdit(editId);
+                        // Disable supplier dropdown in edit mode
+                        $('#supplierName').prop('disabled', true);
+                        
+                        // Load ONLY saved items for editing
+                        loadInvoiceItems(editId);
                         // Load saved tax factors for editing
                         loadInvoiceTaxFactors(editId);
                     } else {
@@ -970,6 +973,14 @@
                             $('.rate[data-index="' + index + '"]').val(item.Rate.toFixed(2));
                             $('.amount[data-index="' + index + '"]').val(item.Amount.toFixed(2));
                         });
+                        
+                        // In edit mode, disable all checkboxes to prevent unchecking saved items
+                        var isEditMode = @(ViewBag.IsEdit != null ? "true" : "false");
+                        if (isEditMode === "true") {
+                            $('.row-checkbox').prop('disabled', true);
+                            $('#selectAll').prop('disabled', true);
+                            console.log('Edit mode: All checkboxes disabled');
+                        }
                         
                         // Update Select All checkbox state
                         var totalCheckboxes = $('.row-checkbox').length;
