@@ -1936,6 +1936,9 @@
                 // Check if this field is BKN (Broken)
                 const isBKNField = fieldLabel === 'BKN' || fieldLabel === 'BROKEN' || fieldLabel.includes('BKN');
                 
+                // Check if this field is OTHERS
+                const isOTHERSField = fieldLabel === 'OTHERS' || fieldLabel === 'OTHER' || fieldLabel.includes('OTHERS');
+                
                 if (isBKNField) {
                     // Create BKN field with special class
                     html += `
@@ -1943,6 +1946,16 @@
                             <div class="form-group">
                                 <label for="bkn_${packingId}">${field.label}:</label>
                                 <input type="number" class="form-control bkn-field" id="bkn_${packingId}" min="0" step="0.001" placeholder="0.000" data-multiplier="${getMultiplierFromLabel(field.label)}">
+                            </div>
+                        </div>
+                    `;
+                } else if (isOTHERSField) {
+                    // Create OTHERS field with special class
+                    html += `
+                        <div class="${colClass} mb-3">
+                            <div class="form-group">
+                                <label for="others_${packingId}">${field.label}:</label>
+                                <input type="number" class="form-control others-field" id="others_${packingId}" min="0" step="0.001" placeholder="0.000" data-multiplier="${getMultiplierFromLabel(field.label)}">
                             </div>
                         </div>
                     `;
@@ -1956,7 +1969,7 @@
                             </div>
                         </div>
                     `;
-                    pckIndex++; // Increment only for non-BKN fields
+                    pckIndex++; // Increment only for non-BKN and non-OTHERS fields
                 }
             });
             
@@ -1985,7 +1998,7 @@
             
             // Also trigger calculation on input changes for this tab
             setTimeout(function() {
-                tabPane.find('.pck-field, .bkn-field, .pounds-value, .yield-percent, .per-kg-weight, .wastage').on('input', function() {
+                tabPane.find('.pck-field, .bkn-field, .others-field, .pounds-value, .yield-percent, .per-kg-weight, .wastage').on('input', function() {
                     calculateTabTotals(tabPane);
                 });
             }, 300);
@@ -2115,6 +2128,12 @@
             if (calculation.BKN !== null && calculation.BKN !== undefined) {
                 tabPane.find('.bkn-field').val(calculation.BKN);
                 console.log('Set BKN field to:', calculation.BKN);
+            }
+            
+            // Populate OTHERS field (tab-specific)
+            if (calculation.OTHERS !== null && calculation.OTHERS !== undefined) {
+                tabPane.find('.others-field').val(calculation.OTHERS);
+                console.log('Set OTHERS field to:', calculation.OTHERS);
             }
             
             // NOTE: Global fields (date, factory fields, dropdowns) are set once on modal open
@@ -2258,6 +2277,12 @@
                 slabValue += val;
             });
             
+            // Add OTHERS field to slab calculation
+            tabPane.find('.others-field').each(function() {
+                const val = parseFloat(this.value) || 0;
+                slabValue += val;
+            });
+            
             // Update Slab display immediately
             tabPane.find('.total-counts').text(slabValue.toFixed(3));
             
@@ -2308,7 +2333,15 @@
                 console.log('BKN field:', bknField.attr('id'), 'Value:', bknVal, 'Raw value:', bknField.val());
             }
             
-            console.log('Total PCK + BKN (TOPCK):', topck);
+            // Add OTHERS field to TOPCK calculation
+            const othersField = tabPane.find('.others-field');
+            if (othersField.length > 0) {
+                const othersVal = parseFloat(othersField.val()) || 0;
+                topck += othersVal;
+                console.log('OTHERS field:', othersField.attr('id'), 'Value:', othersVal, 'Raw value:', othersField.val());
+            }
+            
+            console.log('Total PCK + BKN + OTHERS (TOPCK):', topck);
             tabPane.find('.total-counts').text(topck.toFixed(3)); // Show 3 decimal places
 
             if (topck === 0) {
@@ -2329,6 +2362,14 @@
             });
             // Include BKN field
             tabPane.find('.bkn-field').each(function() {
+                const val = parseFloat($(this).val()) || 0;
+                if (val > 0) {
+                    const multiplier = parseFloat($(this).attr('data-multiplier')) || 1;
+                    pcklValue += val * multiplier;
+                }
+            });
+            // Include OTHERS field
+            tabPane.find('.others-field').each(function() {
                 const val = parseFloat($(this).val()) || 0;
                 if (val > 0) {
                     const multiplier = parseFloat($(this).attr('data-multiplier')) || 1;
@@ -2410,6 +2451,7 @@
                 PCLRID: $('#colourId').val() || null,  // Add Production Colour dropdown
                 RCVDTID: $('#receivedTypeId').val() || null,  // Add Received Type dropdown
                 BKN: parseFloat(tabPane.find('.bkn-field').val()) || null,  // Add BKN field
+                OTHERS: parseFloat(tabPane.find('.others-field').val()) || null,  // Add OTHERS field
                 
                 // Add calculated values from display fields
                 TOPCK: parseFloat(tabPane.find('.total-counts').text()) || 0,

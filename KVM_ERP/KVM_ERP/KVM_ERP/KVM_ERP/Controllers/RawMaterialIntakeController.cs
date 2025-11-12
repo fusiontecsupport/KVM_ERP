@@ -780,6 +780,7 @@ namespace KVM_ERP.Controllers
                             PCLRID = calculation.PCLRID,
                             RCVDTID = calculation.RCVDTID,
                             BKN = calculation.BKN,
+                            OTHERS = calculation.OTHERS,
                             DISPSTATUS = calculation.DISPSTATUS,
                             CUSRID = calculation.CUSRID,
                             LMUSRID = calculation.LMUSRID,
@@ -851,6 +852,7 @@ namespace KVM_ERP.Controllers
                         PCLRID = calculation.PCLRID,
                         RCVDTID = calculation.RCVDTID,
                         BKN = calculation.BKN,
+                        OTHERS = calculation.OTHERS,
                         DISPSTATUS = calculation.DISPSTATUS,
                         CUSRID = calculation.CUSRID,
                         LMUSRID = calculation.LMUSRID,
@@ -971,12 +973,12 @@ namespace KVM_ERP.Controllers
 
         private void CalculateProductValues(TransactionProductCalculation model)
         {
-            // Calculate TOPCK (sum of all PCK fields + BKN)
+            // Calculate TOPCK (sum of all PCK fields + BKN + OTHERS)
             model.TOPCK = model.PCK1 + model.PCK2 + model.PCK3 + model.PCK4 + 
                          model.PCK5 + model.PCK6 + model.PCK7 + model.PCK8 + 
                          model.PCK9 + model.PCK10 + model.PCK11 + model.PCK12 + 
                          model.PCK13 + model.PCK14 + model.PCK15 + model.PCK16 + 
-                         model.PCK17 + model.BKN;
+                         model.PCK17 + model.BKN + model.OTHERS;
 
             // Check calculation mode to determine which calculations to perform
             bool isGradeWeightMode = model.CALCULATIONMODE == 2;
@@ -1039,7 +1041,7 @@ namespace KVM_ERP.Controllers
                                    model.PCK7, model.PCK8, model.PCK9, model.PCK10, model.PCK11, model.PCK12, 
                                    model.PCK13, model.PCK14, model.PCK15, model.PCK16, model.PCK17 };
 
-            // Get packing types for this packing master (excluding BKN)
+            // Get packing types for this packing master (excluding BKN and OTHERS)
             var packingTypes = db.PackingTypeMasters
                 .Where(pt => pt.PACKMID == model.PACKMID && pt.DISPSTATUS == 0)
                 .OrderBy(pt => pt.PACKTMCODE)
@@ -1055,6 +1057,11 @@ namespace KVM_ERP.Controllers
                                  packingType.PACKTMDESC.ToUpper().Trim() == "BROKEN" || 
                                  packingType.PACKTMDESC.ToUpper().Contains("BKN");
                     
+                    // Check if this is OTHERS field
+                    bool isOTHERS = packingType.PACKTMDESC.ToUpper().Trim() == "OTHERS" || 
+                                    packingType.PACKTMDESC.ToUpper().Trim() == "OTHER" || 
+                                    packingType.PACKTMDESC.ToUpper().Contains("OTHERS");
+                    
                     if (isBKN)
                     {
                         // Process BKN field separately
@@ -1062,6 +1069,15 @@ namespace KVM_ERP.Controllers
                         {
                             decimal multiplier = ExtractMultiplierFromDescription(packingType.PACKTMDESC);
                             pcklValue += model.BKN * multiplier;
+                        }
+                    }
+                    else if (isOTHERS)
+                    {
+                        // Process OTHERS field separately
+                        if (model.OTHERS > 0)
+                        {
+                            decimal multiplier = ExtractMultiplierFromDescription(packingType.PACKTMDESC);
+                            pcklValue += model.OTHERS * multiplier;
                         }
                     }
                     else
@@ -1146,6 +1162,7 @@ namespace KVM_ERP.Controllers
             existing.PCLRID = model.PCLRID;
             existing.RCVDTID = model.RCVDTID;
             existing.BKN = model.BKN;
+            existing.OTHERS = model.OTHERS;
         }
 
         private TransactionProductCalculation ParseFormToModel(FormCollection form)
@@ -1187,6 +1204,9 @@ namespace KVM_ERP.Controllers
             
             // Parse BKN field (Broken) - default to 0 for non-nullable decimal
             model.BKN = ParseNullableDecimal(form["BKN"]) ?? 0;
+            
+            // Parse OTHERS field - default to 0 for non-nullable decimal
+            model.OTHERS = ParseNullableDecimal(form["OTHERS"]) ?? 0;
             
             // Parse PRODDATE field
             model.PRODDATE = ParseNullableDateTime(form["PRODDATE"]);

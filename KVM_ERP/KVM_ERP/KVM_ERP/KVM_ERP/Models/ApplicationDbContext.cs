@@ -142,6 +142,7 @@ namespace KVM_ERP.Models
             modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.FACAVGWGT).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.FACAVGCOUNT).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.BKN).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionProductCalculation>().Property(t => t.OTHERS).HasPrecision(18, 3);
 
             // Configure TransactionDetail decimal precision for all decimal fields
             modelBuilder.Entity<TransactionDetail>().Property(t => t.TRANAQTY).HasPrecision(18, 3);

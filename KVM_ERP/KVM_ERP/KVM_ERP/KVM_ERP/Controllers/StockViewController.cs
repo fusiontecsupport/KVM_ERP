@@ -271,6 +271,12 @@ namespace KVM_ERP.Controllers
                 {
                     return GetBKNDetailBreakdownByDateRange(selectedDate);
                 }
+                
+                // Special handling for OTHERS (itemId = -2)
+                if (itemId == -2)
+                {
+                    return GetOTHERSDetailBreakdownByDateRange(selectedDate);
+                }
 
                 // Step 1: Load all calculations for this product into memory with master descriptions
                 var allCalculations = (from tpc in db.TransactionProductCalculations
@@ -500,12 +506,14 @@ namespace KVM_ERP.Controllers
                                          (noOfBoxesData.PCK16 ?? 0) + (noOfBoxesData.PCK17 ?? 0);
 
                     // Get column headers from PACKINGTYPEMASTER for this packing master
-                    // Exclude BKN column since it's now a separate product
+                    // Exclude BKN and OTHERS columns since they're now separate products
                     var columnHeaders = db.PackingTypeMasters
                         .Where(pt => pt.PACKMID == pm.PackingId 
                                   && (pt.DISPSTATUS == 0 || pt.DISPSTATUS == null)
                                   && !pt.PACKTMDESC.ToUpper().Contains("BKN")
-                                  && !pt.PACKTMDESC.ToUpper().Contains("BROKEN"))
+                                  && !pt.PACKTMDESC.ToUpper().Contains("BROKEN")
+                                  && !pt.PACKTMDESC.ToUpper().Contains("OTHERS")
+                                  && !pt.PACKTMDESC.ToUpper().Contains("OTHER"))
                         .OrderBy(pt => pt.PACKTMCODE)
                         .Select(pt => pt.PACKTMDESC)
                         .ToList();
@@ -732,6 +740,190 @@ namespace KVM_ERP.Controllers
             }
         }
 
+        private PackingMasterBreakdown GetOTHERSDetailBreakdownByDateRange(DateTime selectedDate)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"========================================");
+                System.Diagnostics.Debug.WriteLine($"GetOTHERSDetailBreakdownByDateRange - SelectedDate: {selectedDate:yyyy-MM-dd}");
+
+                var breakdown = new PackingMasterBreakdown
+                {
+                    PackingMasters = new List<PackingMasterData>()
+                };
+
+                // Load all OTHERS data from calculations
+                var allOTHERSData = (from tpc in db.TransactionProductCalculations
+                                 join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                 join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                 join pm in db.PackingMasters on tpc.PACKMID equals pm.PACKMID
+                                 join m in db.MaterialMasters on td.MTRLID equals m.MTRLID
+                                 join pclr in db.ProductionColourMasters on tpc.PCLRID equals pclr.PCLRID into pclrJoin
+                                 from pclr in pclrJoin.DefaultIfEmpty()
+                                 join rcvdt in db.ReceivedTypeMasters on tpc.RCVDTID equals rcvdt.RCVDTID into rcvdtJoin
+                                 from rcvdt in rcvdtJoin.DefaultIfEmpty()
+                                 join grade in db.GradeMasters on tpc.GRADEID equals grade.GRADEID into gradeJoin
+                                 from grade in gradeJoin.DefaultIfEmpty()
+                                 where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                       && (pm.DISPSTATUS == 0 || pm.DISPSTATUS == null)
+                                       && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
+                                       && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
+                                       && tm.TRANDATE <= selectedDate
+                                       && tpc.OTHERS != null && tpc.OTHERS > 0
+                                 select new {
+                                     Calculation = tpc,
+                                     PackingType = pm.PACKMDESC,
+                                     PackingId = pm.PACKMID,
+                                     ProductName = m.MTRLDESC,
+                                     TranDate = tm.TRANDATE,
+                                     ColourDesc = pclr != null ? pclr.PCLRDESC : null,
+                                     ReceivedTypeDesc = rcvdt != null ? rcvdt.RCVDTDESC : null,
+                                     GradeDesc = grade != null ? grade.GRADEDESC : null
+                                 }).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Loaded {allOTHERSData.Count} OTHERS records");
+
+                // Group by Packing Master + KGWGT + Grade + Colour + Received Type + Product
+                var othersGroups = allOTHERSData
+                    .GroupBy(x => new {
+                        x.PackingId,
+                        x.PackingType,
+                        KGWGT = x.Calculation.KGWGT,
+                        PCLRID = x.Calculation.PCLRID,
+                        RCVDTID = x.Calculation.RCVDTID,
+                        GRADEID = x.Calculation.GRADEID,
+                        x.ProductName,
+                        x.ColourDesc,
+                        x.ReceivedTypeDesc,
+                        x.GradeDesc
+                    })
+                    .Select(g => {
+                        // Build display name
+                        string displayName = g.Key.PackingType;
+                        
+                        if (g.Key.KGWGT > 0)
+                            displayName += " 6 x " + g.Key.KGWGT.ToString("0.#");
+                        
+                        if (!string.IsNullOrEmpty(g.Key.ProductName))
+                            displayName += " - " + g.Key.ProductName;
+                        
+                        if (!string.IsNullOrEmpty(g.Key.GradeDesc))
+                            displayName += " - " + g.Key.GradeDesc;
+                        
+                        if (!string.IsNullOrEmpty(g.Key.ColourDesc))
+                            displayName += " - " + g.Key.ColourDesc;
+                        
+                        if (!string.IsNullOrEmpty(g.Key.ReceivedTypeDesc))
+                            displayName += " - " + g.Key.ReceivedTypeDesc;
+                        
+                        return new {
+                            PackingType = displayName,
+                            PackingId = g.Key.PackingId,
+                            KgWeight = g.Key.KGWGT,
+                            PclrId = g.Key.PCLRID,
+                            RcvdtId = g.Key.RCVDTID,
+                            GradeId = g.Key.GRADEID,
+                            ProductName = g.Key.ProductName
+                        };
+                    })
+                    .OrderBy(x => x.PackingId)
+                    .ThenBy(x => x.ProductName)
+                    .ThenBy(x => x.KgWeight)
+                    .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"Found {othersGroups.Count} OTHERS group combinations");
+
+                // For each group, calculate OTHERS totals by date
+                foreach (var grp in othersGroups)
+                {
+                    var previousDate = selectedDate.AddDays(-1);
+
+                    // Filter OTHERS data for this specific group
+                    var upToPreviousDay = allOTHERSData
+                        .Where(x => x.PackingId == grp.PackingId
+                                   && x.Calculation.KGWGT == grp.KgWeight
+                                   && x.Calculation.GRADEID == grp.GradeId
+                                   && x.Calculation.PCLRID == grp.PclrId
+                                   && x.Calculation.RCVDTID == grp.RcvdtId
+                                   && x.ProductName == grp.ProductName
+                                   && x.TranDate <= previousDate)
+                        .Sum(x => x.Calculation.OTHERS);
+
+                    var selectedDay = allOTHERSData
+                        .Where(x => x.PackingId == grp.PackingId
+                                   && x.Calculation.KGWGT == grp.KgWeight
+                                   && x.Calculation.GRADEID == grp.GradeId
+                                   && x.Calculation.PCLRID == grp.PclrId
+                                   && x.Calculation.RCVDTID == grp.RcvdtId
+                                   && x.ProductName == grp.ProductName
+                                   && x.TranDate == selectedDate)
+                        .Sum(x => x.Calculation.OTHERS);
+
+                    var total = upToPreviousDay + selectedDay;
+
+                    // Create rows for this OTHERS group using PCK1 to store OTHERS value
+                    var upToPreviousData = new PackingDetailRow
+                    {
+                        RowType = $"Up to {previousDate:dd/MM/yyyy}",
+                        PCK1 = upToPreviousDay,
+                        Total = upToPreviousDay
+                    };
+
+                    var selectedDayData = new PackingDetailRow
+                    {
+                        RowType = selectedDate.ToString("dd/MM/yyyy"),
+                        PCK1 = selectedDay,
+                        Total = selectedDay
+                    };
+
+                    var totalData = new PackingDetailRow
+                    {
+                        RowType = "TOTAL",
+                        PCK1 = total,
+                        Total = total
+                    };
+
+                    var noOfBoxesData = new PackingDetailRow
+                    {
+                        RowType = "NO OF CASES",
+                        PCK1 = CalculateBoxes(total),
+                        Total = CalculateBoxes(total)
+                    };
+
+                    // Create single column header for OTHERS
+                    var columnHeaders = new List<string> { "Others(Peeled) (KG)" };
+
+                    var packingMasterData = new PackingMasterData
+                    {
+                        PackingType = grp.PackingType,
+                        ColumnHeaders = columnHeaders,
+                        Rows = new List<PackingDetailRow>
+                        {
+                            upToPreviousData,
+                            selectedDayData,
+                            totalData,
+                            noOfBoxesData
+                        }
+                    };
+
+                    breakdown.PackingMasters.Add(packingMasterData);
+                    System.Diagnostics.Debug.WriteLine($"  {grp.PackingType}: OTHERS Total={total:N2}");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"========================================");
+                return breakdown;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ERROR in GetOTHERSDetailBreakdownByDateRange: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                return new PackingMasterBreakdown
+                {
+                    PackingMasters = new List<PackingMasterData>()
+                };
+            }
+        }
+
         private string GetSlabSizeLabel(int slabIndex)
         {
             var slabLabels = new Dictionary<int, string>
@@ -902,7 +1094,7 @@ namespace KVM_ERP.Controllers
                         AND (PCK1 > 0 OR PCK2 > 0 OR PCK3 > 0 OR PCK4 > 0 OR PCK5 > 0 
                              OR PCK6 > 0 OR PCK7 > 0 OR PCK8 > 0 OR PCK9 > 0 OR PCK10 > 0
                              OR PCK11 > 0 OR PCK12 > 0 OR PCK13 > 0 OR PCK14 > 0 OR PCK15 > 0
-                             OR PCK16 > 0 OR PCK17 > 0 OR BKN > 0)
+                             OR PCK16 > 0 OR PCK17 > 0 OR BKN > 0 OR OTHERS > 0)
                     ", asOnDate).FirstOrDefault();
 
                     System.Diagnostics.Debug.WriteLine($"Found {rawCalcCount} calculation records with PCK values > 0 for date {asOnDate:yyyy-MM-dd}");
@@ -1003,6 +1195,29 @@ namespace KVM_ERP.Controllers
                             bknTotal.ToString("N2") 
                         });
                         System.Diagnostics.Debug.WriteLine($"Added: BKN (Broken) with total: {bknTotal:N2}");
+                    }
+                    
+                    // STEP 5: Add OTHERS as a separate virtual product
+                    var othersData = (from tpc in db.TransactionProductCalculations
+                                     join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                     join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                     where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                           && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
+                                           && tm.TRANDATE <= asOnDate
+                                           && tpc.OTHERS > 0
+                                     select tpc.OTHERS).ToList();
+                    
+                    var othersTotal = othersData.Sum();
+                    
+                    if (othersTotal > 0)
+                    {
+                        // Add OTHERS as virtual product with ID = -2
+                        productTotals.Add(new object[] { 
+                            -2, 
+                            "Others(Peeled)", 
+                            othersTotal.ToString("N2") 
+                        });
+                        System.Diagnostics.Debug.WriteLine($"Added: Others(Peeled) with total: {othersTotal:N2}");
                     }
                 }
                 catch (Exception ex)

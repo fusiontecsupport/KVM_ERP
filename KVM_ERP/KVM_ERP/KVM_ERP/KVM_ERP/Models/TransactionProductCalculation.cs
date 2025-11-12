@@ -139,6 +139,9 @@ namespace KVM_ERP.Models
         [Column("BKN")]
         public decimal BKN { get; set; } = 0;
 
+        [Column("OTHERS")]
+        public decimal OTHERS { get; set; } = 0;
+
         [Column("GRADEID")]
         public int GRADEID { get; set; } = 0;
 
