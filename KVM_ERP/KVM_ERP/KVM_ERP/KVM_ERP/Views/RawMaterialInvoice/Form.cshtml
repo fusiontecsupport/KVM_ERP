@@ -515,13 +515,14 @@
                                 <th>Received Type</th>
                                 <th>Actual Weight (KG)</th>
                                 <th>Net Weight (KG)</th>
-                                <th>Rate (₹/KG)</th>
-                                <th>Amount (₹)</th>
+                                <th id="rateColumn" style="display: none;">Rate (₹/KG)</th>
+                                <th id="amountColumn" style="display: none;">Amount (₹)</th>
+                                <th id="actionColumn" style="display: none;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="itemsTableBody">
                             <tr>
-                                <td colspan="10" class="text-center text-muted">
+                                <td colspan="11" class="text-center text-muted">
                                     Please select a supplier to load items
                                 </td>
                             </tr>
@@ -659,6 +660,167 @@
     </div>
 </div>
 
+<!-- Rate Calculation Modal -->
+<div class="modal fade" id="rateModal" tabindex="-1" role="dialog" aria-labelledby="rateModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="modal-title" id="rateModalLabel">
+                    <i class="fa fa-calculator"></i> Rate Calculation
+                </h5>
+                <button type="button" class="close text-white" onclick="$('#rateModal').modal('hide');" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Item Details Section -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0"><i class="fa fa-info-circle"></i> Item Details</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-2">
+                                        <strong>Item:</strong>
+                                        <div id="modalItemName" class="text-muted">-</div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Grade:</strong>
+                                        <div id="modalGrade" class="text-muted">-</div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Production Colour:</strong>
+                                        <div id="modalProductionColour" class="text-muted">-</div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Received Type:</strong>
+                                        <div id="modalReceivedType" class="text-muted">-</div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Actual Weight (KG):</strong>
+                                        <div id="modalActualWeight" class="text-muted">-</div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Net Weight (KG):</strong>
+                                        <div id="modalNetWeight" class="text-muted">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Packing Type Tabs -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0"><i class="fa fa-cube"></i> Head Less</h6>
+                            </div>
+                            <div class="card-body" id="headLessContent">
+                                <!-- Slab inputs will be populated here -->
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        <h6 class="text-muted mb-3">Slab Distribution</h6>
+                                        <div id="headLessSlabs">
+                                            <!-- Dynamic slab inputs -->
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Calculation Fields -->
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Total</label>
+                                        <input type="number" class="form-control" id="headLessTotal" step="0.001" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Packing Weight</label>
+                                        <input type="number" class="form-control" id="headLessPackingWeight" step="0.001" onchange="calculateTotalWeight('headLess')">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Total Weight</label>
+                                        <input type="number" class="form-control" id="headLessTotalWeight" step="0.001" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">One Dollar Rate</label>
+                                        <input type="number" class="form-control" id="headLessOneDollarRate" step="0.01" onchange="calculateDollarValue('headLess')">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Total Value for Dollar</label>
+                                        <input type="number" class="form-control" id="headLessTotalValueForDollar" step="0.01" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Per Kg Rate</label>
+                                        <input type="number" class="form-control" id="headLessPerKgRate" step="0.01" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0"><i class="fa fa-cube"></i> Head On</h6>
+                            </div>
+                            <div class="card-body" id="headOnContent">
+                                <!-- Slab inputs will be populated here -->
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        <h6 class="text-muted mb-3">Slab Distribution</h6>
+                                        <div id="headOnSlabs">
+                                            <!-- Dynamic slab inputs -->
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Calculation Fields -->
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Total</label>
+                                        <input type="number" class="form-control" id="headOnTotal" step="0.001" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Packing Weight</label>
+                                        <input type="number" class="form-control" id="headOnPackingWeight" step="0.001" onchange="calculateTotalWeight('headOn')">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Total Weight</label>
+                                        <input type="number" class="form-control" id="headOnTotalWeight" step="0.001" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">One Dollar Rate</label>
+                                        <input type="number" class="form-control" id="headOnOneDollarRate" step="0.01" onchange="calculateDollarValue('headOn')">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Total Value for Dollar</label>
+                                        <input type="number" class="form-control" id="headOnTotalValueForDollar" step="0.01" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Per Kg Rate</label>
+                                        <input type="number" class="form-control" id="headOnPerKgRate" step="0.01" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="$('#rateModal').modal('hide');">
+                    <i class="fa fa-times"></i> Close
+                </button>
+                <button type="button" class="btn btn-success" onclick="applyRateCalculation()">
+                    <i class="fa fa-check"></i> Apply
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <!-- Select2 JS from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -672,6 +834,10 @@
                 const today = new Date().toISOString().split('T')[0];
                 $('#invoiceDate').val(today);
             }
+
+            // Initialize column visibility based on mode
+            var isEditMode = @(ViewBag.IsEdit != null ? "true" : "false");
+            toggleColumnsForMode(isEditMode === "true");
 
             // Initialize Select2 on Supplier dropdown with search functionality
             $('#supplierName').select2({
@@ -796,19 +962,19 @@
                 type: 'POST',
                 data: { supplierId: supplierId },
                 beforeSend: function () {
-                    $('#itemsTableBody').html('<tr><td colspan="10" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading items...</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="11" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading items...</td></tr>');
                 },
                 success: function (response) {
                     if (response.success && response.data && response.data.length > 0) {
                         itemsData = response.data;
                         renderItemsTable();
                     } else {
-                        $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-muted">No items found for this supplier</td></tr>');
+                        $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-muted">No items found for this supplier</td></tr>');
                     }
                 },
                 error: function (xhr, status, error) {
                     console.error('Error loading items:', error);
-                    $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-danger">Failed to load items</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-danger">Failed to load items</td></tr>');
                 }
             });
         }
@@ -823,7 +989,7 @@
                     isApprovalMode: isApprovalMode
                 },
                 beforeSend: function () {
-                    $('#itemsTableBody').html('<tr><td colspan="10" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading saved items...</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="11" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading saved items...</td></tr>');
                 },
                 success: function (response) {
                     if (response.success && response.data && response.data.length > 0) {
@@ -855,12 +1021,12 @@
                         
                         calculateGrossAmount();
                     } else {
-                        $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-muted">No items found for this invoice</td></tr>');
+                        $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-muted">No items found for this invoice</td></tr>');
                     }
                 },
                 error: function (xhr, status, error) {
                     console.error('Error loading invoice items:', error);
-                    $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-danger">Failed to load invoice items</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-danger">Failed to load invoice items</td></tr>');
                 }
             });
         }
@@ -876,7 +1042,7 @@
                     isApprovalMode: isApprovalMode
                 },
                 beforeSend: function () {
-                    $('#itemsTableBody').html('<tr><td colspan="10" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading items...</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="11" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading items...</td></tr>');
                 },
                 success: function (response) {
                     if (response.success && response.data && response.data.length > 0) {
@@ -905,12 +1071,12 @@
                         
                         console.log('Loaded ' + response.data.length + ' total items, ' + response.data.filter(i => i.IsSelected).length + ' selected');
                     } else {
-                        $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-muted">No items found</td></tr>');
+                        $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-muted">No items found</td></tr>');
                     }
                 },
                 error: function (xhr, status, error) {
                     console.error('Error loading items for edit:', error);
-                    $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-danger">Failed to load items</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-danger">Failed to load items</td></tr>');
                 }
             });
         }
@@ -1049,10 +1215,15 @@
         }
 
         function renderItemsTable() {
+            var isEditMode = @(ViewBag.IsEdit != null ? "true" : "false");
+            var editId = @(ViewBag.EditId ?? 0);
+            console.log('renderItemsTable called - isEditMode:', isEditMode, 'editId:', editId, 'itemsData.length:', itemsData.length);
+            console.log('ViewBag.IsEdit:', @Html.Raw(Json.Encode(ViewBag.IsEdit)));
+            console.log('ViewBag.EditId:', @Html.Raw(Json.Encode(ViewBag.EditId)));
             var html = '';
             itemsData.forEach(function (item, index) {
                 var actualWeight = (item.ActualWeight || 0).toFixed(2);
-                html += '<tr data-item-id="' + (item.ItemId || 0) + '">';
+                html += '<tr data-item-id="' + (item.ItemId || 0) + '" data-index="' + index + '">';
                 html += '<td><input type="checkbox" class="row-checkbox" data-index="' + index + '" /></td>';
                 html += '<td>' + (index + 1) + '</td>';
                 html += '<td><input type="text" readonly value="' + (item.ItemName || '') + '" /></td>';
@@ -1061,11 +1232,30 @@
                 html += '<td><input type="text" readonly value="' + (item.ReceivedType || '') + '" /></td>';
                 html += '<td><input type="text" readonly value="' + actualWeight + '" /></td>';
                 html += '<td><input type="number" step="0.01" class="net-weight" data-index="' + index + '" value="' + actualWeight + '" /></td>';
-                html += '<td><input type="number" step="0.01" class="rate" data-index="' + index + '" placeholder="0.00" /></td>';
-                html += '<td><input type="text" readonly class="amount" data-index="' + index + '" value="0.00" /></td>';
+                
+                // Conditionally render Rate, Amount, and Action columns based on edit mode
+                var shouldShowEditColumns = (isEditMode === "true") || (editId > 0);
+                if (shouldShowEditColumns) {
+                    html += '<td class="rate-cell"><input type="number" step="0.01" class="rate" data-index="' + index + '" placeholder="0.00" /></td>';
+                    html += '<td class="amount-cell"><input type="text" readonly class="amount" data-index="' + index + '" value="0.00" /></td>';
+                    html += '<td class="action-cell"><button type="button" class="btn btn-sm btn-info" onclick="openRateModal(' + index + ')" title="Rate Calculation"><i class="fa fa-calculator"></i> R</button></td>';
+                    console.log('Added R button for item', index, ':', item.ItemName);
+                }
+                
                 html += '</tr>';
             });
             $('#itemsTableBody').html(html);
+            
+            // Show/hide columns based on edit mode
+            console.log('isEditMode value:', isEditMode, 'type:', typeof isEditMode);
+            console.log('isEditMode === "true":', isEditMode === "true");
+            console.log('editId > 0:', editId > 0);
+            
+            // Use editId as fallback check for edit mode
+            var actuallyInEditMode = (isEditMode === "true") || (editId > 0);
+            console.log('actuallyInEditMode:', actuallyInEditMode);
+            console.log('Calling toggleColumnsForMode with actuallyInEditMode:', actuallyInEditMode);
+            toggleColumnsForMode(actuallyInEditMode);
 
             // Add event listeners for calculation
             $('.net-weight, .rate').on('input', function () {
@@ -1085,6 +1275,191 @@
                     });
                 }
             });
+        }
+
+        // Toggle column visibility based on mode
+        function toggleColumnsForMode(isEditMode) {
+            console.log('toggleColumnsForMode called with isEditMode:', isEditMode);
+            if (isEditMode) {
+                console.log('Showing Rate, Amount, and Action columns');
+                $('#rateColumn').css('display', 'table-cell');
+                $('#amountColumn').css('display', 'table-cell');
+                $('#actionColumn').css('display', 'table-cell');
+                $('.rate-cell').css('display', 'table-cell');
+                $('.amount-cell').css('display', 'table-cell');
+                $('.action-cell').css('display', 'table-cell');
+                console.log('Rate column visible:', $('#rateColumn').is(':visible'));
+                console.log('Amount column visible:', $('#amountColumn').is(':visible'));
+                console.log('Action column visible:', $('#actionColumn').is(':visible'));
+                console.log('Rate cells count:', $('.rate-cell').length);
+                console.log('Amount cells count:', $('.amount-cell').length);
+                console.log('Action cells count:', $('.action-cell').length);
+            } else {
+                console.log('Hiding Rate, Amount, and Action columns');
+                $('#rateColumn, #amountColumn, #actionColumn').css('display', 'none');
+                $('.rate-cell, .amount-cell, .action-cell').css('display', 'none');
+            }
+        }
+
+        // Open Rate Calculation Modal
+        function openRateModal(itemIndex) {
+            if (!itemsData[itemIndex]) {
+                alert('Item data not found');
+                return;
+            }
+            
+            var item = itemsData[itemIndex];
+            
+            // Store current item index for later use
+            window.currentRateItemIndex = itemIndex;
+            
+            // Populate item details
+            $('#modalItemName').text(item.ItemName || '-');
+            $('#modalGrade').text(item.Grade || '-');
+            $('#modalProductionColour').text(item.ProductionColour || '-');
+            $('#modalReceivedType').text(item.ReceivedType || '-');
+            $('#modalActualWeight').text((item.ActualWeight || 0).toFixed(2) + ' KG');
+            
+            // Get current net weight from the input field
+            var currentNetWeight = $('.net-weight[data-index="' + itemIndex + '"]').val() || item.ActualWeight || 0;
+            $('#modalNetWeight').text(parseFloat(currentNetWeight).toFixed(2) + ' KG');
+            
+            // Load slab data for this item
+            loadSlabData(item.TRANPID);
+            
+            // Show modal
+            $('#rateModal').modal('show');
+        }
+
+        // Load slab data from Raw Material Intake
+        function loadSlabData(tranpId) {
+            if (!tranpId || tranpId <= 0) {
+                console.log('No TRANPID available for slab data');
+                populateSlabInputs('headLess', []);
+                populateSlabInputs('headOn', []);
+                return;
+            }
+            
+            // AJAX call to get slab data from Raw Material Intake
+            // This would need a new controller method to fetch slab data by TRANPID
+            // For now, I'll create a placeholder structure
+            console.log('Loading slab data for TRANPID:', tranpId);
+            
+            // Example slab data structure (this should come from the server)
+            var exampleSlabData = [
+                { range: 'u-15', value: 10 },
+                { range: '10-20', value: 17 },
+                { range: '20-30', value: 31 },
+                { range: '30-40', value: 5 }
+            ];
+            
+            // Populate both Head Less and Head On with the same slab structure
+            populateSlabInputs('headLess', exampleSlabData);
+            populateSlabInputs('headOn', exampleSlabData);
+        }
+
+        // Populate slab inputs for Head On or Head Less
+        function populateSlabInputs(type, slabData) {
+            var containerId = type + 'Slabs';
+            var container = $('#' + containerId);
+            container.empty();
+            
+            if (slabData && slabData.length > 0) {
+                slabData.forEach(function(slab, index) {
+                    var slabHtml = '<div class="row mb-2">' +
+                        '<div class="col-md-4">' +
+                            '<label class="form-label">' + slab.range + '</label>' +
+                        '</div>' +
+                        '<div class="col-md-8">' +
+                            '<input type="number" class="form-control slab-input" ' +
+                                'id="' + type + 'Slab' + index + '" ' +
+                                'data-range="' + slab.range + '" ' +
+                                'data-type="' + type + '" ' +
+                                'value="' + (slab.value || 0) + '" ' +
+                                'step="0.001" onchange="calculateSlabTotal(\'' + type + '\')">' +
+                        '</div>' +
+                    '</div>';
+                    container.append(slabHtml);
+                });
+            } else {
+                container.html('<div class="text-muted">No slab data available</div>');
+            }
+            
+            // Calculate initial total
+            calculateSlabTotal(type);
+        }
+
+        // Calculate slab total for Head On or Head Less
+        function calculateSlabTotal(type) {
+            var total = 0;
+            $('#' + type + 'Slabs .slab-input').each(function() {
+                total += parseFloat($(this).val()) || 0;
+            });
+            
+            $('#' + type + 'Total').val(total.toFixed(3));
+            calculateTotalWeight(type);
+        }
+
+        // Calculate total weight (Total + Packing Weight)
+        function calculateTotalWeight(type) {
+            var total = parseFloat($('#' + type + 'Total').val()) || 0;
+            var packingWeight = parseFloat($('#' + type + 'PackingWeight').val()) || 0;
+            var totalWeight = total + packingWeight;
+            
+            $('#' + type + 'TotalWeight').val(totalWeight.toFixed(3));
+            calculateDollarValue(type);
+        }
+
+        // Calculate dollar value (Total Weight * One Dollar Rate)
+        function calculateDollarValue(type) {
+            var totalWeight = parseFloat($('#' + type + 'TotalWeight').val()) || 0;
+            var oneDollarRate = parseFloat($('#' + type + 'OneDollarRate').val()) || 0;
+            var totalValueForDollar = totalWeight * oneDollarRate;
+            
+            $('#' + type + 'TotalValueForDollar').val(totalValueForDollar.toFixed(2));
+            calculatePerKgRate(type);
+        }
+
+        // Calculate per kg rate (Total Value for Dollar / Net Weight)
+        function calculatePerKgRate(type) {
+            var totalValueForDollar = parseFloat($('#' + type + 'TotalValueForDollar').val()) || 0;
+            var netWeight = parseFloat($('#modalNetWeight').text().replace(' KG', '')) || 0;
+            var perKgRate = netWeight > 0 ? totalValueForDollar / netWeight : 0;
+            
+            $('#' + type + 'PerKgRate').val(perKgRate.toFixed(2));
+        }
+
+        // Apply rate calculation back to main form
+        function applyRateCalculation() {
+            if (typeof window.currentRateItemIndex === 'undefined') {
+                alert('No item selected');
+                return;
+            }
+            
+            var itemIndex = window.currentRateItemIndex;
+            
+            // Get calculated rates from both Head On and Head Less
+            var headLessRate = parseFloat($('#headLessPerKgRate').val()) || 0;
+            var headOnRate = parseFloat($('#headOnPerKgRate').val()) || 0;
+            
+            // For now, use the higher rate (you can modify this logic as needed)
+            var finalRate = Math.max(headLessRate, headOnRate);
+            
+            if (finalRate > 0) {
+                // Update the rate in the main form
+                $('.rate[data-index="' + itemIndex + '"]').val(finalRate.toFixed(2));
+                
+                // Trigger calculation
+                calculateAmount(itemIndex);
+                
+                alert('Rate applied successfully: ₹' + finalRate.toFixed(2) + ' per KG');
+            } else {
+                alert('Please calculate rate in either Head On or Head Less section');
+                return;
+            }
+            
+            // Close modal
+            $('#rateModal').modal('hide');
         }
 
         function calculateAmount(index) {
@@ -1252,7 +1627,7 @@
 
         function clearItemsTable() {
             itemsData = [];
-            $('#itemsTableBody').html('<tr><td colspan="10" class="text-center text-muted">Please select a supplier to load items</td></tr>');
+            $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-muted">Please select a supplier to load items</td></tr>');
             $('#selectAll').prop('checked', false);
             $('#grossAmount').text('₹ 0.00');
             $('#grandTotalDisplay').text('₹ 0.00');
@@ -1494,6 +1869,8 @@
         }
 
         function saveInvoice() {
+            var isEditMode = @(ViewBag.IsEdit != null ? "true" : "false");
+            
             // Validation
             if (!$('#invoiceDate').val()) {
                 alert('Please select a date');
@@ -1543,10 +1920,18 @@
                         invoiceData.Items = []; // Clear items to stop save
                         return false; // Stop forEach
                     }
-                    if (rate <= 0) {
+                    
+                    // Rate validation only in EDIT mode
+                    if (isEditMode === "true" && rate <= 0) {
                         alert('Item "' + item.ItemName + '" is selected but has no Rate. Please enter a value or uncheck it.');
                         invoiceData.Items = []; // Clear items to stop save
                         return false; // Stop forEach
+                    }
+                    
+                    // In ADD mode, set default rate and amount to 0
+                    if (isEditMode === "false") {
+                        rate = 0;
+                        amount = 0;
                     }
                     
                     // Validate Net Weight cannot be greater than Actual Weight
@@ -1587,7 +1972,12 @@
                 if (checkedCount === 0) {
                     alert('Please select at least one item to save');
                 } else {
-                    alert('Please enter net weight and rate for all selected items');
+                    // Mode-specific validation message
+                    if (isEditMode === "true") {
+                        alert('Please enter net weight and rate for all selected items');
+                    } else {
+                        alert('Please enter net weight for all selected items');
+                    }
                 }
                 return;
             }
