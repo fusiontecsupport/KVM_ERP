@@ -712,97 +712,54 @@
                     </div>
                 </div>
 
-                <!-- Packing Type Tabs -->
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-success text-white">
-                                <h6 class="mb-0"><i class="fa fa-cube"></i> Head Less</h6>
-                            </div>
-                            <div class="card-body" id="headLessContent">
-                                <!-- Slab inputs will be populated here -->
-                                <div class="row mb-3">
-                                    <div class="col-12">
-                                        <h6 class="text-muted mb-3">Slab Distribution</h6>
-                                        <div id="headLessSlabs">
-                                            <!-- Dynamic slab inputs -->
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Calculation Fields -->
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Total</label>
-                                        <input type="number" class="form-control" id="headLessTotal" step="0.001" readonly>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Packing Weight</label>
-                                        <input type="number" class="form-control" id="headLessPackingWeight" step="0.001" onchange="calculateTotalWeight('headLess')">
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Total Weight</label>
-                                        <input type="number" class="form-control" id="headLessTotalWeight" step="0.001" readonly>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">One Dollar Rate</label>
-                                        <input type="number" class="form-control" id="headLessOneDollarRate" step="0.01" onchange="calculateDollarValue('headLess')">
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Total Value for Dollar</label>
-                                        <input type="number" class="form-control" id="headLessTotalValueForDollar" step="0.01" readonly>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Per Kg Rate</label>
-                                        <input type="number" class="form-control" id="headLessPerKgRate" step="0.01" readonly>
-                                    </div>
-                                </div>
-                            </div>
+                <!-- Dynamic Packing Type Section -->
+                <div id="packingTypeSection">
+                    <div class="card">
+                        <div class="card-header text-white" id="packingTypeHeader">
+                            <h6 class="mb-0"><i class="fa fa-fish"></i> <span id="packingTypeName">Packing Type</span></h6>
                         </div>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-primary text-white">
-                                <h6 class="mb-0"><i class="fa fa-cube"></i> Head On</h6>
+                        <div class="card-body" id="packingTypeContent">
+                            <h6>Slab Distribution</h6>
+                            <div id="packingTypeSlabs">
+                                <!-- Dynamic slab inputs will be populated here -->
                             </div>
-                            <div class="card-body" id="headOnContent">
-                                <!-- Slab inputs will be populated here -->
-                                <div class="row mb-3">
-                                    <div class="col-12">
-                                        <h6 class="text-muted mb-3">Slab Distribution</h6>
-                                        <div id="headOnSlabs">
-                                            <!-- Dynamic slab inputs -->
-                                        </div>
-                                    </div>
+                            
+                            <hr>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Total</label>
+                                    <input type="number" class="form-control" id="packingTypeTotal" step="0.001" readonly>
                                 </div>
-                                
-                                <!-- Calculation Fields -->
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Total</label>
-                                        <input type="number" class="form-control" id="headOnTotal" step="0.001" readonly>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Packing Weight</label>
-                                        <input type="number" class="form-control" id="headOnPackingWeight" step="0.001" onchange="calculateTotalWeight('headOn')">
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Total Weight</label>
-                                        <input type="number" class="form-control" id="headOnTotalWeight" step="0.001" readonly>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">One Dollar Rate</label>
-                                        <input type="number" class="form-control" id="headOnOneDollarRate" step="0.01" onchange="calculateDollarValue('headOn')">
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Total Value for Dollar</label>
-                                        <input type="number" class="form-control" id="headOnTotalValueForDollar" step="0.01" readonly>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Per Kg Rate</label>
-                                        <input type="number" class="form-control" id="headOnPerKgRate" step="0.01" readonly>
-                                    </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Packing Weight</label>
+                                    <input type="number" class="form-control" id="packingTypePackingWeight" step="0.01" onchange="calculateTotalWeight('packingType')">
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-2">
+                                <div class="col-md-6">
+                                    <label class="form-label">Total Weight</label>
+                                    <input type="number" class="form-control" id="packingTypeTotalWeight" step="0.01" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">One Dollar Rate</label>
+                                    <input type="number" class="form-control" id="packingTypeOneDollarRate" step="0.01" onchange="calculateDollarValue('packingType')">
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-2">
+                                <div class="col-md-4">
+                                    <label class="form-label">Total Value for Dollar</label>
+                                    <input type="number" class="form-control" id="packingTypeTotalValueForDollar" step="0.01" readonly>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Net Weight</label>
+                                    <input type="number" class="form-control" id="packingTypeNetWeight" step="0.01" readonly>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Per Kg Rate</label>
+                                    <input type="number" class="form-control" id="packingTypePerKgRate" step="0.01" readonly>
                                 </div>
                             </div>
                         </div>
@@ -1218,8 +1175,6 @@
             var isEditMode = @(ViewBag.IsEdit != null ? "true" : "false");
             var editId = @(ViewBag.EditId ?? 0);
             console.log('renderItemsTable called - isEditMode:', isEditMode, 'editId:', editId, 'itemsData.length:', itemsData.length);
-            console.log('ViewBag.IsEdit:', @Html.Raw(Json.Encode(ViewBag.IsEdit)));
-            console.log('ViewBag.EditId:', @Html.Raw(Json.Encode(ViewBag.EditId)));
             var html = '';
             itemsData.forEach(function (item, index) {
                 var actualWeight = (item.ActualWeight || 0).toFixed(2);
@@ -1239,7 +1194,7 @@
                     html += '<td class="rate-cell"><input type="number" step="0.01" class="rate" data-index="' + index + '" placeholder="0.00" /></td>';
                     html += '<td class="amount-cell"><input type="text" readonly class="amount" data-index="' + index + '" value="0.00" /></td>';
                     html += '<td class="action-cell"><button type="button" class="btn btn-sm btn-info" onclick="openRateModal(' + index + ')" title="Rate Calculation"><i class="fa fa-calculator"></i> R</button></td>';
-                    console.log('Added R button for item', index, ':', item.ItemName);
+                    // R button added for rate calculation
                 }
                 
                 html += '</tr>';
@@ -1247,14 +1202,7 @@
             $('#itemsTableBody').html(html);
             
             // Show/hide columns based on edit mode
-            console.log('isEditMode value:', isEditMode, 'type:', typeof isEditMode);
-            console.log('isEditMode === "true":', isEditMode === "true");
-            console.log('editId > 0:', editId > 0);
-            
-            // Use editId as fallback check for edit mode
             var actuallyInEditMode = (isEditMode === "true") || (editId > 0);
-            console.log('actuallyInEditMode:', actuallyInEditMode);
-            console.log('Calling toggleColumnsForMode with actuallyInEditMode:', actuallyInEditMode);
             toggleColumnsForMode(actuallyInEditMode);
 
             // Add event listeners for calculation
@@ -1279,23 +1227,14 @@
 
         // Toggle column visibility based on mode
         function toggleColumnsForMode(isEditMode) {
-            console.log('toggleColumnsForMode called with isEditMode:', isEditMode);
             if (isEditMode) {
-                console.log('Showing Rate, Amount, and Action columns');
                 $('#rateColumn').css('display', 'table-cell');
                 $('#amountColumn').css('display', 'table-cell');
                 $('#actionColumn').css('display', 'table-cell');
                 $('.rate-cell').css('display', 'table-cell');
                 $('.amount-cell').css('display', 'table-cell');
                 $('.action-cell').css('display', 'table-cell');
-                console.log('Rate column visible:', $('#rateColumn').is(':visible'));
-                console.log('Amount column visible:', $('#amountColumn').is(':visible'));
-                console.log('Action column visible:', $('#actionColumn').is(':visible'));
-                console.log('Rate cells count:', $('.rate-cell').length);
-                console.log('Amount cells count:', $('.amount-cell').length);
-                console.log('Action cells count:', $('.action-cell').length);
             } else {
-                console.log('Hiding Rate, Amount, and Action columns');
                 $('#rateColumn, #amountColumn, #actionColumn').css('display', 'none');
                 $('.rate-cell, .amount-cell, .action-cell').css('display', 'none');
             }
@@ -1335,78 +1274,162 @@
         function loadSlabData(tranpId) {
             if (!tranpId || tranpId <= 0) {
                 console.log('No TRANPID available for slab data');
-                populateSlabInputs('headLess', []);
-                populateSlabInputs('headOn', []);
+                $('#packingTypeName').text('No TRANPID');
+                $('#packingTypeHeader').removeClass().addClass('card-header text-white bg-secondary');
+                populateSlabInputs('packingType', []);
                 return;
             }
             
-            // AJAX call to get slab data from Raw Material Intake
-            // This would need a new controller method to fetch slab data by TRANPID
-            // For now, I'll create a placeholder structure
             console.log('Loading slab data for TRANPID:', tranpId);
             
-            // Example slab data structure (this should come from the server)
-            var exampleSlabData = [
-                { range: 'u-15', value: 10 },
-                { range: '10-20', value: 17 },
-                { range: '20-30', value: 31 },
-                { range: '30-40', value: 5 }
-            ];
-            
-            // Populate both Head Less and Head On with the same slab structure
-            populateSlabInputs('headLess', exampleSlabData);
-            populateSlabInputs('headOn', exampleSlabData);
+            // AJAX call to get actual slab data from Raw Material Intake
+            $.ajax({
+                url: '@Url.Action("GetSlabData", "RawMaterialInvoice")',
+                type: 'POST',
+                data: { tranpId: tranpId },
+                success: function(response) {
+                    console.log('Slab data response:', response);
+                    if (response.success && response.data && response.data.length > 0) {
+                        console.log('Found slab data:', response.data);
+                        console.log('Packing master:', response.packingMaster);
+                        
+                        // Set packing type name and header color
+                        $('#packingTypeName').text(response.packingMaster.name);
+                        
+                        // Set header color based on packing type
+                        var headerColor = getPackingTypeColor(response.packingMaster.name);
+                        $('#packingTypeHeader').removeClass().addClass('card-header text-white').css('background-color', headerColor);
+                        
+                        // Populate slab data
+                        populateSlabInputs('packingType', response.data);
+                        
+                        // Set Net Weight from current item
+                        if (typeof window.currentRateItemIndex !== 'undefined') {
+                            var currentItem = itemsData[window.currentRateItemIndex];
+                            if (currentItem) {
+                                var currentNetWeight = $('.net-weight[data-index="' + window.currentRateItemIndex + '"]').val() || currentItem.ActualWeight || 0;
+                                $('#packingTypeNetWeight').val(parseFloat(currentNetWeight).toFixed(2));
+                            }
+                        }
+                    } else {
+                        console.log('No slab data found for TRANPID:', tranpId);
+                        console.log('Response details:', response);
+                        
+                        // Show empty section
+                        $('#packingTypeName').text('No Packing Data');
+                        $('#packingTypeHeader').removeClass().addClass('card-header text-white bg-secondary');
+                        populateSlabInputs('packingType', []);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading slab data:', error);
+                    console.error('XHR response:', xhr.responseText);
+                    // Show empty section due to error
+                    $('#packingTypeName').text('Error Loading Data');
+                    $('#packingTypeHeader').removeClass().addClass('card-header text-white bg-danger');
+                    populateSlabInputs('packingType', []);
+                }
+            });
         }
 
-        // Populate slab inputs for Head On or Head Less
+        // Get packing type color based on name
+        function getPackingTypeColor(packingTypeName) {
+            var name = packingTypeName.toLowerCase();
+            if (name.includes('head on')) {
+                return '#007bff'; // Blue
+            } else if (name.includes('head less')) {
+                return '#28a745'; // Green
+            } else if (name.includes('easy peel')) {
+                return '#ffc107'; // Yellow
+            } else if (name.includes('peeled')) {
+                return '#17a2b8'; // Teal
+            } else if (name.includes('tail off')) {
+                return '#6f42c1'; // Purple
+            } else if (name.includes('tail on')) {
+                return '#fd7e14'; // Orange
+            } else {
+                return '#6c757d'; // Gray (default)
+            }
+        }
+
+
+        // Populate slab inputs for dynamic packing type
         function populateSlabInputs(type, slabData) {
             var containerId = type + 'Slabs';
             var container = $('#' + containerId);
             container.empty();
             
             if (slabData && slabData.length > 0) {
+                // Create table structure
+                var tableHtml = '<div class="table-responsive">' +
+                    '<table class="table table-bordered table-sm">' +
+                        '<thead class="bg-light">' +
+                            '<tr>' +
+                                '<th width="25%">Size Range</th>' +
+                                '<th width="20%">Intake Value</th>' +
+                                '<th width="55%">Calculation Value</th>' +
+                            '</tr>' +
+                        '</thead>' +
+                        '<tbody>';
+                
                 slabData.forEach(function(slab, index) {
-                    var slabHtml = '<div class="row mb-2">' +
-                        '<div class="col-md-4">' +
-                            '<label class="form-label">' + slab.range + '</label>' +
-                        '</div>' +
-                        '<div class="col-md-8">' +
+                    tableHtml += '<tr>' +
+                        '<td><strong>' + slab.range + '</strong></td>' +
+                        '<td class="text-center">' +
+                            '<span class="badge bg-info text-white fs-6">' + (slab.value || 0) + '</span>' +
+                        '</td>' +
+                        '<td>' +
                             '<input type="number" class="form-control slab-input" ' +
                                 'id="' + type + 'Slab' + index + '" ' +
                                 'data-range="' + slab.range + '" ' +
                                 'data-type="' + type + '" ' +
-                                'value="' + (slab.value || 0) + '" ' +
+                                'data-intake-value="' + (slab.value || 0) + '" ' +
+                                'placeholder="Enter calculation value" ' +
                                 'step="0.001" onchange="calculateSlabTotal(\'' + type + '\')">' +
-                        '</div>' +
-                    '</div>';
-                    container.append(slabHtml);
+                        '</td>' +
+                    '</tr>';
                 });
+                
+                tableHtml += '</tbody></table></div>';
+                container.html(tableHtml);
             } else {
-                container.html('<div class="text-muted">No slab data available</div>');
+                container.html('<div class="text-muted text-center p-3">No slab data available</div>');
             }
             
             // Calculate initial total
             calculateSlabTotal(type);
         }
 
-        // Calculate slab total for Head On or Head Less
+        // Calculate slab total for dynamic packing type
         function calculateSlabTotal(type) {
             var total = 0;
             $('#' + type + 'Slabs .slab-input').each(function() {
-                total += parseFloat($(this).val()) || 0;
+                var calculationValue = parseFloat($(this).val()) || 0;
+                var intakeValue = parseFloat($(this).data('intake-value')) || 0;
+                // Multiply intake value × calculation value
+                total += intakeValue * calculationValue;
             });
             
             $('#' + type + 'Total').val(total.toFixed(3));
             calculateTotalWeight(type);
         }
 
-        // Calculate total weight (Total + Packing Weight)
+        // Calculate total weight (Total × Packing Weight)
         function calculateTotalWeight(type) {
             var total = parseFloat($('#' + type + 'Total').val()) || 0;
             var packingWeight = parseFloat($('#' + type + 'PackingWeight').val()) || 0;
-            var totalWeight = total + packingWeight;
             
-            $('#' + type + 'TotalWeight').val(totalWeight.toFixed(3));
+            var totalWeight = total * packingWeight;
+            $('#' + type + 'TotalWeight').val(totalWeight.toFixed(2));
+            
+            // Set Net Weight from current item
+            if (typeof window.currentRateItemIndex !== 'undefined') {
+                var currentItem = itemsData[window.currentRateItemIndex];
+                if (currentItem) {
+                    $('#' + type + 'NetWeight').val(parseFloat(currentItem.NetWeight || 0).toFixed(2));
+                }
+            }
+            
             calculateDollarValue(type);
         }
 
@@ -1423,7 +1446,7 @@
         // Calculate per kg rate (Total Value for Dollar / Net Weight)
         function calculatePerKgRate(type) {
             var totalValueForDollar = parseFloat($('#' + type + 'TotalValueForDollar').val()) || 0;
-            var netWeight = parseFloat($('#modalNetWeight').text().replace(' KG', '')) || 0;
+            var netWeight = parseFloat($('#' + type + 'NetWeight').val()) || 0;
             var perKgRate = netWeight > 0 ? totalValueForDollar / netWeight : 0;
             
             $('#' + type + 'PerKgRate').val(perKgRate.toFixed(2));
@@ -1438,12 +1461,8 @@
             
             var itemIndex = window.currentRateItemIndex;
             
-            // Get calculated rates from both Head On and Head Less
-            var headLessRate = parseFloat($('#headLessPerKgRate').val()) || 0;
-            var headOnRate = parseFloat($('#headOnPerKgRate').val()) || 0;
-            
-            // For now, use the higher rate (you can modify this logic as needed)
-            var finalRate = Math.max(headLessRate, headOnRate);
+            // Get calculated rate from the packing type section
+            var finalRate = parseFloat($('#packingTypePerKgRate').val()) || 0;
             
             if (finalRate > 0) {
                 // Update the rate in the main form
@@ -1454,7 +1473,7 @@
                 
                 alert('Rate applied successfully: ₹' + finalRate.toFixed(2) + ' per KG');
             } else {
-                alert('Please calculate rate in either Head On or Head Less section');
+                alert('Please calculate rate in the packing type section');
                 return;
             }
             

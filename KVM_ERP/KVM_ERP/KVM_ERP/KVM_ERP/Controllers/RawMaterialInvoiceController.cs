@@ -1644,6 +1644,170 @@ namespace KVM_ERP.Controllers
                 return RedirectToAction("Index");
             }
         }
+
+        [HttpPost]
+        public JsonResult GetSlabData(int tranpId)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"GetSlabData called for tranpId: {tranpId}");
+                Console.WriteLine($"*** GetSlabData called for tranpId: {tranpId}");
+
+                // Get all PCK columns, BKN, OTHERS and packing master info for this TRANPID
+                var slabRecord = context.Database.SqlQuery<SlabDataRecord>($@"
+                    SELECT tpc.PCK1, tpc.PCK2, tpc.PCK3, tpc.PCK4, tpc.PCK5, 
+                           tpc.PCK6, tpc.PCK7, tpc.PCK8, tpc.PCK9, tpc.PCK10,
+                           tpc.PCK11, tpc.PCK12, tpc.PCK13, tpc.PCK14, tpc.PCK15,
+                           tpc.PCK16, tpc.PCK17, tpc.BKN, tpc.OTHERS, 
+                           tpc.PACKMID, pm.PACKMDESC
+                    FROM TRANSACTION_PRODUCT_CALCULATION tpc
+                    INNER JOIN PACKINGMASTER pm ON tpc.PACKMID = pm.PACKMID
+                    WHERE tpc.TRANPID = @p0
+                ", tranpId).FirstOrDefault();
+
+                // Convert to proper format
+                var formattedSlabData = new List<object>();
+                
+                if (slabRecord != null)
+                {
+                    // Get dynamic packing type ranges for this packing master
+                    var packingTypes = context.Database.SqlQuery<PackingTypeInfo>($@"
+                        SELECT PACKTMDESC, PACKTMCODE
+                        FROM PACKINGTYPEMASTER 
+                        WHERE PACKMID = @p0 AND (DISPSTATUS = 0 OR DISPSTATUS IS NULL)
+                        ORDER BY PACKTMCODE
+                    ", slabRecord.PACKMID).ToList();
+
+                    Console.WriteLine($"*** Found {packingTypes.Count} packing types for PACKMID {slabRecord.PACKMID}");
+
+                    // All PCK values from PCK1 to PCK17
+                    var allSlabValues = new[] { 
+                        slabRecord.PCK1, slabRecord.PCK2, slabRecord.PCK3, slabRecord.PCK4, slabRecord.PCK5,
+                        slabRecord.PCK6, slabRecord.PCK7, slabRecord.PCK8, slabRecord.PCK9, slabRecord.PCK10,
+                        slabRecord.PCK11, slabRecord.PCK12, slabRecord.PCK13, slabRecord.PCK14, slabRecord.PCK15,
+                        slabRecord.PCK16, slabRecord.PCK17
+                    };
+
+                    // Map packing types to PCK values using sequential logic (same as Raw Material Intake)
+                    int pckIndex = 0;
+                    foreach (var packingType in packingTypes)
+                    {
+                        // Check if this is BKN field
+                        bool isBKN = packingType.PACKTMDESC.ToUpper().Trim() == "BKN" || 
+                                     packingType.PACKTMDESC.ToUpper().Trim() == "BROKEN" || 
+                                     packingType.PACKTMDESC.ToUpper().Contains("BKN");
+                        
+                        // Check if this is OTHERS field
+                        bool isOTHERS = packingType.PACKTMDESC.ToUpper().Trim() == "OTHERS" || 
+                                        packingType.PACKTMDESC.ToUpper().Trim() == "OTHER" || 
+                                        packingType.PACKTMDESC.ToUpper().Contains("OTHERS");
+                        
+                        if (isBKN)
+                        {
+                            // Handle BKN separately (not from PCK columns)
+                            if (slabRecord.BKN > 0)
+                            {
+                                formattedSlabData.Add(new { 
+                                    range = packingType.PACKTMDESC, 
+                                    value = slabRecord.BKN,
+                                    pckColumn = "BKN"
+                                });
+                                Console.WriteLine($"*** Mapped {packingType.PACKTMDESC} -> BKN = {slabRecord.BKN}");
+                            }
+                        }
+                        else if (isOTHERS)
+                        {
+                            // Handle OTHERS separately (not from PCK columns)
+                            if (slabRecord.OTHERS > 0)
+                            {
+                                formattedSlabData.Add(new { 
+                                    range = packingType.PACKTMDESC, 
+                                    value = slabRecord.OTHERS,
+                                    pckColumn = "OTHERS"
+                                });
+                                Console.WriteLine($"*** Mapped {packingType.PACKTMDESC} -> OTHERS = {slabRecord.OTHERS}");
+                            }
+                        }
+                        else
+                        {
+                            // Handle regular PCK fields sequentially
+                            if (pckIndex < allSlabValues.Length && allSlabValues[pckIndex] > 0)
+                            {
+                                formattedSlabData.Add(new { 
+                                    range = packingType.PACKTMDESC, 
+                                    value = allSlabValues[pckIndex],
+                                    pckColumn = $"PCK{pckIndex + 1}"
+                                });
+                                Console.WriteLine($"*** Mapped {packingType.PACKTMDESC} -> PCK{pckIndex + 1} = {allSlabValues[pckIndex]}");
+                            }
+                            pckIndex++; // Only increment for regular PCK fields
+                        }
+                    }
+
+                    // Return packing master info along with slab data
+                    return Json(new { 
+                        success = true, 
+                        data = formattedSlabData,
+                        packingMaster = new {
+                            id = slabRecord.PACKMID,
+                            name = slabRecord.PACKMDESC
+                        }
+                    });
+                }
+
+                Console.WriteLine($"*** GetSlabData: Found {formattedSlabData.Count} slab entries for tranpId {tranpId}");
+                
+                if (formattedSlabData.Count == 0)
+                {
+                    Console.WriteLine($"*** GetSlabData: No slab data found - checking if TRANPID {tranpId} exists in TRANSACTION_PRODUCT_CALCULATION");
+                    var recordExists = context.Database.SqlQuery<int>($@"
+                        SELECT COUNT(*) FROM TRANSACTION_PRODUCT_CALCULATION WHERE TRANPID = @p0
+                    ", tranpId).FirstOrDefault();
+                    Console.WriteLine($"*** GetSlabData: TRANPID {tranpId} exists in table: {recordExists > 0}");
+                }
+                
+                return Json(new { success = true, data = formattedSlabData });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in GetSlabData: {ex.Message}");
+                Console.WriteLine($"*** Error in GetSlabData: {ex.Message}");
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // Helper class for slab data
+        public class SlabDataRecord
+        {
+            public decimal PCK1 { get; set; }
+            public decimal PCK2 { get; set; }
+            public decimal PCK3 { get; set; }
+            public decimal PCK4 { get; set; }
+            public decimal PCK5 { get; set; }
+            public decimal PCK6 { get; set; }
+            public decimal PCK7 { get; set; }
+            public decimal PCK8 { get; set; }
+            public decimal PCK9 { get; set; }
+            public decimal PCK10 { get; set; }
+            public decimal PCK11 { get; set; }
+            public decimal PCK12 { get; set; }
+            public decimal PCK13 { get; set; }
+            public decimal PCK14 { get; set; }
+            public decimal PCK15 { get; set; }
+            public decimal PCK16 { get; set; }
+            public decimal PCK17 { get; set; }
+            public decimal BKN { get; set; }
+            public decimal OTHERS { get; set; }
+            public int PACKMID { get; set; }
+            public string PACKMDESC { get; set; }
+        }
+
+        // Helper class for packing type info
+        public class PackingTypeInfo
+        {
+            public string PACKTMDESC { get; set; }
+            public string PACKTMCODE { get; set; }
+        }
     }
 
     // ViewModel for Raw Material Invoice display
