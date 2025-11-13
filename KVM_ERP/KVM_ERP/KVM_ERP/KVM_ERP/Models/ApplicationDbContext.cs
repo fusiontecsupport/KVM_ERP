@@ -42,6 +42,7 @@ namespace KVM_ERP.Models
         public DbSet<ProductionColourMaster> ProductionColourMasters { get; set; }
         public DbSet<ReceivedTypeMaster> ReceivedTypeMasters { get; set; }
         public DbSet<PurchaseInvoiceStatus> PurchaseInvoiceStatuses { get; set; }
+        public DbSet<TransactionInvoiceWeightDetails> TransactionInvoiceWeightDetails { get; set; }
 
         new public virtual IDbSet<ApplicationRole> Roles { get; set; }
         public virtual IDbSet<Group> Groups { get; set; }
@@ -171,6 +172,17 @@ namespace KVM_ERP.Models
             modelBuilder.Entity<TransactionMasterFactor>().Property(t => t.TRANCFCGSTAMT).HasPrecision(18, 2);
             modelBuilder.Entity<TransactionMasterFactor>().Property(t => t.TRANCFSGSTAMT).HasPrecision(18, 2);
             modelBuilder.Entity<TransactionMasterFactor>().Property(t => t.TRANCFIGSTAMT).HasPrecision(18, 2);
+            
+            // Configure TransactionInvoiceWeightDetails decimal precision for all decimal fields
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.SLABVALUE).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.PNDSVALUE).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.TOTALPNDS).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.PACKWGT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.TOTALWGHT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.ONEDOLLAR).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.TOTALDOLVAL).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.WEIGHTINKGS).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.PERKGRATE).HasPrecision(18, 3);
 
             // Keep this:
             modelBuilder.Entity<IdentityUser>().ToTable("AspNetUsers");

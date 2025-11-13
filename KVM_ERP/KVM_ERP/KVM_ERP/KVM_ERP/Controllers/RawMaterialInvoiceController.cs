@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Web.Mvc;
 using KVM_ERP.Models;
@@ -1805,9 +1806,266 @@ namespace KVM_ERP.Controllers
         // Helper class for packing type info
         public class PackingTypeInfo
         {
+            public int PACKTMID { get; set; }
             public string PACKTMDESC { get; set; }
             public string PACKTMCODE { get; set; }
         }
+
+        [HttpPost]
+        public JsonResult SaveWeightDetails(WeightDetailsModel model)
+        {
+            Debug.WriteLine($"*** SaveWeightDetails called for TRANMID: {model.TRANMID}, PACKMID: {model.PACKMID}");
+            Debug.WriteLine($"*** Model data: SLABVALUE={model.SLABVALUE}, PNDSVALUE={model.PNDSVALUE}, TOTALPNDS={model.TOTALPNDS}");
+            Debug.WriteLine($"*** Model data: PACKWGT={model.PACKWGT}, TOTALWGHT={model.TOTALWGHT}, PERKGRATE={model.PERKGRATE}");
+            
+            // Get current user ID from session (CUSRID stores the username)
+            var currentUserId = Session["CUSRID"]?.ToString();
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                currentUserId = "SYSTEM";
+                Debug.WriteLine("*** WARNING: No CUSRID in session, using SYSTEM");
+            }
+            Debug.WriteLine($"*** Current User ID: {currentUserId}");
+            
+            // Get packing types for this packing master to determine correct PACKTMID values
+            var packingTypes = context.Database.SqlQuery<PackingTypeInfo>($@"
+                SELECT PACKTMID, PACKTMDESC, PACKTMCODE
+                FROM PACKINGTYPEMASTER 
+                WHERE PACKMID = @p0 AND (DISPSTATUS = 0 OR DISPSTATUS IS NULL)
+                ORDER BY PACKTMCODE
+            ", model.PACKMID).ToList();
+            
+            Debug.WriteLine($"*** Found {packingTypes.Count} packing types for PACKMID {model.PACKMID}");
+            
+            try
+            {
+                // Check if there are already records for this TRANMID and PACKMID
+                var existingActiveCount = context.TransactionInvoiceWeightDetails
+                    .Where(t => t.TRANMID == model.TRANMID && t.PACKMID == model.PACKMID && t.DISPSTATUS == 0)
+                    .Count();
+                var existingTotalCount = context.TransactionInvoiceWeightDetails
+                    .Where(t => t.TRANMID == model.TRANMID && t.PACKMID == model.PACKMID)
+                    .Count();
+                Debug.WriteLine($"*** INITIAL CHECK: Found {existingActiveCount} active records, {existingTotalCount} total records");
+
+                // FIRST: Physically DELETE ALL existing records (hard delete)
+                Debug.WriteLine("*** Using hard delete to remove ALL old records completely...");
+                var deleteResult = context.Database.ExecuteSqlCommand($@"
+                    DELETE FROM TRANSACTION_INVOICE_WEIGHT_DETAILS 
+                    WHERE TRANMID = @p0 AND PACKMID = @p1
+                ", model.TRANMID, model.PACKMID);
+                
+                Debug.WriteLine($"*** Physically deleted {deleteResult} existing records from database");
+
+                // Verify deletion worked
+                var remainingCount = context.TransactionInvoiceWeightDetails
+                    .Where(t => t.TRANMID == model.TRANMID && t.PACKMID == model.PACKMID)
+                    .Count();
+                Debug.WriteLine($"*** After hard delete, {remainingCount} total records remain");
+
+                if (remainingCount > 0)
+                {
+                    Debug.WriteLine("*** ERROR: Records still exist after hard delete - aborting to prevent duplicates");
+                    return Json(new { success = false, message = "Unable to clear existing records - preventing duplicates" });
+                }
+
+                // Create individual records for each slab detail that has data
+                Debug.WriteLine($"*** Creating individual records for {model.SlabDetails?.Count ?? 0} slab details");
+                int recordsCreated = 0;
+
+                if (model.SlabDetails != null && model.SlabDetails.Count > 0)
+                {
+                    foreach (var slabDetail in model.SlabDetails)
+                    {
+                        if (slabDetail.calculationValue > 0)
+                        {
+                            // Find matching PACKTMID for this slab range
+                            var matchingPackingType = packingTypes.FirstOrDefault(pt => 
+                                pt.PACKTMDESC.Trim().Equals(slabDetail.range.Trim(), StringComparison.OrdinalIgnoreCase));
+
+                                if (matchingPackingType != null)
+                                {
+                                    Debug.WriteLine($"*** Creating record for range '{slabDetail.range}' with PACKTMID: {matchingPackingType.PACKTMID}");
+
+                                    var newRecord = new TransactionInvoiceWeightDetails
+                                    {
+                                        TRANMID = model.TRANMID,
+                                        PACKMID = model.PACKMID,
+                                        PACKTMID = matchingPackingType.PACKTMID,
+                                        SLABVALUE = slabDetail.intakeValue,
+                                        PNDSVALUE = slabDetail.calculationValue,
+                                        TOTALPNDS = model.TOTALPNDS,
+                                        PACKWGT = model.PACKWGT,
+                                        TOTALWGHT = model.TOTALWGHT,
+                                        ONEDOLLAR = model.ONEDOLLAR,
+                                        TOTALDOLVAL = model.TOTALDOLVAL,
+                                        WEIGHTINKGS = model.WEIGHTINKGS,
+                                        PERKGRATE = model.PERKGRATE,
+                                        CUSRID = currentUserId,
+                                        LMUSRID = currentUserId,
+                                        DISPSTATUS = 0,
+                                        PRCSDATE = DateTime.Now
+                                    };
+
+                                    context.TransactionInvoiceWeightDetails.Add(newRecord);
+                                    recordsCreated++;
+                                    Debug.WriteLine($"*** Added record {recordsCreated}: Range='{slabDetail.range}', IntakeValue={slabDetail.intakeValue}, CalcValue={slabDetail.calculationValue}");
+                                }
+                                else
+                                {
+                                    Debug.WriteLine($"*** WARNING: No matching packing type found for range '{slabDetail.range}'");
+                                }
+                            }
+                        }
+                    }
+                    
+                Debug.WriteLine($"*** Calling SaveChanges for {recordsCreated} records...");
+                var changeCount = context.SaveChanges();
+                Debug.WriteLine($"*** SaveChanges completed. Changes saved: {changeCount}");
+
+                Debug.WriteLine($"*** Successfully saved {recordsCreated} weight details records for TRANMID: {model.TRANMID}, PACKMID: {model.PACKMID}");
+
+                // Final verification - check how many active records exist
+                var finalActiveCount = context.TransactionInvoiceWeightDetails
+                    .Where(t => t.TRANMID == model.TRANMID && t.PACKMID == model.PACKMID && t.DISPSTATUS == 0)
+                    .Count();
+                Debug.WriteLine($"*** FINAL VERIFICATION: {finalActiveCount} active records exist for TRANMID: {model.TRANMID}, PACKMID: {model.PACKMID}");
+                
+                var recordCount = model.SlabDetails?.Count(s => s.calculationValue > 0) ?? 0;
+                return Json(new { success = true, message = $"Successfully saved {recordCount} weight detail records (Total active: {finalActiveCount})" });
+            }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"*** Error in SaveWeightDetails: {ex.Message}");
+            Debug.WriteLine($"*** Stack trace: {ex.StackTrace}");
+            return Json(new { success = false, message = "Error saving weight details: " + ex.Message });
+        }
+    }
+
+    [HttpPost]
+    public JsonResult GetWeightDetails(int tranmId, int packmId)
+    {
+        try
+        {
+            Debug.WriteLine($"*** GetWeightDetails called for TRANMID: {tranmId}, PACKMID: {packmId}");
+
+            // Get all weight detail records with their packing type names
+            Debug.WriteLine($"*** Querying for TRANMID: {tranmId}, PACKMID: {packmId}");
+            
+            var weightDetailsList = context.Database.SqlQuery<WeightDetailsWithPackingType>($@"
+                    SELECT t.TRANRID, t.TRANMID, t.PACKMID, t.PACKTMID, t.SLABVALUE, t.PNDSVALUE, 
+                           t.TOTALPNDS, t.PACKWGT, t.TOTALWGHT, t.ONEDOLLAR, t.TOTALDOLVAL, 
+                           t.WEIGHTINKGS, t.PERKGRATE, p.PACKTMDESC
+                    FROM TRANSACTION_INVOICE_WEIGHT_DETAILS t
+                    INNER JOIN PACKINGTYPEMASTER p ON t.PACKTMID = p.PACKTMID
+                    WHERE t.TRANMID = @p0 AND t.PACKMID = @p1 AND (t.DISPSTATUS = 0 OR t.DISPSTATUS IS NULL)
+                    ORDER BY p.PACKTMCODE
+                ", tranmId, packmId).ToList();
+
+                Debug.WriteLine($"*** SQL Query executed. Found {weightDetailsList.Count} weight detail records");
+                
+                if (weightDetailsList.Count == 0)
+                {
+                    // Try without the JOIN to see if records exist
+                    var simpleCheck = context.Database.SqlQuery<int>($@"
+                        SELECT COUNT(*) FROM TRANSACTION_INVOICE_WEIGHT_DETAILS 
+                        WHERE TRANMID = @p0 AND PACKMID = @p1 AND (DISPSTATUS = 0 OR DISPSTATUS IS NULL)
+                    ", tranmId, packmId).FirstOrDefault();
+                    
+                    Debug.WriteLine($"*** Simple count check found {simpleCheck} records without JOIN");
+                }
+
+                if (weightDetailsList != null && weightDetailsList.Count > 0)
+                {
+                    // Get summary values from first record (they should be same across all records)
+                    var firstRecord = weightDetailsList[0];
+                    
+                    // Create list of detail records with packing type names
+                    var detailRecords = weightDetailsList.Select(r => new {
+                        PACKTMDESC = r.PACKTMDESC,
+                        SLABVALUE = r.SLABVALUE,
+                        PNDSVALUE = r.PNDSVALUE
+                    }).ToList();
+                    
+                    Debug.WriteLine($"*** Returning {detailRecords.Count} detail records for TRANMID: {tranmId}, PACKMID: {packmId}");
+                    foreach (var detail in detailRecords)
+                    {
+                        Debug.WriteLine($"***   Detail: {detail.PACKTMDESC} = {detail.PNDSVALUE}");
+                    }
+                    
+                    return Json(new { 
+                        success = true, 
+                        data = new {
+                            TOTALPNDS = firstRecord.TOTALPNDS,
+                            PACKWGT = firstRecord.PACKWGT,
+                            TOTALWGHT = firstRecord.TOTALWGHT,
+                            ONEDOLLAR = firstRecord.ONEDOLLAR,
+                            TOTALDOLVAL = firstRecord.TOTALDOLVAL,
+                            WEIGHTINKGS = firstRecord.WEIGHTINKGS,
+                            PERKGRATE = firstRecord.PERKGRATE,
+                            Details = detailRecords
+                        }
+                    });
+                }
+                else
+                {
+                    Debug.WriteLine($"*** No weight details found for TRANMID: {tranmId}, PACKMID: {packmId}");
+                    return Json(new { success = false, message = "No weight details found" });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"*** Error in GetWeightDetails: {ex.Message}");
+                return Json(new { success = false, message = "Error retrieving weight details: " + ex.Message });
+            }
+        }
+    }
+
+    // Model for individual slab detail
+    public class SlabDetailModel
+    {
+        public string range { get; set; }
+        public decimal intakeValue { get; set; }
+        public decimal calculationValue { get; set; }
+        public string pckColumn { get; set; }
+    }
+
+    // Model for weight details with packing type info
+    public class WeightDetailsWithPackingType
+    {
+        public int TRANRID { get; set; }
+        public int TRANMID { get; set; }
+        public int PACKMID { get; set; }
+        public int PACKTMID { get; set; }
+        public decimal SLABVALUE { get; set; }
+        public decimal PNDSVALUE { get; set; }
+        public decimal TOTALPNDS { get; set; }
+        public decimal PACKWGT { get; set; }
+        public decimal TOTALWGHT { get; set; }
+        public decimal ONEDOLLAR { get; set; }
+        public decimal TOTALDOLVAL { get; set; }
+        public decimal WEIGHTINKGS { get; set; }
+        public decimal PERKGRATE { get; set; }
+        public string PACKTMDESC { get; set; }
+    }
+
+    // Model for Weight Details
+    public class WeightDetailsModel
+    {
+        public int TRANRID { get; set; }
+        public int TRANMID { get; set; }
+        public List<SlabDetailModel> SlabDetails { get; set; }
+        public int PACKMID { get; set; }
+        public int PACKTMID { get; set; }
+        public decimal SLABVALUE { get; set; }
+        public decimal PNDSVALUE { get; set; }
+        public decimal TOTALPNDS { get; set; }
+        public decimal PACKWGT { get; set; }
+        public decimal TOTALWGHT { get; set; }
+        public decimal ONEDOLLAR { get; set; }
+        public decimal TOTALDOLVAL { get; set; }
+        public decimal WEIGHTINKGS { get; set; }
+        public decimal PERKGRATE { get; set; }
     }
 
     // ViewModel for Raw Material Invoice display

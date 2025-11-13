@@ -767,12 +767,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="$('#rateModal').modal('hide');">
-                    <i class="fa fa-times"></i> Close
-                </button>
-                <button type="button" class="btn btn-success" onclick="applyRateCalculation()">
-                    <i class="fa fa-check"></i> Apply
-                </button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="applyRateCalculation()">Apply Rate</button>
             </div>
         </div>
     </div>
@@ -1304,6 +1300,12 @@
                         console.log('Found slab data:', response.data);
                         console.log('Packing master:', response.packingMaster);
                         
+                        // Store packing master ID for saving weight details
+                        window.currentPackingMasterId = response.packingMaster.id;
+                        window.currentPackingMasterName = response.packingMaster.name;
+                        console.log('🔍 Set currentPackingMasterId =', window.currentPackingMasterId);
+                        console.log('🔍 Set currentPackingMasterName =', window.currentPackingMasterName);
+                        
                         // Set packing type name and header color
                         $('#packingTypeName').text(response.packingMaster.name);
                         
@@ -1322,9 +1324,37 @@
                                 $('#packingTypeNetWeight').val(parseFloat(currentNetWeight).toFixed(2));
                             }
                         }
+                        
+                        // Load existing weight details in edit mode (use setTimeout to ensure inputs are rendered)
+                        var isEditMode = @(ViewBag.IsEdit != null ? "true" : "false");
+                        var invoiceId = @(ViewBag.EditId ?? 0);
+                        
+                        console.log('🔍 Checking if should load existing data...');
+                        console.log('  isEditMode:', isEditMode, 'type:', typeof isEditMode);
+                        console.log('  invoiceId:', invoiceId, 'type:', typeof invoiceId);
+                        console.log('  currentPackingMasterId:', window.currentPackingMasterId);
+                        console.log('  Condition check: isEditMode === "true":', (isEditMode === "true"));
+                        console.log('  Condition check: invoiceId > 0:', (invoiceId > 0));
+                        console.log('  Condition check: currentPackingMasterId exists:', !!window.currentPackingMasterId);
+                        
+                        if ((isEditMode === true || isEditMode === "true") && invoiceId > 0 && window.currentPackingMasterId) {
+                            console.log('✅ ALL CONDITIONS MET - Loading existing weight details');
+                            setTimeout(function() {
+                                loadExistingWeightDetails(invoiceId, window.currentPackingMasterId);
+                            }, 100); // Small delay to ensure DOM is ready
+                        } else {
+                            console.warn('❌ CONDITIONS NOT MET - Will not load existing data');
+                            if (!(isEditMode === true || isEditMode === "true")) console.warn('  ❌ Not in edit mode');
+                            if (invoiceId <= 0) console.warn('  ❌ Invalid invoice ID');
+                            if (!window.currentPackingMasterId) console.warn('  ❌ No packing master ID');
+                        }
                     } else {
                         console.log('No slab data found for TRANPID:', tranpId);
                         console.log('Response details:', response);
+                        
+                        // Set default packing master ID if no data found
+                        window.currentPackingMasterId = 1; // Default to first packing master
+                        console.log('🔍 Set default currentPackingMasterId =', window.currentPackingMasterId);
                         
                         // Show empty section
                         $('#packingTypeName').text('No Packing Data');
@@ -1335,6 +1365,11 @@
                 error: function(xhr, status, error) {
                     console.error('Error loading slab data:', error);
                     console.error('XHR response:', xhr.responseText);
+                    
+                    // Set default packing master ID on error
+                    window.currentPackingMasterId = 1; // Default to first packing master
+                    console.log('🔍 Set default currentPackingMasterId on error =', window.currentPackingMasterId);
+                    
                     // Show empty section due to error
                     $('#packingTypeName').text('Error Loading Data');
                     $('#packingTypeHeader').removeClass().addClass('card-header text-white bg-danger');
@@ -1395,6 +1430,7 @@
                                 'data-range="' + slab.range + '" ' +
                                 'data-type="' + type + '" ' +
                                 'data-intake-value="' + (slab.value || 0) + '" ' +
+                                'data-pck-column="' + (slab.pckColumn || '') + '" ' +
                                 'placeholder="Enter calculation value" ' +
                                 'step="0.001" onchange="calculateSlabTotal(\'' + type + '\')">' +
                         '</td>' +
@@ -1463,33 +1499,236 @@
             $('#' + type + 'PerKgRate').val(perKgRate.toFixed(2));
         }
 
-        // Apply rate calculation back to main form
+        // Load existing weight details for edit mode
+        function loadExistingWeightDetails(tranmId, packmId) {
+            console.log('===========================================');
+            console.log('📥 LOAD EXISTING WEIGHT DETAILS CALLED');
+            console.log('📥 TRANMID:', tranmId, 'PACKMID:', packmId);
+            console.log('===========================================');
+            
+            $.ajax({
+                url: '@Url.Action("GetWeightDetails", "RawMaterialInvoice")',
+                type: 'POST',
+                data: { 
+                    tranmId: tranmId,
+                    packmId: packmId
+                },
+                success: function(response) {
+                    if (response.success && response.data) {
+                        console.log('✅ Found existing weight details:', response.data);
+                        
+                        // Populate the summary fields
+                        $('#packingTypeTotal').val(response.data.TOTALPNDS.toFixed(3));
+                        $('#packingTypePackingWeight').val(response.data.PACKWGT.toFixed(2));
+                        $('#packingTypeTotalWeight').val(response.data.TOTALWGHT.toFixed(2));
+                        $('#packingTypeOneDollarRate').val(response.data.ONEDOLLAR.toFixed(2));
+                        $('#packingTypeTotalValueForDollar').val(response.data.TOTALDOLVAL.toFixed(2));
+                        $('#packingTypeNetWeight').val(response.data.WEIGHTINKGS.toFixed(2));
+                        $('#packingTypePerKgRate').val(response.data.PERKGRATE.toFixed(2));
+                        
+                        // Populate the calculation values for each slab
+                        if (response.data.Details && response.data.Details.length > 0) {
+                            console.log('📝 Populating', response.data.Details.length, 'calculation values');
+                            
+                            // First, log all available slab inputs
+                            var availableSlabs = [];
+                            $('#packingTypeSlabs .slab-input').each(function() {
+                                var inputRange = $(this).data('range');
+                                availableSlabs.push(inputRange);
+                            });
+                            console.log('📋 Available slab inputs:', availableSlabs);
+                            console.log('📋 Details to populate:', response.data.Details.map(d => d.PACKTMDESC));
+                            
+                            response.data.Details.forEach(function(detail) {
+                                console.log('🔍 Looking for range:', detail.PACKTMDESC);
+                                var matched = false;
+                                
+                                // Find the matching slab input by range name
+                                $('#packingTypeSlabs .slab-input').each(function() {
+                                    var inputRange = $(this).data('range');
+                                    console.log('  Comparing "' + inputRange + '" with "' + detail.PACKTMDESC + '"');
+                                    
+                                    if (inputRange && inputRange.trim().toUpperCase() === detail.PACKTMDESC.trim().toUpperCase()) {
+                                        $(this).val(detail.PNDSVALUE.toFixed(3));
+                                        console.log('  ✅ Set', detail.PACKTMDESC, '=', detail.PNDSVALUE);
+                                        matched = true;
+                                    }
+                                });
+                                
+                                if (!matched) {
+                                    console.warn('  ⚠️ No matching input found for:', detail.PACKTMDESC);
+                                }
+                            });
+                            
+                            // Recalculate totals after populating
+                            calculateSlabTotal('packingType');
+                        }
+                        
+                        console.log('✅ Populated existing weight details in modal');
+                    } else {
+                        console.log('ℹ️ No existing weight details found');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('❌ Error loading existing weight details:', error);
+                }
+            });
+        }
+
+        // Apply rate calculation and save weight details
         function applyRateCalculation() {
+            console.log('🔥 applyRateCalculation called - STARTING');
+            console.log('🔍 window.currentRateItemIndex:', window.currentRateItemIndex);
+            
             if (typeof window.currentRateItemIndex === 'undefined') {
-                alert('No item selected');
+                console.error('❌ No currentRateItemIndex defined');
+                alert('No item selected for rate calculation');
                 return;
             }
             
             var itemIndex = window.currentRateItemIndex;
+            var currentItem = itemsData[itemIndex];
+            console.log('🔍 Current item:', currentItem);
             
             // Get calculated rate from the packing type section
             var finalRate = parseFloat($('#packingTypePerKgRate').val()) || 0;
+            console.log('🔍 Final rate:', finalRate);
             
             if (finalRate > 0) {
-                // Update the rate in the main form
-                $('.rate[data-index="' + itemIndex + '"]').val(finalRate.toFixed(2));
+                // Get invoice ID (only save if we're in edit mode with a valid invoice ID)
+                var isEditMode = @(ViewBag.IsEdit != null ? "true" : "false");
+                var invoiceId = @(ViewBag.EditId ?? 0);
                 
-                // Trigger calculation
-                calculateAmount(itemIndex);
+                console.log('🔍 isEditMode:', isEditMode, 'type:', typeof isEditMode);
+                console.log('🔍 invoiceId:', invoiceId, 'type:', typeof invoiceId);
                 
-                alert('Rate applied successfully: ₹' + finalRate.toFixed(2) + ' per KG');
+                // Fix the condition to handle both boolean and string values
+                var isEdit = (isEditMode === true || isEditMode === "true");
+                console.log('🔍 isEdit (converted):', isEdit);
+                
+                if (isEdit && invoiceId > 0) {
+                    // Ensure we have a valid packing master ID
+                    var packingMasterId = window.currentPackingMasterId || 1; // Default to 1 if not set
+                    
+                    // Validate required data
+                    if (!invoiceId || invoiceId <= 0) {
+                        alert('❌ Error: Invalid invoice ID');
+                        return;
+                    }
+                    if (!packingMasterId || packingMasterId <= 0) {
+                        alert('❌ Error: Invalid packing master ID');
+                        return;
+                    }
+
+                    console.log('🔍 Debug: invoiceId =', invoiceId, 'PACKMID =', packingMasterId);
+                    
+                    // Collect all slab data with their packing type information
+                    var slabDetails = [];
+                    var totalSlabValue = 0;
+                    var totalPndsValue = 0;
+                    
+                    $('#packingTypeSlabs .slab-input').each(function() {
+                        var intakeValue = parseFloat($(this).data('intake-value')) || 0;
+                        var calculationValue = parseFloat($(this).val()) || 0;
+                        var slabRange = $(this).data('range') || 'Unknown';
+                        var pckColumn = $(this).data('pck-column') || '';
+                        
+                        if (calculationValue > 0) {
+                            slabDetails.push({
+                                range: slabRange,
+                                intakeValue: intakeValue,
+                                calculationValue: calculationValue,
+                                pckColumn: pckColumn
+                            });
+                        }
+                        
+                        totalSlabValue += intakeValue;
+                        totalPndsValue += calculationValue;
+                    });
+                    
+                    // Prepare comprehensive weight details data
+                    var weightDetailsData = {
+                        TRANMID: invoiceId,
+                        PACKMID: packingMasterId,
+                        PACKTMID: 0, // Will be determined by server based on packing types
+                        SLABVALUE: totalSlabValue,
+                        PNDSVALUE: totalPndsValue,
+                        TOTALPNDS: parseFloat($('#packingTypeTotal').val()) || 0,
+                        PACKWGT: parseFloat($('#packingTypePackingWeight').val()) || 0,
+                        TOTALWGHT: parseFloat($('#packingTypeTotalWeight').val()) || 0,
+                        ONEDOLLAR: parseFloat($('#packingTypeOneDollarRate').val()) || 0,
+                        TOTALDOLVAL: parseFloat($('#packingTypeTotalValueForDollar').val()) || 0,
+                        WEIGHTINKGS: parseFloat($('#packingTypeNetWeight').val()) || 0,
+                        PERKGRATE: finalRate,
+                        SlabDetails: slabDetails // Send detailed slab information
+                    };
+
+                    console.log('🔥 ABOUT TO SAVE WEIGHT DETAILS');
+                    console.log('Saving weight details:', weightDetailsData);
+                    console.log('AJAX URL:', '@Url.Action("SaveWeightDetails", "RawMaterialInvoice")');
+                    console.log('SlabDetails count:', slabDetails.length);
+
+                    // Save weight details to database
+                    $.ajax({
+                        url: '@Url.Action("SaveWeightDetails", "RawMaterialInvoice")',
+                        type: 'POST',
+                        data: weightDetailsData,
+                        beforeSend: function() {
+                            console.log('🚀 AJAX REQUEST STARTING...');
+                        },
+                        success: function(response) {
+                            console.log('✅ AJAX Success Response:', response);
+                            if (response.success) {
+                                console.log('✅ Weight details saved successfully to database!');
+                                console.log('✅ Server message:', response.message);
+                                
+                                // Update the rate in the main form
+                                $('.rate[data-index="' + itemIndex + '"]').val(finalRate.toFixed(2));
+                                
+                                // Trigger calculation
+                                calculateAmount(itemIndex);
+                                
+                                alert('✅ SUCCESS: Rate applied and weight details saved!\n' + response.message + '\n₹' + finalRate.toFixed(2) + ' per KG');
+                                
+                                // Close modal
+                                $('#rateModal').modal('hide');
+                            } else {
+                                console.error('❌ Server returned error:', response.message);
+                                console.error('❌ AJAX Error:', response);
+                                console.error('❌ Status:', 'Server Error');
+                                console.error('❌ Response Text:', response.message);
+                                console.error('❌ XHR Object:', response);
+                                alert('❌ ERROR: Server returned error: ' + response.message);
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('❌ AJAX REQUEST FAILED!');
+                            console.error('❌ AJAX Error:', error);
+                            console.error('❌ Status:', status);
+                            console.error('❌ Response Text:', xhr.responseText);
+                            console.error('❌ XHR Object:', xhr);
+                            alert('❌ Error saving weight details: ' + error + '\nStatus: ' + status + '\nResponse: ' + xhr.responseText);
+                        }
+                    });
+                } else {
+                    // Add mode - just apply the rate without saving weight details
+                    console.log('Add mode - applying rate without saving weight details');
+                    
+                    // Update the rate in the main form
+                    $('.rate[data-index="' + itemIndex + '"]').val(finalRate.toFixed(2));
+                    
+                    // Trigger calculation
+                    calculateAmount(itemIndex);
+                    
+                    alert('Rate applied successfully: ₹' + finalRate.toFixed(2) + ' per KG');
+                    
+                    // Close modal
+                    $('#rateModal').modal('hide');
+                }
             } else {
                 alert('Please calculate rate in the packing type section');
                 return;
             }
-            
-            // Close modal
-            $('#rateModal').modal('hide');
         }
 
         function calculateAmount(index) {

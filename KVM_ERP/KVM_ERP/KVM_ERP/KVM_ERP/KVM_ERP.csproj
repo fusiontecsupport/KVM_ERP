@@ -294,6 +294,7 @@
       <DependentUpon>202507291102292_InitialCreate.cs</DependentUpon>
     </Compile>
     <Compile Include="Migrations\Configuration.cs" />
+    <Compile Include="Migrations\202511130700000_AddTransactionInvoiceWeightDetails.cs" />
     <!-- Excluded per cleanup: GovernmentProof migration removed -->
     <!-- <Compile Include="Migrations\202501010000004_AddGovernmentProofTable.cs" /> -->
     <!-- <Compile Include="Migrations\202501010000004_AddGovernmentProofTable.Designer.cs" /> -->
@@ -344,6 +345,7 @@
     <Compile Include="Models\TransactionMasterFactor.cs" />
     <Compile Include="Models\TransactionProductCalculation.cs" />
     <Compile Include="Models\TransactionQualityCheck.cs" />
+    <Compile Include="Models\TransactionInvoiceWeightDetails.cs" />
     <Compile Include="Models\GradeMaster.cs" />
     <Compile Include="Models\ProductionColourMaster.cs" />
     <Compile Include="Models\ReceivedTypeMaster.cs" />
