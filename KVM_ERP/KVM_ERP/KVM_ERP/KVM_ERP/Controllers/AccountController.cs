@@ -72,10 +72,34 @@ namespace KVM_ERP.Controllers
             Session["EMP_STATEID"] = "";
             Session["EMP_LOCTID"] = "";
             Session["grntranrefid"] = "0";
-            ViewBag.COMPID = new SelectList(context.companymasters, "COMPID", "COMPNAME");
+            
+            // Add error handling for database connection issues
+            try
+            {
+                ViewBag.COMPID = new SelectList(context.companymasters, "COMPID", "COMPNAME");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Login] Database connection error for COMPID dropdown: {ex.Message}");
+                // Provide empty dropdown as fallback
+                ViewBag.COMPID = new SelectList(new List<SelectListItem>(), "Value", "Text");
+                // Store error message for display
+                ViewBag.DatabaseError = "Database connection issue. Please contact administrator.";
+            }
+            
             Session["LDATE"] = DateTime.Now.ToString("dd-MM-yyyy");
             Session["GYrDesc"] = (DateTime.Now.Year - 1) + " - " + (DateTime.Now.Year);
-            ViewBag.COMPYID = new SelectList(context.VW_ACCOUNTING_YEAR_DETAIL_ASSGN.OrderByDescending(m => m.YRDESC), "COMPYID", "YRDESC");
+            
+            try
+            {
+                ViewBag.COMPYID = new SelectList(context.VW_ACCOUNTING_YEAR_DETAIL_ASSGN.OrderByDescending(m => m.YRDESC), "COMPYID", "YRDESC");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Login] Database connection error for COMPYID dropdown: {ex.Message}");
+                // Provide empty dropdown as fallback
+                ViewBag.COMPYID = new SelectList(new List<SelectListItem>(), "Value", "Text");
+            }
 
             Session["USER"] = "";
 
@@ -100,8 +124,27 @@ namespace KVM_ERP.Controllers
             ApplicationDbContext context = new ApplicationDbContext();
             ClubMembershipDBEntities db = new ClubMembershipDBEntities();
 
-            ViewBag.COMPID = new SelectList(context.companymasters, "COMPID", "COMPNAME");
-            ViewBag.COMPYID = new SelectList(context.VW_ACCOUNTING_YEAR_DETAIL_ASSGN.OrderByDescending(m => m.YRDESC), "COMPYID", "YRDESC");
+            // Add error handling for database connection issues in POST method
+            try
+            {
+                ViewBag.COMPID = new SelectList(context.companymasters, "COMPID", "COMPNAME");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Login POST] Database connection error for COMPID dropdown: {ex.Message}");
+                ViewBag.COMPID = new SelectList(new List<SelectListItem>(), "Value", "Text");
+                ViewBag.DatabaseError = "Database connection issue. Please contact administrator.";
+            }
+            
+            try
+            {
+                ViewBag.COMPYID = new SelectList(context.VW_ACCOUNTING_YEAR_DETAIL_ASSGN.OrderByDescending(m => m.YRDESC), "COMPYID", "YRDESC");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Login POST] Database connection error for COMPYID dropdown: {ex.Message}");
+                ViewBag.COMPYID = new SelectList(new List<SelectListItem>(), "Value", "Text");
+            }
 
             var brnchctype = 0;// context.Database.SqlQuery<Int16>("Select BRNCHCTYPE From BranchMaster Where BRNCHID = '" + user.BrnchId + "'").ToList();
             var stateid = 1;// context.Database.SqlQuery<Int32>("Select STATEID From BranchMaster Where BRNCHID = '" + user.BrnchId + "'").ToList();
