@@ -668,7 +668,7 @@
                 <h5 class="modal-title" id="rateModalLabel">
                     <i class="fa fa-calculator"></i> Rate Calculation
                 </h5>
-                <button type="button" class="close text-white" onclick="$('#rateModal').modal('hide');" aria-label="Close">
+                <button type="button" class="close text-white" onclick="$('#rateModal').modal('hide');" aria-label="Close" style="opacity: 0.8; font-size: 1.5rem; font-weight: bold; text-shadow: 0 1px 0 rgba(255,255,255,0.1); transition: all 0.2s ease;">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -728,7 +728,7 @@
                             
                             <div class="row">
                                 <div class="col-md-6">
-                                    <label class="form-label">Total</label>
+                                    <label class="form-label">Total (In Dollar)</label>
                                     <input type="number" class="form-control" id="packingTypeTotal" step="0.001" readonly>
                                 </div>
                                 <div class="col-md-6">
@@ -739,27 +739,31 @@
                             
                             <div class="row mt-2">
                                 <div class="col-md-6">
-                                    <label class="form-label">Total Weight</label>
+                                    <label class="form-label">Total Weight (In KGS)</label>
                                     <input type="number" class="form-control" id="packingTypeTotalWeight" step="0.01" readonly>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">One Dollar Rate</label>
+                                    <label class="form-label">Rate Per USD</label>
                                     <input type="number" class="form-control" id="packingTypeOneDollarRate" step="0.01" onchange="calculateDollarValue('packingType')">
                                 </div>
                             </div>
                             
                             <div class="row mt-2">
-                                <div class="col-md-4">
-                                    <label class="form-label">Total Value for Dollar</label>
+                                <div class="col-md-6">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Net Weight</label>
+                                            <input type="number" class="form-control" id="packingTypeNetWeight" step="0.01" readonly>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Per Kg Rate</label>
+                                            <input type="number" class="form-control" id="packingTypePerKgRate" step="0.01" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Total Value (In INR)</label>
                                     <input type="number" class="form-control" id="packingTypeTotalValueForDollar" step="0.01" readonly>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Net Weight</label>
-                                    <input type="number" class="form-control" id="packingTypeNetWeight" step="0.01" readonly>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Per Kg Rate</label>
-                                    <input type="number" class="form-control" id="packingTypePerKgRate" step="0.01" readonly>
                                 </div>
                             </div>
                         </div>
@@ -767,7 +771,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" onclick="$('#rateModal').modal('hide');">Close</button>
                 <button type="button" class="btn btn-primary" onclick="applyRateCalculation()">Apply Rate</button>
             </div>
         </div>
@@ -1413,7 +1417,7 @@
                             '<tr>' +
                                 '<th width="25%">Size Range</th>' +
                                 '<th width="20%">Intake Value</th>' +
-                                '<th width="55%">Calculation Value</th>' +
+                                '<th width="55%">Calculation Value (Dollar)</th>' +
                             '</tr>' +
                         '</thead>' +
                         '<tbody>';
@@ -2294,4 +2298,23 @@
             });
         }
     </script>
+    
+    <style>
+        /* Enhanced close button styling */
+        .modal-header .close:hover {
+            opacity: 1 !important;
+            transform: scale(1.1);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header .close:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+            border-radius: 50%;
+        }
+        
+        .modal-header .close:active {
+            transform: scale(0.95);
+        }
+    </style>
 }
