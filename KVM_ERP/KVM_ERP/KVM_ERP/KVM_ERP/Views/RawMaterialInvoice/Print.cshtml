@@ -297,14 +297,17 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width: 5%;">S.No</th>
-                    <th style="width: 25%;">Item</th>
-                    <th style="width: 15%;">Grade</th>
-                    <th style="width: 15%;">Production Colour</th>
-                    <th style="width: 12%;">Received Type</th>
-                    <th class="text-right" style="width: 10%;">Quantity</th>
-                    <th class="text-right" style="width: 10%;">Rate (₹)</th>
-                    <th class="text-right" style="width: 13%;">Amount (₹)</th>
+                    <th style="width: 4%;">S.No</th>
+                    <th style="width: 18%;">Item</th>
+                    <th style="width: 10%;">Grade</th>
+                    <th style="width: 10%;">Production Colour</th>
+                    <th style="width: 10%;">Received Type</th>
+                    <th class="text-right" style="width: 8%;">Quantity</th>
+                    <th class="text-right" style="width: 8%;">Rate (₹)</th>
+                    <th class="text-right" style="width: 8%;">Amount (₹)</th>
+                    <th class="text-right" style="width: 8%;">Packing/Kg (₹)</th>
+                    <th class="text-right" style="width: 8%;">Packing Amount (₹)</th>
+                    <th class="text-right" style="width: 8%;">Net Amount (₹)</th>
                 </tr>
             </thead>
             <tbody>
@@ -324,6 +327,9 @@
                         <td class="text-right">@item.TRANQTY.ToString("N2")</td>
                         <td class="text-right">@item.TRANRATE.ToString("N2")</td>
                         <td class="text-right">@item.TRANDAMT.ToString("N2")</td>
+                        <td class="text-right">@item.PACKINGKG.ToString("N2")</td>
+                        <td class="text-right">@item.PACKINGAMOUNT.ToString("N2")</td>
+                        <td class="text-right">@item.NETAMOUNT.ToString("N2")</td>
                     </tr>
                     serialNo++;
                 }
@@ -333,30 +339,29 @@
         <div class="tax-summary">
             <div class="tax-summary-row">
                 <span class="tax-label">Subtotal:</span>
-                <span class="tax-value">₹ @subtotal.ToString("N2")</span>
+                <span class="tax-value">₹ @Model.TRANGAMT.ToString("N2")</span>
+            </div>
+
+            <div class="tax-summary-row">
+                <span class="tax-label">Discount on Packing:</span>
+                <span class="tax-value">₹ @Model.TRANPACKAMT.ToString("N2")</span>
             </div>
 
             @* Display CGST from TRANSACTIONMASTER *@
-            @if (Model.CGSTAMT > 0)
-            {
-                <div class="tax-summary-row">
-                    <span class="tax-label">
-                        CGST: &#64; @Model.CGSTPER%
-                    </span>
-                    <span class="tax-value">₹ @Model.CGSTAMT.ToString("N2")</span>
-                </div>
-            }
+            <div class="tax-summary-row">
+                <span class="tax-label">
+                    CGST: &#64; @Model.CGSTPER%
+                </span>
+                <span class="tax-value">₹ @Model.CGSTAMT.ToString("N2")</span>
+            </div>
 
             @* Display SGST from TRANSACTIONMASTER *@
-            @if (Model.SGSTAMT > 0)
-            {
-                <div class="tax-summary-row">
-                    <span class="tax-label">
-                        SGST: &#64; @Model.SGSTPER%
-                    </span>
-                    <span class="tax-value">₹ @Model.SGSTAMT.ToString("N2")</span>
-                </div>
-            }
+            <div class="tax-summary-row">
+                <span class="tax-label">
+                    SGST: &#64; @Model.SGSTPER%
+                </span>
+                <span class="tax-value">₹ @Model.SGSTAMT.ToString("N2")</span>
+            </div>
 
             @* Display IGST from TRANSACTIONMASTER *@
             @if (Model.IGSTAMT > 0)
@@ -388,7 +393,7 @@
             }
 
             <div class="tax-summary-row">
-                <span class="tax-label">Total Amount:</span>
+                <span class="tax-label">Grand Total:</span>
                 <span class="tax-value">₹ @Model.TRANNAMT.ToString("N2")</span>
             </div>
         </div>

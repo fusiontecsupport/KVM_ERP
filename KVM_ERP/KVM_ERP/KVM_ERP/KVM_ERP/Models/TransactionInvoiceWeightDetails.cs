@@ -11,9 +11,9 @@ namespace KVM_ERP.Models
         [Column("TRANRID")]
         public int TRANRID { get; set; }
 
-        [Column("TRANMID")]
+        [Column("TRANDID")]
         [Required]
-        public int TRANMID { get; set; }
+        public int TRANDID { get; set; }
 
         [Column("PACKMID")]
         [Required]
@@ -78,8 +78,8 @@ namespace KVM_ERP.Models
         public DateTime PRCSDATE { get; set; }
 
         // Navigation properties (optional)
-        [ForeignKey("TRANMID")]
-        public virtual TransactionMaster TransactionMaster { get; set; }
+        [ForeignKey("TRANDID")]
+        public virtual TransactionDetail TransactionDetail { get; set; }
 
         [ForeignKey("PACKMID")]
         public virtual PackingMaster PackingMaster { get; set; }

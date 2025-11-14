@@ -720,6 +720,7 @@ namespace KVM_ERP.Controllers
                         PackingAmount = savedItem?.PackingAmount ?? 0,  // Use saved or 0
                         NetAmount = savedItem?.NetAmount ?? 0,  // Use saved or 0
                         TRANPID = item.TRANPID,
+                        TRANDID = savedItem?.TRANDID ?? 0,  // Include TRANDID for rate updates
                         IsSelected = isSelected  // Checked if it was saved
                     };
                 }).ToList();
@@ -1028,6 +1029,9 @@ namespace KVM_ERP.Controllers
                 
                 // Declare existingQuantities at method scope for approval mode
                 Dictionary<int, Tuple<decimal, decimal>> existingQuantities = null;
+                
+                // Declare weightDetailsToPreserve at method scope for preserving weight details during edit
+                Dictionary<int, List<WeightDetailsPreserveModel>> weightDetailsToPreserve = null;
 
                 // Check if this is an UPDATE (edit existing invoice) or INSERT (new invoice)
                 if (model.InvoiceId.HasValue && model.InvoiceId.Value > 0)
@@ -1078,6 +1082,50 @@ namespace KVM_ERP.Controllers
                         tranMId                         // TRANMID (WHERE clause)
                     );
 
+                    // PRESERVE WEIGHT DETAILS: Save weight details before deleting TRANSACTIONDETAIL
+                    // Map by TRANDAID (which stores TRANPID) so we can restore them after new TRANDIDs are created
+                    weightDetailsToPreserve = new Dictionary<int, List<WeightDetailsPreserveModel>>();
+                    var existingDetails = context.Database.SqlQuery<WeightDetailsPreserveModel>(@"
+                        SELECT 
+                            td.TRANDID,
+                            td.TRANDAID,
+                            w.TRANRID,
+                            w.PACKMID,
+                            w.PACKTMID,
+                            w.SLABVALUE,
+                            w.PNDSVALUE,
+                            w.TOTALPNDS,
+                            w.PACKWGT,
+                            w.TOTALWGHT,
+                            w.ONEDOLLAR,
+                            w.TOTALDOLVAL,
+                            w.WEIGHTINKGS,
+                            w.PERKGRATE,
+                            w.CUSRID,
+                            w.LMUSRID,
+                            w.DISPSTATUS,
+                            w.PRCSDATE
+                        FROM TRANSACTIONDETAIL td
+                        INNER JOIN TRANSACTION_INVOICE_WEIGHT_DETAILS w ON td.TRANDID = w.TRANDID
+                        WHERE td.TRANMID = @p0
+                          AND (w.DISPSTATUS = 0 OR w.DISPSTATUS IS NULL)
+                    ", tranMId).ToList();
+                    
+                    foreach (var wd in existingDetails)
+                    {
+                        if (!weightDetailsToPreserve.ContainsKey(wd.TRANDAID))
+                        {
+                            weightDetailsToPreserve[wd.TRANDAID] = new List<WeightDetailsPreserveModel>();
+                        }
+                        weightDetailsToPreserve[wd.TRANDAID].Add(wd);
+                    }
+                    
+                    System.Diagnostics.Debug.WriteLine($"*** PRESERVING {existingDetails.Count} weight detail records mapped by TRANDAID (TRANPID)");
+                    foreach (var kvp in weightDetailsToPreserve)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"  TRANDAID {kvp.Key}: {kvp.Value.Count} weight detail records");
+                    }
+
                     // If in Approval Mode, save existing TRANAQTY and TRANEQTY before deleting
                     if (model.IsApprovalMode)
                     {
@@ -1096,11 +1144,15 @@ namespace KVM_ERP.Controllers
                     }
 
                     // Delete existing items - only for Raw Material Invoice (REGSTRID=2)
+                    // NOTE: This will CASCADE DELETE weight details due to foreign key constraint
+                    // But we've preserved them above, so we'll restore them after creating new records
                     context.Database.ExecuteSqlCommand(@"
                         DELETE FROM TRANSACTIONDETAIL 
                         WHERE TRANMID = @p0 
                         AND TRANMID IN (SELECT TRANMID FROM TRANSACTIONMASTER WHERE REGSTRID = 2)
                     ", tranMId);
+                    
+                    System.Diagnostics.Debug.WriteLine($"*** Deleted existing TRANSACTIONDETAIL records (weight details were CASCADE deleted but preserved in memory)");
 
                     System.Diagnostics.Debug.WriteLine($"Invoice updated successfully. TRANMID: {tranMId}, TRANNO: {tranNo}");
                 }
@@ -1282,7 +1334,32 @@ namespace KVM_ERP.Controllers
                         
                         System.Diagnostics.Debug.WriteLine($"  Saving item: ItemId={item.ItemId}, TRANPID={item.TRANPID}, TRANDAID={trandaid}, HSNID={hsnId}, Gross=₹{grossAmount}, PackingKg={item.PackingKg}, PackingAmt=₹{item.PackingAmount}, Net=₹{netAmount}, CGST=₹{itemCGST}, SGST=₹{itemSGST}, IGST=₹{itemIGST}");
 
-                        context.Database.ExecuteSqlCommand(itemSql,
+                        // Get the new TRANDID after insert (for restoring weight details)
+                        int newTrandId = 0;
+                        
+                        // For SQL Server, we need to use OUTPUT clause or SCOPE_IDENTITY
+                        var itemSqlWithOutput = @"
+                            INSERT INTO TRANSACTIONDETAIL (
+                                TRANMID, MTRLGID, MTRLID, MTRLNBOX, MTRLCOUNTS,
+                                GRADEID, PCLRID, RCVDTID, HSNID,
+                                TRANAQTY, TRANDQTY, TRANEQTY, TRANDRATE, TRANDAMT,
+                                TRANDDISCEXPRN, TRANDDISCAMT, TRANDGAMT,
+                                TRANDCGSTEXPRN, TRANDSGSTEXPRN, TRANDIGSTEXPRN,
+                                TRANDCGSTAMT, TRANDSGSTAMT, TRANDIGSTAMT, TRANDNAMT, TRANDAID,
+                                CUSRID, LMUSRID, DISPSTATUS, PRCSDATE
+                            ) 
+                            OUTPUT INSERTED.TRANDID
+                            VALUES (
+                                @p0, @p1, @p2, @p3, @p4,
+                                @p5, @p6, @p7, @p8,
+                                @p9, @p10, @p11, @p12, @p13,
+                                @p14, @p15, @p16,
+                                @p17, @p18, @p19,
+                                @p20, @p21, @p22, @p23, @p24,
+                                @p25, @p26, @p27, @p28
+                            )";
+
+                        newTrandId = context.Database.SqlQuery<int>(itemSqlWithOutput,
                             tranMId,                 // @p0 - TRANMID
                             item.MaterialGroupId,    // @p1 - MTRLGID
                             item.ItemId,             // @p2 - MTRLID
@@ -1312,7 +1389,58 @@ namespace KVM_ERP.Controllers
                             currentUser,             // @p26 - LMUSRID
                             0,                       // @p27 - DISPSTATUS (0=Active)
                             DateTime.Now             // @p28 - PRCSDATE
-                        );
+                        ).FirstOrDefault();
+                        
+                        System.Diagnostics.Debug.WriteLine($"  Created new TRANSACTIONDETAIL: TRANDID={newTrandId}, TRANDAID={trandaid}");
+
+                        // RESTORE WEIGHT DETAILS: If this is edit mode and we have preserved weight details for this TRANDAID
+                        if (model.InvoiceId.HasValue && model.InvoiceId.Value > 0 && 
+                            weightDetailsToPreserve != null && weightDetailsToPreserve.ContainsKey(trandaid) && 
+                            newTrandId > 0)
+                        {
+                            var preservedWeightDetails = weightDetailsToPreserve[trandaid];
+                            System.Diagnostics.Debug.WriteLine($"  Restoring {preservedWeightDetails.Count} weight detail records for new TRANDID={newTrandId} (TRANDAID={trandaid})");
+                            
+                            foreach (var preservedWd in preservedWeightDetails)
+                            {
+                                // Update PERKGRATE if rate changed
+                                decimal updatedPerKgRate = preservedWd.PERKGRATE;
+                                if (item.Rate > 0 && item.Rate != preservedWd.PERKGRATE)
+                                {
+                                    // Rate was changed - update PERKGRATE
+                                    updatedPerKgRate = item.Rate;
+                                    System.Diagnostics.Debug.WriteLine($"    Rate changed from {preservedWd.PERKGRATE} to {item.Rate} - updating PERKGRATE");
+                                }
+                                
+                                var restoreSql = @"
+                                    INSERT INTO TRANSACTION_INVOICE_WEIGHT_DETAILS 
+                                    (TRANDID, PACKMID, PACKTMID, SLABVALUE, PNDSVALUE, TOTALPNDS, PACKWGT, TOTALWGHT, 
+                                     ONEDOLLAR, TOTALDOLVAL, WEIGHTINKGS, PERKGRATE, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
+                                    VALUES 
+                                    (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15)";
+                                
+                                context.Database.ExecuteSqlCommand(restoreSql,
+                                    newTrandId,              // @p0 - New TRANDID
+                                    preservedWd.PACKMID,     // @p1
+                                    preservedWd.PACKTMID,     // @p2
+                                    preservedWd.SLABVALUE,    // @p3
+                                    preservedWd.PNDSVALUE,    // @p4
+                                    preservedWd.TOTALPNDS,    // @p5
+                                    preservedWd.PACKWGT,      // @p6
+                                    preservedWd.TOTALWGHT,    // @p7
+                                    preservedWd.ONEDOLLAR,    // @p8
+                                    preservedWd.TOTALDOLVAL,  // @p9
+                                    preservedWd.WEIGHTINKGS,   // @p10
+                                    updatedPerKgRate,         // @p11 - Updated PERKGRATE if rate changed
+                                    preservedWd.CUSRID,       // @p12
+                                    preservedWd.LMUSRID,      // @p13
+                                    preservedWd.DISPSTATUS,    // @p14
+                                    DateTime.Now              // @p15
+                                );
+                            }
+                            
+                            System.Diagnostics.Debug.WriteLine($"  Successfully restored {preservedWeightDetails.Count} weight detail records for TRANDID={newTrandId}");
+                        }
 
                         // Add to totals
                         subtotal += item.Amount;
@@ -1608,7 +1736,9 @@ namespace KVM_ERP.Controllers
                              ISNULL(tm.TRANIGSTAMT, 0) as IGSTAMT,
                              ISNULL(tm.TRANCGSTEXPRN, 0) as CGSTPER,
                              ISNULL(tm.TRANSGSTEXPRN, 0) as SGSTPER,
-                             ISNULL(tm.TRANIGSTEXPRN, 0) as IGSTPER
+                             ISNULL(tm.TRANIGSTEXPRN, 0) as IGSTPER,
+                             ISNULL(tm.TRANGAMT, 0) as TRANGAMT,
+                             ISNULL(tm.TRANPACKAMT, 0) as TRANPACKAMT
                       FROM TRANSACTIONMASTER tm
                       LEFT JOIN PURCHASEINVOICESTATUS pis ON tm.DISPSTATUS = pis.PUINSTID
                       WHERE tm.TRANMID = @p0 AND tm.REGSTRID = 2",
@@ -1629,7 +1759,10 @@ namespace KVM_ERP.Controllers
                              ISNULL(rt.RCVDTDESC, '') as RCVDTDESC,
                              td.TRANDQTY as TRANQTY, 
                              td.TRANDRATE as TRANRATE, 
-                             td.TRANDAMT
+                             td.TRANDAMT,
+                             ISNULL(td.TRANDDISCEXPRN, 0) as PACKINGKG,
+                             ISNULL(td.TRANDDISCAMT, 0) as PACKINGAMOUNT,
+                             ISNULL(td.TRANDNAMT, 0) as NETAMOUNT
                       FROM TRANSACTIONDETAIL td
                       INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
                       LEFT JOIN GRADEMASTER g ON td.GRADEID = g.GRADEID
@@ -1833,9 +1966,25 @@ namespace KVM_ERP.Controllers
         [HttpPost]
         public JsonResult SaveWeightDetails(WeightDetailsModel model)
         {
-            Debug.WriteLine($"*** SaveWeightDetails called for TRANMID: {model.TRANMID}, PACKMID: {model.PACKMID}");
+            Debug.WriteLine($"*** SaveWeightDetails called for TRANDID: {model.TRANDID}, PACKMID: {model.PACKMID}");
             Debug.WriteLine($"*** Model data: SLABVALUE={model.SLABVALUE}, PNDSVALUE={model.PNDSVALUE}, TOTALPNDS={model.TOTALPNDS}");
             Debug.WriteLine($"*** Model data: PACKWGT={model.PACKWGT}, TOTALWGHT={model.TOTALWGHT}, PERKGRATE={model.PERKGRATE}");
+            
+            // Validate that TRANDID belongs to a TRANSACTIONMASTER with REGSTRID = 2 (Raw Material Invoice)
+            var isValidTrandId = context.Database.SqlQuery<int>($@"
+                SELECT COUNT(*) 
+                FROM TRANSACTIONDETAIL td
+                INNER JOIN TRANSACTIONMASTER tm ON td.TRANMID = tm.TRANMID
+                WHERE td.TRANDID = @p0 AND tm.REGSTRID = 2
+            ", model.TRANDID).FirstOrDefault();
+
+            if (isValidTrandId == 0)
+            {
+                Debug.WriteLine($"*** ERROR: TRANDID {model.TRANDID} does not belong to a Raw Material Invoice (REGSTRID = 2)");
+                return Json(new { success = false, message = "Invalid TRANDID or not a Raw Material Invoice. Please ensure the row belongs to a valid invoice." });
+            }
+
+            Debug.WriteLine($"*** TRANDID {model.TRANDID} validated - belongs to Raw Material Invoice (REGSTRID = 2)");
             
             // Get current user ID from session (CUSRID stores the username)
             var currentUserId = Session["CUSRID"]?.ToString();
@@ -1858,29 +2007,34 @@ namespace KVM_ERP.Controllers
             
             try
             {
-                // Check if there are already records for this TRANMID and PACKMID
+                // Check if there are already records for this TRANDID (row-specific)
+                // Since we validate REGSTRID = 2 above, we can safely check by TRANDID directly
                 var existingActiveCount = context.TransactionInvoiceWeightDetails
-                    .Where(t => t.TRANMID == model.TRANMID && t.PACKMID == model.PACKMID && t.DISPSTATUS == 0)
+                    .Where(t => t.TRANDID == model.TRANDID && t.DISPSTATUS == 0)
                     .Count();
+                
                 var existingTotalCount = context.TransactionInvoiceWeightDetails
-                    .Where(t => t.TRANMID == model.TRANMID && t.PACKMID == model.PACKMID)
+                    .Where(t => t.TRANDID == model.TRANDID)
                     .Count();
-                Debug.WriteLine($"*** INITIAL CHECK: Found {existingActiveCount} active records, {existingTotalCount} total records");
+                
+                Debug.WriteLine($"*** INITIAL CHECK: Found {existingActiveCount} active records, {existingTotalCount} total records for TRANDID: {model.TRANDID}");
 
-                // FIRST: Physically DELETE ALL existing records (hard delete)
-                Debug.WriteLine("*** Using hard delete to remove ALL old records completely...");
+                // FIRST: Physically DELETE ALL existing records for this TRANDID (hard delete)
+                // Since we validate REGSTRID = 2 above, we can safely delete by TRANDID directly
+                Debug.WriteLine("*** Using hard delete to remove ALL old records for this TRANDID completely...");
                 var deleteResult = context.Database.ExecuteSqlCommand($@"
                     DELETE FROM TRANSACTION_INVOICE_WEIGHT_DETAILS 
-                    WHERE TRANMID = @p0 AND PACKMID = @p1
-                ", model.TRANMID, model.PACKMID);
+                    WHERE TRANDID = @p0
+                ", model.TRANDID);
                 
-                Debug.WriteLine($"*** Physically deleted {deleteResult} existing records from database");
+                Debug.WriteLine($"*** Physically deleted {deleteResult} existing records from database for TRANDID: {model.TRANDID}");
 
                 // Verify deletion worked
                 var remainingCount = context.TransactionInvoiceWeightDetails
-                    .Where(t => t.TRANMID == model.TRANMID && t.PACKMID == model.PACKMID)
+                    .Where(t => t.TRANDID == model.TRANDID)
                     .Count();
-                Debug.WriteLine($"*** After hard delete, {remainingCount} total records remain");
+                
+                Debug.WriteLine($"*** After hard delete, {remainingCount} total records remain for TRANDID: {model.TRANDID}");
 
                 if (remainingCount > 0)
                 {
@@ -1908,7 +2062,7 @@ namespace KVM_ERP.Controllers
 
                                     var newRecord = new TransactionInvoiceWeightDetails
                                     {
-                                        TRANMID = model.TRANMID,
+                                        TRANDID = model.TRANDID,
                                         PACKMID = model.PACKMID,
                                         PACKTMID = matchingPackingType.PACKTMID,
                                         SLABVALUE = slabDetail.intakeValue,
@@ -1920,15 +2074,17 @@ namespace KVM_ERP.Controllers
                                         TOTALDOLVAL = model.TOTALDOLVAL,
                                         WEIGHTINKGS = model.WEIGHTINKGS,
                                         PERKGRATE = model.PERKGRATE,
-                                        CUSRID = currentUserId,
-                                        LMUSRID = currentUserId,
+                                        CUSRID = currentUserId ?? "SYSTEM",
+                                        LMUSRID = currentUserId ?? "SYSTEM",
                                         DISPSTATUS = 0,
                                         PRCSDATE = DateTime.Now
                                     };
 
+                                    Debug.WriteLine($"*** Creating new record: TRANDID={newRecord.TRANDID}, PACKMID={newRecord.PACKMID}, PACKTMID={newRecord.PACKTMID}, CUSRID={newRecord.CUSRID}, LMUSRID={newRecord.LMUSRID}");
+                                    
                                     context.TransactionInvoiceWeightDetails.Add(newRecord);
                                     recordsCreated++;
-                                    Debug.WriteLine($"*** Added record {recordsCreated}: Range='{slabDetail.range}', IntakeValue={slabDetail.intakeValue}, CalcValue={slabDetail.calculationValue}");
+                                    Debug.WriteLine($"*** Added record {recordsCreated} to context: Range='{slabDetail.range}', IntakeValue={slabDetail.intakeValue}, CalcValue={slabDetail.calculationValue}");
                                 }
                                 else
                                 {
@@ -1938,17 +2094,131 @@ namespace KVM_ERP.Controllers
                         }
                     }
                     
+                if (recordsCreated == 0)
+                {
+                    Debug.WriteLine($"*** WARNING: No records were created to save. SlabDetails count: {model.SlabDetails?.Count ?? 0}");
+                    return Json(new { success = false, message = "No valid slab details to save. Please ensure calculation values are entered." });
+                }
+
                 Debug.WriteLine($"*** Calling SaveChanges for {recordsCreated} records...");
-                var changeCount = context.SaveChanges();
-                Debug.WriteLine($"*** SaveChanges completed. Changes saved: {changeCount}");
+                Debug.WriteLine($"*** Context has {context.TransactionInvoiceWeightDetails.Local.Count} records in local tracking");
+                
+                try
+                {
+                    // Force validation before saving
+                    var validationErrors = context.GetValidationErrors();
+                    if (validationErrors.Any())
+                    {
+                        Debug.WriteLine($"*** VALIDATION ERRORS BEFORE SAVE:");
+                        foreach (var error in validationErrors)
+                        {
+                            foreach (var err in error.ValidationErrors)
+                            {
+                                Debug.WriteLine($"  Entity: {error.Entry.Entity.GetType().Name}, Property: {err.PropertyName}, Error: {err.ErrorMessage}");
+                            }
+                        }
+                        return Json(new { success = false, message = "Validation errors found. Please check the data." });
+                    }
+                    
+                    var changeCount = context.SaveChanges();
+                    Debug.WriteLine($"*** SaveChanges completed. Changes saved: {changeCount}");
+                    
+                    if (changeCount == 0)
+                    {
+                        Debug.WriteLine($"*** WARNING: SaveChanges returned 0 - no changes were saved to database");
+                        Debug.WriteLine($"*** Checking if records are in context: {context.TransactionInvoiceWeightDetails.Local.Count}");
+                        return Json(new { success = false, message = "No changes were saved. Please check the data and try again." });
+                    }
+                }
+                catch (System.Data.Entity.Validation.DbEntityValidationException ex)
+                {
+                    Debug.WriteLine($"*** VALIDATION ERROR in SaveChanges:");
+                    foreach (var validationError in ex.EntityValidationErrors)
+                    {
+                        foreach (var error in validationError.ValidationErrors)
+                        {
+                            Debug.WriteLine($"  Property: {error.PropertyName}, Error: {error.ErrorMessage}");
+                        }
+                    }
+                    return Json(new { success = false, message = "Validation error: " + ex.Message });
+                }
+                catch (Exception saveEx)
+                {
+                    Debug.WriteLine($"*** ERROR in SaveChanges: {saveEx.Message}");
+                    Debug.WriteLine($"*** Stack trace: {saveEx.StackTrace}");
+                    
+                    // Try direct SQL insert as fallback
+                    Debug.WriteLine($"*** Attempting direct SQL insert as fallback for {recordsCreated} records...");
+                    try
+                    {
+                        int sqlInsertCount = 0;
+                        foreach (var slabDetail in model.SlabDetails.Where(s => s.calculationValue > 0))
+                        {
+                            var matchingPackingType = packingTypes.FirstOrDefault(pt => 
+                                pt.PACKTMDESC.Trim().Equals(slabDetail.range.Trim(), StringComparison.OrdinalIgnoreCase));
+                            
+                            if (matchingPackingType != null)
+                            {
+                                var sqlInsert = @"
+                                    INSERT INTO TRANSACTION_INVOICE_WEIGHT_DETAILS 
+                                    (TRANDID, PACKMID, PACKTMID, SLABVALUE, PNDSVALUE, TOTALPNDS, PACKWGT, TOTALWGHT, 
+                                     ONEDOLLAR, TOTALDOLVAL, WEIGHTINKGS, PERKGRATE, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
+                                    VALUES 
+                                    (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15)";
+                                
+                                var sqlResult = context.Database.ExecuteSqlCommand(sqlInsert,
+                                    model.TRANDID,
+                                    model.PACKMID,
+                                    matchingPackingType.PACKTMID,
+                                    slabDetail.intakeValue,
+                                    slabDetail.calculationValue,
+                                    model.TOTALPNDS,
+                                    model.PACKWGT,
+                                    model.TOTALWGHT,
+                                    model.ONEDOLLAR,
+                                    model.TOTALDOLVAL,
+                                    model.WEIGHTINKGS,
+                                    model.PERKGRATE,
+                                    currentUserId ?? "SYSTEM",
+                                    currentUserId ?? "SYSTEM",
+                                    (short)0,
+                                    DateTime.Now
+                                );
+                                
+                                if (sqlResult > 0) sqlInsertCount++;
+                                Debug.WriteLine($"*** Direct SQL insert result: {sqlResult} for range '{slabDetail.range}'");
+                            }
+                        }
+                        
+                        if (sqlInsertCount > 0)
+                        {
+                            Debug.WriteLine($"*** Fallback SQL insert successful: {sqlInsertCount} records inserted");
+                            var finalCount = context.TransactionInvoiceWeightDetails
+                                .Where(t => t.TRANDID == model.TRANDID && t.DISPSTATUS == 0)
+                                .Count();
+                            return Json(new { success = true, message = $"Successfully saved {sqlInsertCount} weight detail records using direct SQL (Total active: {finalCount})" });
+                        }
+                        else
+                        {
+                            Debug.WriteLine($"*** Fallback SQL insert also failed");
+                            return Json(new { success = false, message = "Error saving to database: " + saveEx.Message });
+                        }
+                    }
+                    catch (Exception sqlEx)
+                    {
+                        Debug.WriteLine($"*** Fallback SQL insert also failed: {sqlEx.Message}");
+                        return Json(new { success = false, message = "Error saving to database: " + saveEx.Message + " (Fallback also failed: " + sqlEx.Message + ")" });
+                    }
+                }
 
-                Debug.WriteLine($"*** Successfully saved {recordsCreated} weight details records for TRANMID: {model.TRANMID}, PACKMID: {model.PACKMID}");
+                Debug.WriteLine($"*** Successfully saved {recordsCreated} weight details records for TRANDID: {model.TRANDID}, PACKMID: {model.PACKMID}");
 
-                // Final verification - check how many active records exist
+                // Final verification - check how many active records exist for this TRANDID
                 var finalActiveCount = context.TransactionInvoiceWeightDetails
-                    .Where(t => t.TRANMID == model.TRANMID && t.PACKMID == model.PACKMID && t.DISPSTATUS == 0)
+                    .Where(t => t.TRANDID == model.TRANDID && t.DISPSTATUS == 0)
                     .Count();
-                Debug.WriteLine($"*** FINAL VERIFICATION: {finalActiveCount} active records exist for TRANMID: {model.TRANMID}, PACKMID: {model.PACKMID}");
+                
+                Debug.WriteLine($"*** FINAL VERIFICATION: {finalActiveCount} active records exist for TRANDID: {model.TRANDID}");
                 
                 var recordCount = model.SlabDetails?.Count(s => s.calculationValue > 0) ?? 0;
                 return Json(new { success = true, message = $"Successfully saved {recordCount} weight detail records (Total active: {finalActiveCount})" });
@@ -1962,36 +2232,59 @@ namespace KVM_ERP.Controllers
     }
 
     [HttpPost]
-    public JsonResult GetWeightDetails(int tranmId, int packmId)
+    public JsonResult GetWeightDetails(int trandId)
     {
         try
         {
-            Debug.WriteLine($"*** GetWeightDetails called for TRANMID: {tranmId}, PACKMID: {packmId}");
+            Debug.WriteLine($"*** GetWeightDetails called for TRANDID: {trandId}");
 
-            // Get all weight detail records with their packing type names
-            Debug.WriteLine($"*** Querying for TRANMID: {tranmId}, PACKMID: {packmId}");
+            // First, validate that TRANDID belongs to a TRANSACTIONMASTER with REGSTRID = 2 (Raw Material Invoice)
+            var isValidTrandId = context.Database.SqlQuery<int>($@"
+                SELECT COUNT(*) 
+                FROM TRANSACTIONDETAIL td
+                INNER JOIN TRANSACTIONMASTER tm ON td.TRANMID = tm.TRANMID
+                WHERE td.TRANDID = @p0 AND tm.REGSTRID = 2
+            ", trandId).FirstOrDefault();
+
+            if (isValidTrandId == 0)
+            {
+                Debug.WriteLine($"*** ERROR: TRANDID {trandId} does not belong to a Raw Material Invoice (REGSTRID = 2)");
+                return Json(new { success = false, message = "Invalid TRANDID or not a Raw Material Invoice" });
+            }
+
+            // Get all weight detail records with their packing type names for this specific TRANDID (row)
+            Debug.WriteLine($"*** Querying for TRANDID: {trandId} (validated with REGSTRID = 2)");
             
             var weightDetailsList = context.Database.SqlQuery<WeightDetailsWithPackingType>($@"
-                    SELECT t.TRANRID, t.TRANMID, t.PACKMID, t.PACKTMID, t.SLABVALUE, t.PNDSVALUE, 
+                    SELECT t.TRANRID, t.PACKMID, t.PACKTMID, t.SLABVALUE, t.PNDSVALUE, 
                            t.TOTALPNDS, t.PACKWGT, t.TOTALWGHT, t.ONEDOLLAR, t.TOTALDOLVAL, 
                            t.WEIGHTINKGS, t.PERKGRATE, p.PACKTMDESC
                     FROM TRANSACTION_INVOICE_WEIGHT_DETAILS t
                     INNER JOIN PACKINGTYPEMASTER p ON t.PACKTMID = p.PACKTMID
-                    WHERE t.TRANMID = @p0 AND t.PACKMID = @p1 AND (t.DISPSTATUS = 0 OR t.DISPSTATUS IS NULL)
+                    INNER JOIN TRANSACTIONDETAIL td ON t.TRANDID = td.TRANDID
+                    INNER JOIN TRANSACTIONMASTER tm ON td.TRANMID = tm.TRANMID
+                    WHERE t.TRANDID = @p0 
+                      AND tm.REGSTRID = 2
+                      AND (t.DISPSTATUS = 0 OR t.DISPSTATUS IS NULL)
                     ORDER BY p.PACKTMCODE
-                ", tranmId, packmId).ToList();
+                ", trandId).ToList();
 
                 Debug.WriteLine($"*** SQL Query executed. Found {weightDetailsList.Count} weight detail records");
                 
                 if (weightDetailsList.Count == 0)
                 {
-                    // Try without the JOIN to see if records exist
+                    // Try without the JOIN to see if records exist (with REGSTRID validation)
                     var simpleCheck = context.Database.SqlQuery<int>($@"
-                        SELECT COUNT(*) FROM TRANSACTION_INVOICE_WEIGHT_DETAILS 
-                        WHERE TRANMID = @p0 AND PACKMID = @p1 AND (DISPSTATUS = 0 OR DISPSTATUS IS NULL)
-                    ", tranmId, packmId).FirstOrDefault();
+                        SELECT COUNT(*) 
+                        FROM TRANSACTION_INVOICE_WEIGHT_DETAILS t
+                        INNER JOIN TRANSACTIONDETAIL td ON t.TRANDID = td.TRANDID
+                        INNER JOIN TRANSACTIONMASTER tm ON td.TRANMID = tm.TRANMID
+                        WHERE t.TRANDID = @p0 
+                          AND tm.REGSTRID = 2
+                          AND (t.DISPSTATUS = 0 OR t.DISPSTATUS IS NULL)
+                    ", trandId).FirstOrDefault();
                     
-                    Debug.WriteLine($"*** Simple count check found {simpleCheck} records without JOIN");
+                    Debug.WriteLine($"*** Simple count check found {simpleCheck} records (with REGSTRID = 2 validation) for TRANDID: {trandId}");
                 }
 
                 if (weightDetailsList != null && weightDetailsList.Count > 0)
@@ -2006,7 +2299,7 @@ namespace KVM_ERP.Controllers
                         PNDSVALUE = r.PNDSVALUE
                     }).ToList();
                     
-                    Debug.WriteLine($"*** Returning {detailRecords.Count} detail records for TRANMID: {tranmId}, PACKMID: {packmId}");
+                    Debug.WriteLine($"*** Returning {detailRecords.Count} detail records for TRANDID: {trandId}");
                     foreach (var detail in detailRecords)
                     {
                         Debug.WriteLine($"***   Detail: {detail.PACKTMDESC} = {detail.PNDSVALUE}");
@@ -2028,7 +2321,7 @@ namespace KVM_ERP.Controllers
                 }
                 else
                 {
-                    Debug.WriteLine($"*** No weight details found for TRANMID: {tranmId}, PACKMID: {packmId}");
+                    Debug.WriteLine($"*** No weight details found for TRANDID: {trandId}");
                     return Json(new { success = false, message = "No weight details found" });
                 }
             }
@@ -2036,6 +2329,63 @@ namespace KVM_ERP.Controllers
             {
                 Debug.WriteLine($"*** Error in GetWeightDetails: {ex.Message}");
                 return Json(new { success = false, message = "Error retrieving weight details: " + ex.Message });
+            }
+        }
+        
+        // Update PERKGRATE in weight details when rate is changed directly
+        [HttpPost]
+        [Authorize(Roles = "PurchaseInvoiceEdit")]
+        public JsonResult UpdateRateInWeightDetails(int trandId, decimal newRate)
+        {
+            try
+            {
+                Debug.WriteLine($"*** UpdateRateInWeightDetails called: TRANDID={trandId}, NewRate={newRate}");
+                
+                // Validate TRANDID belongs to REGSTRID = 2
+                var isValidTrandId = context.Database.SqlQuery<int>(@"
+                    SELECT COUNT(*) 
+                    FROM TRANSACTIONDETAIL td
+                    INNER JOIN TRANSACTIONMASTER tm ON td.TRANMID = tm.TRANMID
+                    WHERE td.TRANDID = @p0 AND tm.REGSTRID = 2
+                ", trandId).FirstOrDefault();
+                
+                if (isValidTrandId == 0)
+                {
+                    Debug.WriteLine($"*** Invalid TRANDID: {trandId} (not a Raw Material Invoice)");
+                    return Json(new { success = false, message = "Invalid transaction detail ID" });
+                }
+                
+                if (newRate <= 0)
+                {
+                    Debug.WriteLine($"*** Invalid rate: {newRate}");
+                    return Json(new { success = false, message = "Rate must be greater than 0" });
+                }
+                
+                // Update PERKGRATE for all active weight details for this TRANDID
+                var updateCount = context.Database.ExecuteSqlCommand(@"
+                    UPDATE TRANSACTION_INVOICE_WEIGHT_DETAILS
+                    SET PERKGRATE = @p0,
+                        LMUSRID = @p1,
+                        PRCSDATE = @p2
+                    WHERE TRANDID = @p3
+                      AND (DISPSTATUS = 0 OR DISPSTATUS IS NULL)
+                ", newRate, User?.Identity?.Name ?? "SYSTEM", DateTime.Now, trandId);
+                
+                Debug.WriteLine($"*** Updated PERKGRATE for {updateCount} weight detail records for TRANDID={trandId}");
+                
+                if (updateCount > 0)
+                {
+                    return Json(new { success = true, message = $"Updated rate in {updateCount} weight detail record(s)" });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "No weight details found to update" });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"*** Error in UpdateRateInWeightDetails: {ex.Message}");
+                return Json(new { success = false, message = "Error updating rate: " + ex.Message });
             }
         }
     }
@@ -2053,7 +2403,6 @@ namespace KVM_ERP.Controllers
     public class WeightDetailsWithPackingType
     {
         public int TRANRID { get; set; }
-        public int TRANMID { get; set; }
         public int PACKMID { get; set; }
         public int PACKTMID { get; set; }
         public decimal SLABVALUE { get; set; }
@@ -2072,7 +2421,7 @@ namespace KVM_ERP.Controllers
     public class WeightDetailsModel
     {
         public int TRANRID { get; set; }
-        public int TRANMID { get; set; }
+        public int TRANDID { get; set; }
         public List<SlabDetailModel> SlabDetails { get; set; }
         public int PACKMID { get; set; }
         public int PACKTMID { get; set; }
@@ -2212,6 +2561,29 @@ namespace KVM_ERP.Controllers
         public int TRANNO { get; set; }
         public string TRANDNO { get; set; }
     }
+    
+    // Model for preserving weight details during invoice edit
+    public class WeightDetailsPreserveModel
+    {
+        public int TRANDID { get; set; }
+        public int TRANDAID { get; set; }
+        public int TRANRID { get; set; }
+        public int PACKMID { get; set; }
+        public int PACKTMID { get; set; }
+        public decimal SLABVALUE { get; set; }
+        public decimal PNDSVALUE { get; set; }
+        public decimal TOTALPNDS { get; set; }
+        public decimal PACKWGT { get; set; }
+        public decimal TOTALWGHT { get; set; }
+        public decimal ONEDOLLAR { get; set; }
+        public decimal TOTALDOLVAL { get; set; }
+        public decimal WEIGHTINKGS { get; set; }
+        public decimal PERKGRATE { get; set; }
+        public string CUSRID { get; set; }
+        public string LMUSRID { get; set; }
+        public short DISPSTATUS { get; set; }
+        public DateTime PRCSDATE { get; set; }
+    }
 
     // Model for tax factors
     public class TaxFactorModel
@@ -2283,6 +2655,8 @@ namespace KVM_ERP.Controllers
         public decimal CGSTPER { get; set; }
         public decimal SGSTPER { get; set; }
         public decimal IGSTPER { get; set; }
+        public decimal TRANGAMT { get; set; }
+        public decimal TRANPACKAMT { get; set; }
         public List<InvoiceItemPrintViewModel> Items { get; set; }
         public List<TaxFactorPrintViewModel> TaxFactors { get; set; }
     }
@@ -2297,6 +2671,9 @@ namespace KVM_ERP.Controllers
         public decimal TRANQTY { get; set; }
         public decimal TRANRATE { get; set; }
         public decimal TRANDAMT { get; set; }
+        public decimal PACKINGKG { get; set; }
+        public decimal PACKINGAMOUNT { get; set; }
+        public decimal NETAMOUNT { get; set; }
     }
 
     public class TaxFactorPrintViewModel

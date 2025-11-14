@@ -1308,8 +1308,18 @@
             
             var item = itemsData[itemIndex];
             
-            // Store current item index for later use
+            // Store current item index and TRANDID for later use
             window.currentRateItemIndex = itemIndex;
+            window.currentTRANDID = item.TRANDID || 0;
+            
+            console.log('🔵 openRateModal called for itemIndex:', itemIndex);
+            console.log('🔵 Item TRANDID:', window.currentTRANDID);
+            console.log('🔵 Item TRANPID:', item.TRANPID);
+            console.log('🔵 Full item data:', item);
+            
+            if (window.currentTRANDID <= 0) {
+                console.warn('⚠️ WARNING: TRANDID is 0 or invalid. This might cause issues loading/saving data.');
+            }
             
             // Populate item details
             $('#modalItemName').text(item.ItemName || '-');
@@ -1389,16 +1399,21 @@
                         console.log('  Condition check: invoiceId > 0:', (invoiceId > 0));
                         console.log('  Condition check: currentPackingMasterId exists:', !!window.currentPackingMasterId);
                         
-                        if ((isEditMode === true || isEditMode === "true") && invoiceId > 0 && window.currentPackingMasterId) {
-                            console.log('✅ ALL CONDITIONS MET - Loading existing weight details');
+                        if ((isEditMode === true || isEditMode === "true") && invoiceId > 0 && window.currentPackingMasterId && window.currentTRANDID > 0) {
+                            console.log('✅ ALL CONDITIONS MET - Loading existing weight details for TRANDID:', window.currentTRANDID);
                             setTimeout(function() {
-                                loadExistingWeightDetails(invoiceId, window.currentPackingMasterId);
+                                loadExistingWeightDetails(window.currentTRANDID);
                             }, 100); // Small delay to ensure DOM is ready
                         } else {
                             console.warn('❌ CONDITIONS NOT MET - Will not load existing data');
+                            console.warn('  isEditMode:', isEditMode, 'type:', typeof isEditMode);
+                            console.warn('  invoiceId:', invoiceId);
+                            console.warn('  currentPackingMasterId:', window.currentPackingMasterId);
+                            console.warn('  currentTRANDID:', window.currentTRANDID);
                             if (!(isEditMode === true || isEditMode === "true")) console.warn('  ❌ Not in edit mode');
                             if (invoiceId <= 0) console.warn('  ❌ Invalid invoice ID');
                             if (!window.currentPackingMasterId) console.warn('  ❌ No packing master ID');
+                            if (!window.currentTRANDID || window.currentTRANDID <= 0) console.warn('  ❌ No TRANDID or TRANDID is invalid');
                         }
                     } else {
                         console.log('No slab data found for TRANPID:', tranpId);
@@ -1552,20 +1567,26 @@
         }
 
         // Load existing weight details for edit mode
-        function loadExistingWeightDetails(tranmId, packmId) {
+        function loadExistingWeightDetails(trandId) {
             console.log('===========================================');
             console.log('📥 LOAD EXISTING WEIGHT DETAILS CALLED');
-            console.log('📥 TRANMID:', tranmId, 'PACKMID:', packmId);
+            console.log('📥 TRANDID:', trandId);
+            console.log('📥 TRANDID type:', typeof trandId);
             console.log('===========================================');
+            
+            if (!trandId || trandId <= 0) {
+                console.error('❌ ERROR: Invalid TRANDID provided to loadExistingWeightDetails:', trandId);
+                return;
+            }
             
             $.ajax({
                 url: '@Url.Action("GetWeightDetails", "RawMaterialInvoice")',
                 type: 'POST',
                 data: { 
-                    tranmId: tranmId,
-                    packmId: packmId
+                    trandId: trandId
                 },
                 success: function(response) {
+                    console.log('📥 GetWeightDetails Response:', response);
                     if (response.success && response.data) {
                         console.log('✅ Found existing weight details:', response.data);
                         
@@ -1618,11 +1639,18 @@
                         
                         console.log('✅ Populated existing weight details in modal');
                     } else {
-                        console.log('ℹ️ No existing weight details found');
+                        console.log('ℹ️ No existing weight details found for TRANDID:', trandId);
+                        if (response.message) {
+                            console.log('ℹ️ Server message:', response.message);
+                        }
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error('❌ Error loading existing weight details:', error);
+                    console.error('❌ Error loading existing weight details');
+                    console.error('❌ Status:', status);
+                    console.error('❌ Error:', error);
+                    console.error('❌ Response Text:', xhr.responseText);
+                    console.error('❌ TRANDID used:', trandId);
                 }
             });
         }
@@ -1698,9 +1726,22 @@
                         totalPndsValue += calculationValue;
                     });
                     
+                    // Get TRANDID from current item
+                    var trandId = window.currentTRANDID || 0;
+                    console.log('🔵 applyRateCalculation - TRANDID:', trandId);
+                    console.log('🔵 applyRateCalculation - window.currentTRANDID:', window.currentTRANDID);
+                    
+                    if (trandId <= 0) {
+                        console.error('❌ ERROR: TRANDID is invalid:', trandId);
+                        console.error('❌ Current item index:', itemIndex);
+                        console.error('❌ Current item data:', currentItem);
+                        alert('❌ Error: Invalid TRANDID (' + trandId + '). Please ensure the row is saved first and has a valid TRANDID.');
+                        return;
+                    }
+
                     // Prepare comprehensive weight details data
                     var weightDetailsData = {
-                        TRANMID: invoiceId,
+                        TRANDID: trandId,
                         PACKMID: packingMasterId,
                         PACKTMID: 0, // Will be determined by server based on packing types
                         SLABVALUE: totalSlabValue,
@@ -1809,6 +1850,37 @@
                     'background-color': 'white'
                 });
                 netWeightInput.removeAttr('title');
+            }
+            
+            // Update PERKGRATE in weight details if rate changed and we're in edit mode with a valid TRANDID
+            if (rate > 0) {
+                var isEditMode = @(ViewBag.IsEdit != null ? "true" : "false");
+                var invoiceId = @(ViewBag.EditId ?? 0);
+                var isEdit = (isEditMode === true || isEditMode === "true");
+                
+                if (isEdit && invoiceId > 0) {
+                    // Get TRANDID from the item data
+                    var item = itemsData[index];
+                    if (item && item.TRANDID && item.TRANDID > 0) {
+                        // Update PERKGRATE in weight details asynchronously
+                        $.ajax({
+                            url: '@Url.Action("UpdateRateInWeightDetails", "RawMaterialInvoice")',
+                            type: 'POST',
+                            data: JSON.stringify({ trandId: item.TRANDID, newRate: rate }),
+                            contentType: 'application/json',
+                            success: function(response) {
+                                if (response.success) {
+                                    console.log('Rate updated in weight details for TRANDID: ' + item.TRANDID);
+                                } else {
+                                    console.log('No weight details to update or error: ' + response.message);
+                                }
+                            },
+                            error: function(xhr, status, error) {
+                                console.log('Error updating rate in weight details: ' + error);
+                            }
+                        });
+                    }
+                }
             }
             
             // Recalculate gross amount after amount changes
