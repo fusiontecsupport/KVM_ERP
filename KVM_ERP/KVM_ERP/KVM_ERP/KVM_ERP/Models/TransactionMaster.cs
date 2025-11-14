@@ -78,6 +78,14 @@ namespace KVM_ERP.Models
         [Column("TRANNAMT")]
         public decimal TRANNAMT { get; set; }
 
+        [Required]
+        [Column("TRANPACKAMT")]
+        public decimal TRANPACKAMT { get; set; }
+
+        [Required]
+        [Column("TRANGAMT")]
+        public decimal TRANGAMT { get; set; }
+
         [MaxLength(250)]
         [Column("TRANAMTWRDS")]
         public string TRANAMTWRDS { get; set; }

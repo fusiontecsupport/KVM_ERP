@@ -560,6 +560,9 @@ namespace KVM_ERP.Controllers
                         {netWeightColumn} as NetWeight,
                         td.TRANDRATE as Rate,
                         td.TRANDAMT as Amount,
+                        ISNULL(td.TRANDDISCEXPRN, 0) as PackingKg,
+                        ISNULL(td.TRANDDISCAMT, 0) as PackingAmount,
+                        ISNULL(td.TRANDNAMT, 0) as NetAmount,
                         ISNULL(td.TRANDAID, 0) as TRANPID
                     FROM TRANSACTIONDETAIL td
                     INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
@@ -679,6 +682,9 @@ namespace KVM_ERP.Controllers
                         {netWeightColumn} as NetWeight,
                         td.TRANDRATE as Rate,
                         td.TRANDAMT as Amount,
+                        ISNULL(td.TRANDDISCEXPRN, 0) as PackingKg,
+                        ISNULL(td.TRANDDISCAMT, 0) as PackingAmount,
+                        ISNULL(td.TRANDNAMT, 0) as NetAmount,
                         ISNULL(td.TRANDAID, 0) as TRANPID
                     FROM TRANSACTIONDETAIL td
                     WHERE td.TRANMID = @p0
@@ -710,6 +716,9 @@ namespace KVM_ERP.Controllers
                         NetWeight = savedItem?.NetWeight ?? item.ActualWeight,  // Use saved or default to actual
                         Rate = savedItem?.Rate ?? 0,  // Use saved or 0
                         Amount = savedItem?.Amount ?? 0,  // Use saved or 0
+                        PackingKg = savedItem?.PackingKg ?? 0,  // Use saved or 0
+                        PackingAmount = savedItem?.PackingAmount ?? 0,  // Use saved or 0
+                        NetAmount = savedItem?.NetAmount ?? 0,  // Use saved or 0
                         TRANPID = item.TRANPID,
                         IsSelected = isSelected  // Checked if it was saved
                     };
@@ -1116,14 +1125,16 @@ namespace KVM_ERP.Controllers
                             REGSTRID, TRANNO, TRANDNO, TRANREFID, TRANNAMT, 
                             TRANAMTWRDS, TRANREFNO,
                             TRANCGSTAMT, TRANSGSTAMT, TRANIGSTAMT,
-                            TRANCGSTEXPRN, TRANSGSTEXPRN, TRANIGSTEXPRN
+                            TRANCGSTEXPRN, TRANSGSTEXPRN, TRANIGSTEXPRN,
+                            TRANGAMT, TRANPACKAMT
                         ) VALUES (
                             @p0, @p1, @p2, @p3, @p4, 
                             @p5, @p6, @p7, @p8, @p9, 
                             2, @p10, @p11, @p12, @p13, 
                             @p14, @p15,
                             @p16, @p17, @p18,
-                            @p19, @p20, @p21
+                            @p19, @p20, @p21,
+                            @p22, @p23
                         );
                         SELECT CAST(SCOPE_IDENTITY() as int)";
 
@@ -1150,7 +1161,9 @@ namespace KVM_ERP.Controllers
                         totalIGST,                      // @p18 TRANIGSTAMT (will be updated later)
                         0.00m,                          // @p19 TRANCGSTEXPRN (will be updated later)
                         0.00m,                          // @p20 TRANSGSTEXPRN (will be updated later)
-                        0.00m                           // @p21 TRANIGSTEXPRN (will be updated later)
+                        0.00m,                          // @p21 TRANIGSTEXPRN (will be updated later)
+                        model.GrossAmount,              // @p22 TRANGAMT (Subtotal)
+                        model.PackingAmount             // @p23 TRANPACKAMT (Packing Amount)
                     ).FirstOrDefault();
 
                     System.Diagnostics.Debug.WriteLine($"Invoice created successfully. TRANMID: {tranMId}, TRANNO: {tranNo}");
@@ -1221,9 +1234,10 @@ namespace KVM_ERP.Controllers
                             }
                         }
 
-                        // Calculate Net Amount (Gross Amount + GST)
+                        // Calculate amounts
                         decimal grossAmount = item.Amount; // TRANDGAMT
-                        decimal netAmount = grossAmount + itemCGST + itemSGST + itemIGST; // TRANDNAMT
+                        decimal netAmount = item.NetAmount; // TRANDNAMT (Amount - Packing Amount)
+                        decimal finalAmount = netAmount + itemCGST + itemSGST + itemIGST; // Final amount with GST
 
                         var itemSql = @"
                             INSERT INTO TRANSACTIONDETAIL (
@@ -1266,7 +1280,7 @@ namespace KVM_ERP.Controllers
                             trandqty = item.NetWeight;
                         }
                         
-                        System.Diagnostics.Debug.WriteLine($"  Saving item: ItemId={item.ItemId}, TRANPID={item.TRANPID}, TRANDAID={trandaid}, HSNID={hsnId}, Gross=₹{grossAmount}, CGST=₹{itemCGST}, SGST=₹{itemSGST}, IGST=₹{itemIGST}, Net=₹{netAmount}");
+                        System.Diagnostics.Debug.WriteLine($"  Saving item: ItemId={item.ItemId}, TRANPID={item.TRANPID}, TRANDAID={trandaid}, HSNID={hsnId}, Gross=₹{grossAmount}, PackingKg={item.PackingKg}, PackingAmt=₹{item.PackingAmount}, Net=₹{netAmount}, CGST=₹{itemCGST}, SGST=₹{itemSGST}, IGST=₹{itemIGST}");
 
                         context.Database.ExecuteSqlCommand(itemSql,
                             tranMId,                 // @p0 - TRANMID
@@ -1283,8 +1297,8 @@ namespace KVM_ERP.Controllers
                             traneqty,                // @p11 - TRANEQTY (Approval: unchanged for reference, Regular: NetWeight)
                             item.Rate,               // @p12 - TRANDRATE
                             item.Amount,             // @p13 - TRANDAMT
-                            0.00m,                   // @p14 - TRANDDISCEXPRN (default 0.00)
-                            0.00m,                   // @p15 - TRANDDISCAMT (default 0.00)
+                            item.PackingKg,          // @p14 - TRANDDISCEXPRN (Packing/Kg)
+                            item.PackingAmount,      // @p15 - TRANDDISCAMT (Packing Amount)
                             grossAmount,             // @p16 - TRANDGAMT (Gross Amount)
                             cgstRate,                // @p17 - TRANDCGSTEXPRN (CGST %)
                             sgstRate,                // @p18 - TRANDSGSTEXPRN (SGST %)
@@ -1307,9 +1321,10 @@ namespace KVM_ERP.Controllers
                         totalIGST += itemIGST;
                     }
                     
-                    // Calculate grand total
+                    // Calculate grand total (for GST calculations)
                     totalAmount = subtotal + totalCGST + totalSGST + totalIGST;
-                    amountInWords = ConvertAmountToWords(totalAmount);
+                    // Use the grand total from frontend for amount in words
+                    amountInWords = ConvertAmountToWords(model.GrandTotal);
 
                     System.Diagnostics.Debug.WriteLine($"Invoice Totals: Subtotal=₹{subtotal}, CGST=₹{totalCGST}, SGST=₹{totalSGST}, IGST=₹{totalIGST}, Grand Total=₹{totalAmount}");
                     System.Diagnostics.Debug.WriteLine($"Amount in Words: {amountInWords}");
@@ -1329,8 +1344,10 @@ namespace KVM_ERP.Controllers
                             TRANIGSTAMT = @p4,
                             TRANCGSTEXPRN = @p5,
                             TRANSGSTEXPRN = @p6,
-                            TRANIGSTEXPRN = @p7
-                        WHERE TRANMID = @p8";
+                            TRANIGSTEXPRN = @p7,
+                            TRANGAMT = @p8,
+                            TRANPACKAMT = @p9
+                        WHERE TRANMID = @p10";
 
                     // Calculate average GST rates (in case multiple different rates)
                     decimal avgCGSTRate = 0.00m;
@@ -1345,7 +1362,7 @@ namespace KVM_ERP.Controllers
                         avgIGSTRate = Math.Round((totalIGST / subtotal) * 100, 2);
 
                     context.Database.ExecuteSqlCommand(updateMasterSql,
-                        totalAmount,      // @p0 - TRANNAMT
+                        model.GrandTotal, // @p0 - TRANNAMT (Grand Total from frontend)
                         amountInWords,    // @p1 - TRANAMTWRDS
                         totalCGST,        // @p2 - TRANCGSTAMT
                         totalSGST,        // @p3 - TRANSGSTAMT
@@ -1353,10 +1370,12 @@ namespace KVM_ERP.Controllers
                         avgCGSTRate,      // @p5 - TRANCGSTEXPRN
                         avgSGSTRate,      // @p6 - TRANSGSTEXPRN
                         avgIGSTRate,      // @p7 - TRANIGSTEXPRN
-                        tranMId           // @p8 - TRANMID
+                        model.GrossAmount,// @p8 - TRANGAMT (Subtotal from frontend)
+                        model.PackingAmount, // @p9 - TRANPACKAMT (Packing Amount from frontend)
+                        tranMId           // @p10 - TRANMID
                     );
 
-                    System.Diagnostics.Debug.WriteLine($"Updated TRANSACTIONMASTER: Grand Total=₹{totalAmount}, Amount in Words={amountInWords}");
+                    System.Diagnostics.Debug.WriteLine($"Updated TRANSACTIONMASTER: Subtotal=₹{model.GrossAmount}, Packing=₹{model.PackingAmount}, Grand Total=₹{model.GrandTotal}, Amount in Words={amountInWords}");
                 }
 
                 // NOTE: HSN GST (CGST, SGST, IGST) is calculated and displayed on screen
@@ -2108,6 +2127,9 @@ namespace KVM_ERP.Controllers
         public int SupplierId { get; set; }
         public List<InvoiceItemModel> Items { get; set; }
         public List<TaxFactorModel> TaxFactors { get; set; }
+        public decimal GrossAmount { get; set; }   // TRANGAMT (Subtotal)
+        public decimal PackingAmount { get; set; } // TRANPACKAMT (Discount on Packing)
+        public decimal GrandTotal { get; set; }   // TRANNAMT (Grand Total)
         public bool IsApprovalMode { get; set; } = false; // Indicates if saving from approval page
     }
 
@@ -2123,6 +2145,9 @@ namespace KVM_ERP.Controllers
         public decimal NetWeight { get; set; }    // TRANDQTY
         public decimal Rate { get; set; }         // TRANDRATE
         public decimal Amount { get; set; }       // TRANDAMT
+        public decimal PackingKg { get; set; }    // TRANDDISCEXPRN
+        public decimal PackingAmount { get; set; } // TRANDDISCAMT
+        public decimal NetAmount { get; set; }    // TRANDNAMT
         public int TRANPID { get; set; }            // Transaction Product Calculation ID
         public bool IsSelected { get; set; }      // Whether item is selected for tax calculation
     }
@@ -2159,6 +2184,9 @@ namespace KVM_ERP.Controllers
         public decimal NetWeight { get; set; }
         public decimal Rate { get; set; }
         public decimal Amount { get; set; }
+        public decimal PackingKg { get; set; }    // TRANDDISCEXPRN
+        public decimal PackingAmount { get; set; } // TRANDDISCAMT
+        public decimal NetAmount { get; set; }    // TRANDNAMT
         public int TRANPID { get; set; }  // Transaction Product Calculation ID from TRANDAID
     }
 

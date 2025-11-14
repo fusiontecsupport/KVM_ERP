@@ -517,12 +517,15 @@
                                 <th>Net Weight (KG)</th>
                                 <th id="rateColumn" style="display: none;">Rate (₹/KG)</th>
                                 <th id="amountColumn" style="display: none;">Amount (₹)</th>
+                                <th id="packingKgColumn" style="display: none;">Packing/Kg (₹)</th>
+                                <th id="packingAmountColumn" style="display: none;">Packing Amount (₹)</th>
+                                <th id="netAmountColumn" style="display: none;">Net Amount (₹)</th>
                                 <th id="actionColumn" style="display: none;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="itemsTableBody">
                             <tr>
-                                <td colspan="11" class="text-center text-muted">
+                                <td colspan="14" class="text-center text-muted">
                                     Please select a supplier to load items
                                 </td>
                             </tr>
@@ -543,6 +546,11 @@
                         <h4 class="mb-3">
                             <strong>Subtotal: </strong>
                             <span id="grossAmount" class="text-success" style="font-size: 20px; font-weight: bold;">₹ 0.00</span>
+                        </h4>
+                        
+                        <h4 class="mb-3">
+                            <strong>Discount on Packing: </strong>
+                            <span id="packingDiscountAmount" class="text-warning" style="font-size: 20px; font-weight: bold;">₹ 0.00</span>
                         </h4>
                         
                         <!-- HSN-Based GST Breakdown -->
@@ -922,19 +930,19 @@
                 type: 'POST',
                 data: { supplierId: supplierId },
                 beforeSend: function () {
-                    $('#itemsTableBody').html('<tr><td colspan="11" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading items...</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="14" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading items...</td></tr>');
                 },
                 success: function (response) {
                     if (response.success && response.data && response.data.length > 0) {
                         itemsData = response.data;
                         renderItemsTable();
                     } else {
-                        $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-muted">No items found for this supplier</td></tr>');
+                        $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-muted">No items found for this supplier</td></tr>');
                     }
                 },
                 error: function (xhr, status, error) {
                     console.error('Error loading items:', error);
-                    $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-danger">Failed to load items</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-danger">Failed to load items</td></tr>');
                 }
             });
         }
@@ -949,7 +957,7 @@
                     isApprovalMode: isApprovalMode
                 },
                 beforeSend: function () {
-                    $('#itemsTableBody').html('<tr><td colspan="11" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading saved items...</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="14" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading saved items...</td></tr>');
                 },
                 success: function (response) {
                     if (response.success && response.data && response.data.length > 0) {
@@ -972,6 +980,17 @@
                             $('.net-weight[data-index="' + index + '"]').val(item.NetWeight.toFixed(2));
                             $('.rate[data-index="' + index + '"]').val(item.Rate.toFixed(2));
                             $('.amount[data-index="' + index + '"]').val(item.Amount.toFixed(2));
+                            $('.packing-kg[data-index="' + index + '"]').val((item.PackingKg || 0).toFixed(2));
+                            $('.packing-amount[data-index="' + index + '"]').val((item.PackingAmount || 0).toFixed(2));
+                            $('.net-amount[data-index="' + index + '"]').val((item.NetAmount || 0).toFixed(2));
+                        });
+                        
+                        // Recalculate packing amounts for all items after loading
+                        response.data.forEach(function(item, index) {
+                            if (item.TRANPID > 0 && item.PackingKg > 0) {
+                                calculatePackingAmount(index);
+                                calculateNetAmount(index);
+                            }
                         });
                         
                         // In edit mode, disable all checkboxes to prevent unchecking saved items
@@ -989,12 +1008,12 @@
                         
                         calculateGrossAmount();
                     } else {
-                        $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-muted">No items found for this invoice</td></tr>');
+                        $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-muted">No items found for this invoice</td></tr>');
                     }
                 },
                 error: function (xhr, status, error) {
                     console.error('Error loading invoice items:', error);
-                    $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-danger">Failed to load invoice items</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-danger">Failed to load invoice items</td></tr>');
                 }
             });
         }
@@ -1010,7 +1029,7 @@
                     isApprovalMode: isApprovalMode
                 },
                 beforeSend: function () {
-                    $('#itemsTableBody').html('<tr><td colspan="11" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading items...</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="14" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading items...</td></tr>');
                 },
                 success: function (response) {
                     if (response.success && response.data && response.data.length > 0) {
@@ -1028,6 +1047,17 @@
                             $('.net-weight[data-index="' + index + '"]').val(item.NetWeight.toFixed(2));
                             $('.rate[data-index="' + index + '"]').val(item.Rate.toFixed(2));
                             $('.amount[data-index="' + index + '"]').val(item.Amount.toFixed(2));
+                            $('.packing-kg[data-index="' + index + '"]').val((item.PackingKg || 0).toFixed(2));
+                            $('.packing-amount[data-index="' + index + '"]').val((item.PackingAmount || 0).toFixed(2));
+                            $('.net-amount[data-index="' + index + '"]').val((item.NetAmount || 0).toFixed(2));
+                        });
+                        
+                        // Recalculate packing amounts for all items after loading
+                        response.data.forEach(function(item, index) {
+                            if (item.IsSelected && item.PackingKg > 0) {
+                                calculatePackingAmount(index);
+                                calculateNetAmount(index);
+                            }
                         });
                         
                         // Update Select All checkbox state
@@ -1039,12 +1069,12 @@
                         
                         console.log('Loaded ' + response.data.length + ' total items, ' + response.data.filter(i => i.IsSelected).length + ' selected');
                     } else {
-                        $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-muted">No items found</td></tr>');
+                        $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-muted">No items found</td></tr>');
                     }
                 },
                 error: function (xhr, status, error) {
                     console.error('Error loading items for edit:', error);
-                    $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-danger">Failed to load items</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-danger">Failed to load items</td></tr>');
                 }
             });
         }
@@ -1085,9 +1115,11 @@
                                     // Update main form display
                                     $('#taxAmountDisplay').text('₹ ' + totalTax.toFixed(2));
                                     
-                                    // Calculate grand total
+                                    // Calculate grand total (using net amount)
+                                    var netAmount = parseFloat($('#packingDiscountAmount').text().replace('₹ ', '').replace(',', '')) || 0;
                                     var grossAmount = parseFloat($('#grossAmount').text().replace('₹ ', '').replace(',', '')) || 0;
-                                    var grandTotal = grossAmount + totalTax;
+                                    var actualNetAmount = grossAmount - netAmount; // Net Amount = Gross Amount - Packing Amount
+                                    var grandTotal = actualNetAmount + totalTax;
                                     $('#grandTotalDisplay').text('₹ ' + grandTotal.toFixed(2));
                                     
                                     console.log('Tax amount: ₹' + totalTax.toFixed(2) + ', Grand Total: ₹' + grandTotal.toFixed(2));
@@ -1164,7 +1196,9 @@
                                     $('#taxAmountDisplay').text('₹ 0.00');
                                     $('#manualTaxBreakdown').empty(); // Clear manual tax display
                                     var grossAmount = parseFloat($('#grossAmount').text().replace('₹ ', '').replace(',', '')) || 0;
-                                    $('#grandTotalDisplay').text('₹ ' + grossAmount.toFixed(2));
+                                    var packingAmount = parseFloat($('#packingDiscountAmount').text().replace('₹ ', '').replace(',', '')) || 0;
+                                    var netAmount = grossAmount - packingAmount;
+                                    $('#grandTotalDisplay').text('₹ ' + netAmount.toFixed(2));
                                 }
                             },
                             error: function (xhr, status, error) {
@@ -1199,13 +1233,15 @@
                 html += '<td><input type="text" readonly value="' + actualWeight + '" /></td>';
                 html += '<td><input type="number" step="0.01" class="net-weight" data-index="' + index + '" value="' + actualWeight + '" /></td>';
                 
-                // Conditionally render Rate, Amount, and Action columns based on edit mode
+                // Conditionally render Rate, Amount, and new Packing columns based on edit mode
                 var shouldShowEditColumns = (isEditMode === "true") || (editId > 0);
                 if (shouldShowEditColumns) {
                     html += '<td class="rate-cell"><input type="number" step="0.01" class="rate" data-index="' + index + '" placeholder="0.00" /></td>';
                     html += '<td class="amount-cell"><input type="text" readonly class="amount" data-index="' + index + '" value="0.00" /></td>';
+                    html += '<td class="packing-kg-cell"><input type="number" step="0.01" class="packing-kg" data-index="' + index + '" placeholder="0.00" /></td>';
+                    html += '<td class="packing-amount-cell"><input type="text" readonly class="packing-amount" data-index="' + index + '" value="0.00" /></td>';
+                    html += '<td class="net-amount-cell"><input type="text" readonly class="net-amount" data-index="' + index + '" value="0.00" /></td>';
                     html += '<td class="action-cell"><button type="button" class="btn btn-sm btn-info" onclick="openRateModal(' + index + ')" title="Rate Calculation"><i class="fa fa-calculator"></i> R</button></td>';
-                    // R button added for rate calculation
                 }
                 
                 html += '</tr>';
@@ -1220,6 +1256,12 @@
             $('.net-weight, .rate').on('input', function () {
                 var index = $(this).data('index');
                 calculateAmount(index);
+            });
+
+            // Add event listeners for packing calculations
+            $('.packing-kg').on('input', function () {
+                var index = $(this).data('index');
+                calculatePackingAmount(index);
             });
 
             // Add event listener for row checkbox
@@ -1241,13 +1283,19 @@
             if (isEditMode) {
                 $('#rateColumn').css('display', 'table-cell');
                 $('#amountColumn').css('display', 'table-cell');
+                $('#packingKgColumn').css('display', 'table-cell');
+                $('#packingAmountColumn').css('display', 'table-cell');
+                $('#netAmountColumn').css('display', 'table-cell');
                 $('#actionColumn').css('display', 'table-cell');
                 $('.rate-cell').css('display', 'table-cell');
                 $('.amount-cell').css('display', 'table-cell');
+                $('.packing-kg-cell').css('display', 'table-cell');
+                $('.packing-amount-cell').css('display', 'table-cell');
+                $('.net-amount-cell').css('display', 'table-cell');
                 $('.action-cell').css('display', 'table-cell');
             } else {
-                $('#rateColumn, #amountColumn, #actionColumn').css('display', 'none');
-                $('.rate-cell, .amount-cell, .action-cell').css('display', 'none');
+                $('#rateColumn, #amountColumn, #packingKgColumn, #packingAmountColumn, #netAmountColumn, #actionColumn').css('display', 'none');
+                $('.rate-cell, .amount-cell, .packing-kg-cell, .packing-amount-cell, .net-amount-cell, .action-cell').css('display', 'none');
             }
         }
 
@@ -1773,11 +1821,38 @@
                     calculateTaxRow(rowId);
                 });
             }
+            
+            // Also recalculate packing amounts when amount changes
+            calculatePackingAmount(index);
+        }
+
+        // Calculate Packing Amount based on Net Weight * Packing/Kg
+        function calculatePackingAmount(index) {
+            var netWeight = parseFloat($('.net-weight[data-index="' + index + '"]').val()) || 0;
+            var packingKg = parseFloat($('.packing-kg[data-index="' + index + '"]').val()) || 0;
+            var packingAmount = (netWeight * packingKg).toFixed(2);
+            $('.packing-amount[data-index="' + index + '"]').val(packingAmount);
+            
+            // Calculate Net Amount (Amount - Packing Amount)
+            calculateNetAmount(index);
+        }
+
+        // Calculate Net Amount = Amount - Packing Amount
+        function calculateNetAmount(index) {
+            var amount = parseFloat($('.amount[data-index="' + index + '"]').val()) || 0;
+            var packingAmount = parseFloat($('.packing-amount[data-index="' + index + '"]').val()) || 0;
+            var netAmount = (amount - packingAmount).toFixed(2);
+            $('.net-amount[data-index="' + index + '"]').val(netAmount);
+            
+            // Recalculate totals
+            calculateGrossAmount();
         }
 
         // Calculate Total Amount from CHECKED rows only + HSN-based GST
         function calculateGrossAmount() {
             var grossAmount = 0;
+            var totalPackingAmount = 0;
+            var totalNetAmount = 0;
             var supplierState = $('#state').val() || '';
             var isTamilNadu = supplierState.toUpperCase().includes('TAMIL');
             
@@ -1792,11 +1867,24 @@
                 var checkbox = $(this).find('.row-checkbox');
                 if (checkbox.is(':checked')) {
                     var amount = parseFloat($(this).find('.amount').val()) || 0;
+                    var packingAmount = parseFloat($(this).find('.packing-amount').val()) || 0;
+                    var netAmount = parseFloat($(this).find('.net-amount').val()) || 0;
                     var itemId = parseInt($(this).data('item-id')) || 0;
+                    
+                    console.log('Checked item:', itemId, 'Amount:', amount, 'PackingAmount:', packingAmount, 'NetAmount:', netAmount);
+                    
                     grossAmount += amount;
+                    totalPackingAmount += packingAmount;
+                    totalNetAmount += netAmount;
                     checkedItems.push({ itemId: itemId, amount: amount });
                 }
             });
+            
+            console.log('Totals calculated - Gross:', grossAmount, 'Packing:', totalPackingAmount, 'Net:', totalNetAmount);
+            
+            // Update the display values
+            $('#grossAmount').text('₹ ' + grossAmount.toFixed(2));
+            $('#packingDiscountAmount').text('₹ ' + totalPackingAmount.toFixed(2));
             
             // Calculate GST for each checked item
             if (checkedItems.length > 0 && grossAmount > 0) {
@@ -1874,9 +1962,9 @@
             }
             
             var totalTax = hsnGSTTotal + manualCostFactorTotal;
-            var grandTotal = grossAmount + totalTax;
+            var grandTotal = totalNetAmount + totalTax;
             
-            // Update Grand Total display
+            // Update Grand Total display (based on Net Amount)
             $('#grandTotalDisplay').text('₹ ' + grandTotal.toFixed(2));
             
             // Remove existing otherChargesRow first to prevent duplicates
@@ -1900,9 +1988,10 @@
 
         function clearItemsTable() {
             itemsData = [];
-            $('#itemsTableBody').html('<tr><td colspan="11" class="text-center text-muted">Please select a supplier to load items</td></tr>');
+            $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-muted">Please select a supplier to load items</td></tr>');
             $('#selectAll').prop('checked', false);
             $('#grossAmount').text('₹ 0.00');
+            $('#packingDiscountAmount').text('₹ 0.00');
             $('#grandTotalDisplay').text('₹ 0.00');
             // Reset GST display
             $('#noTaxRow').show();
@@ -2184,6 +2273,9 @@
                 var netWeight = parseFloat($('.net-weight[data-index="' + index + '"]').val()) || 0;
                 var rate = parseFloat($('.rate[data-index="' + index + '"]').val()) || 0;
                 var amount = parseFloat($('.amount[data-index="' + index + '"]').val()) || 0;
+                var packingKg = parseFloat($('.packing-kg[data-index="' + index + '"]').val()) || 0;
+                var packingAmount = parseFloat($('.packing-amount[data-index="' + index + '"]').val()) || 0;
+                var netAmount = parseFloat($('.net-amount[data-index="' + index + '"]').val()) || 0;
 
                 // ONLY include items that are CHECKED (isSelected = true)
                 if (isSelected) {
@@ -2230,6 +2322,9 @@
                         NetWeight: netWeight,
                         Rate: rate,
                         Amount: amount,
+                        PackingKg: packingKg,           // TRANDDISCEXPRN
+                        PackingAmount: packingAmount,   // TRANDDISCAMT  
+                        NetAmount: netAmount,           // TRANDNAMT
                         TRANPID: item.TRANPID || 0,  // Transaction Product Calculation ID
                         IsSelected: true    // All items in array are selected
                     });
@@ -2255,8 +2350,18 @@
                 return;
             }
 
+            // Add totals to invoice data
+            var grossAmount = parseFloat($('#grossAmount').text().replace('₹ ', '').replace(',', '')) || 0;
+            var packingAmount = parseFloat($('#packingDiscountAmount').text().replace('₹ ', '').replace(',', '')) || 0;
+            var grandTotal = parseFloat($('#grandTotalDisplay').text().replace('₹ ', '').replace(',', '')) || 0;
+            
+            invoiceData.GrossAmount = grossAmount;      // TRANGAMT (Subtotal)
+            invoiceData.PackingAmount = packingAmount;  // TRANPACKAMT (Discount on Packing)
+            invoiceData.GrandTotal = grandTotal;       // TRANNAMT (Grand Total)
+
             console.log('========== INVOICE DATA TO SEND ==========');
             console.log('Total Items:', invoiceData.Items.length);
+            console.log('Totals: Gross=₹' + grossAmount + ', Packing=₹' + packingAmount + ', Grand=₹' + grandTotal);
             console.log('Items Detail:', invoiceData.Items);
             invoiceData.Items.forEach(function(item, index) {
                 console.log('  Item ' + index + ': ItemId=' + item.ItemId + ', IsSelected=' + item.IsSelected + ', NetWeight=' + item.NetWeight + ', Rate=' + item.Rate);
