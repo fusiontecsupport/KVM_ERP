@@ -774,6 +774,20 @@
                                     <input type="number" class="form-control" id="packingTypeTotalValueForDollar" step="0.01" readonly>
                                 </div>
                             </div>
+                            <div class="row mt-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Incentive (In %)</label>
+                                    <input type="number" class="form-control" id="packingTypeIncentivePercent" step="0.001" onchange="calculatePerKgRate('packingType')">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Incentive Value</label>
+                                    <input type="number" class="form-control" id="packingTypeIncentiveValue" step="0.01" readonly>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">On Account</label>
+                                    <input type="number" class="form-control" id="packingTypeIncentiveTotal" step="0.01" readonly>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1561,8 +1575,24 @@
         function calculatePerKgRate(type) {
             var totalValueForDollar = parseFloat($('#' + type + 'TotalValueForDollar').val()) || 0;
             var netWeight = parseFloat($('#' + type + 'NetWeight').val()) || 0;
-            var perKgRate = netWeight > 0 ? totalValueForDollar / netWeight : 0;
+            var incentivePercent = parseFloat($('#' + type + 'IncentivePercent').val()) || 0;
+            var effectiveTotal = totalValueForDollar;
             
+            // Calculate incentive amounts if percentage is entered
+            if (incentivePercent > 0 && totalValueForDollar > 0) {
+                var incentiveValue = totalValueForDollar * incentivePercent / 100.0;
+                var incentiveTotal = totalValueForDollar + incentiveValue;
+                
+                $('#' + type + 'IncentiveValue').val(incentiveValue.toFixed(2));
+                $('#' + type + 'IncentiveTotal').val(incentiveTotal.toFixed(2));
+                effectiveTotal = incentiveTotal;
+            } else {
+                // No incentive: clear value and set On Account equal to base total
+                $('#' + type + 'IncentiveValue').val('0.00');
+                $('#' + type + 'IncentiveTotal').val(totalValueForDollar.toFixed(2));
+            }
+            
+            var perKgRate = (netWeight > 0) ? (effectiveTotal / netWeight) : 0;
             $('#' + type + 'PerKgRate').val(perKgRate.toFixed(2));
         }
 
@@ -1572,7 +1602,6 @@
             console.log('📥 LOAD EXISTING WEIGHT DETAILS CALLED');
             console.log('📥 TRANDID:', trandId);
             console.log('📥 TRANDID type:', typeof trandId);
-            console.log('===========================================');
             
             if (!trandId || trandId <= 0) {
                 console.error('❌ ERROR: Invalid TRANDID provided to loadExistingWeightDetails:', trandId);
@@ -1598,6 +1627,15 @@
                         $('#packingTypeTotalValueForDollar').val(response.data.TOTALDOLVAL.toFixed(2));
                         $('#packingTypeNetWeight').val(response.data.WEIGHTINKGS.toFixed(2));
                         $('#packingTypePerKgRate').val(response.data.PERKGRATE.toFixed(2));
+                        
+                        // Populate incentive fields (optional)
+                        if (typeof response.data.INCENTIVEPERCENT !== 'undefined' && response.data.INCENTIVEPERCENT !== null) {
+                            $('#packingTypeIncentivePercent').val(parseFloat(response.data.INCENTIVEPERCENT).toFixed(3));
+                        } else {
+                            $('#packingTypeIncentivePercent').val('0.000');
+                        }
+                        $('#packingTypeIncentiveValue').val(((response.data.INCENTIVEVALUE !== null && typeof response.data.INCENTIVEVALUE !== 'undefined') ? response.data.INCENTIVEVALUE : 0).toFixed(2));
+                        $('#packingTypeIncentiveTotal').val(((response.data.INCENTIVETOTALVALUE !== null && typeof response.data.INCENTIVETOTALVALUE !== 'undefined') ? response.data.INCENTIVETOTALVALUE : response.data.TOTALDOLVAL).toFixed(2));
                         
                         // Populate the calculation values for each slab
                         if (response.data.Details && response.data.Details.length > 0) {
@@ -1726,7 +1764,7 @@
                         totalPndsValue += calculationValue;
                     });
                     
-                    // Get TRANDID from current item
+                    // Get TRANDID from the item data
                     var trandId = window.currentTRANDID || 0;
                     console.log('🔵 applyRateCalculation - TRANDID:', trandId);
                     console.log('🔵 applyRateCalculation - window.currentTRANDID:', window.currentTRANDID);
@@ -1753,6 +1791,9 @@
                         TOTALDOLVAL: parseFloat($('#packingTypeTotalValueForDollar').val()) || 0,
                         WEIGHTINKGS: parseFloat($('#packingTypeNetWeight').val()) || 0,
                         PERKGRATE: finalRate,
+                        INCENTIVEPERCENT: parseFloat($('#packingTypeIncentivePercent').val()) || 0,
+                        INCENTIVEVALUE: parseFloat($('#packingTypeIncentiveValue').val()) || 0,
+                        INCENTIVETOTALVALUE: parseFloat($('#packingTypeIncentiveTotal').val()) || (parseFloat($('#packingTypeTotalValueForDollar').val()) || 0),
                         SlabDetails: slabDetails // Send detailed slab information
                     };
 

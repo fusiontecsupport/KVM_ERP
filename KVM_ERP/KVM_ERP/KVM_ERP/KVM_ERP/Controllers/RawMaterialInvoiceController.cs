@@ -1101,6 +1101,9 @@ namespace KVM_ERP.Controllers
                             w.TOTALDOLVAL,
                             w.WEIGHTINKGS,
                             w.PERKGRATE,
+                            w.INCENTIVEPERCENT,
+                            w.INCENTIVEVALUE,
+                            w.INCENTIVETOTALVALUE,
                             w.CUSRID,
                             w.LMUSRID,
                             w.DISPSTATUS,
@@ -1415,27 +1418,30 @@ namespace KVM_ERP.Controllers
                                 var restoreSql = @"
                                     INSERT INTO TRANSACTION_INVOICE_WEIGHT_DETAILS 
                                     (TRANDID, PACKMID, PACKTMID, SLABVALUE, PNDSVALUE, TOTALPNDS, PACKWGT, TOTALWGHT, 
-                                     ONEDOLLAR, TOTALDOLVAL, WEIGHTINKGS, PERKGRATE, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
+                                     ONEDOLLAR, TOTALDOLVAL, WEIGHTINKGS, PERKGRATE, INCENTIVEPERCENT, INCENTIVEVALUE, INCENTIVETOTALVALUE, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
                                     VALUES 
-                                    (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15)";
+                                    (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18)";
                                 
                                 context.Database.ExecuteSqlCommand(restoreSql,
-                                    newTrandId,              // @p0 - New TRANDID
-                                    preservedWd.PACKMID,     // @p1
-                                    preservedWd.PACKTMID,     // @p2
-                                    preservedWd.SLABVALUE,    // @p3
-                                    preservedWd.PNDSVALUE,    // @p4
-                                    preservedWd.TOTALPNDS,    // @p5
-                                    preservedWd.PACKWGT,      // @p6
-                                    preservedWd.TOTALWGHT,    // @p7
-                                    preservedWd.ONEDOLLAR,    // @p8
-                                    preservedWd.TOTALDOLVAL,  // @p9
-                                    preservedWd.WEIGHTINKGS,   // @p10
-                                    updatedPerKgRate,         // @p11 - Updated PERKGRATE if rate changed
-                                    preservedWd.CUSRID,       // @p12
-                                    preservedWd.LMUSRID,      // @p13
-                                    preservedWd.DISPSTATUS,    // @p14
-                                    DateTime.Now              // @p15
+                                    newTrandId,                    // @p0 - New TRANDID
+                                    preservedWd.PACKMID,           // @p1
+                                    preservedWd.PACKTMID,          // @p2
+                                    preservedWd.SLABVALUE,         // @p3
+                                    preservedWd.PNDSVALUE,         // @p4
+                                    preservedWd.TOTALPNDS,         // @p5
+                                    preservedWd.PACKWGT,           // @p6
+                                    preservedWd.TOTALWGHT,         // @p7
+                                    preservedWd.ONEDOLLAR,         // @p8
+                                    preservedWd.TOTALDOLVAL,       // @p9
+                                    preservedWd.WEIGHTINKGS,       // @p10
+                                    updatedPerKgRate,              // @p11 - Updated PERKGRATE if rate changed
+                                    preservedWd.INCENTIVEPERCENT,  // @p12
+                                    preservedWd.INCENTIVEVALUE,    // @p13
+                                    preservedWd.INCENTIVETOTALVALUE, // @p14
+                                    preservedWd.CUSRID,            // @p15
+                                    preservedWd.LMUSRID,           // @p16
+                                    preservedWd.DISPSTATUS,        // @p17
+                                    DateTime.Now                   // @p18
                                 );
                             }
                             
@@ -1969,6 +1975,7 @@ namespace KVM_ERP.Controllers
             Debug.WriteLine($"*** SaveWeightDetails called for TRANDID: {model.TRANDID}, PACKMID: {model.PACKMID}");
             Debug.WriteLine($"*** Model data: SLABVALUE={model.SLABVALUE}, PNDSVALUE={model.PNDSVALUE}, TOTALPNDS={model.TOTALPNDS}");
             Debug.WriteLine($"*** Model data: PACKWGT={model.PACKWGT}, TOTALWGHT={model.TOTALWGHT}, PERKGRATE={model.PERKGRATE}");
+            Debug.WriteLine($"*** Incentive data: PERCENT={model.INCENTIVEPERCENT}, VALUE={model.INCENTIVEVALUE}, TOTAL={model.INCENTIVETOTALVALUE}");
             
             // Validate that TRANDID belongs to a TRANSACTIONMASTER with REGSTRID = 2 (Raw Material Invoice)
             var isValidTrandId = context.Database.SqlQuery<int>($@"
@@ -2074,6 +2081,9 @@ namespace KVM_ERP.Controllers
                                         TOTALDOLVAL = model.TOTALDOLVAL,
                                         WEIGHTINKGS = model.WEIGHTINKGS,
                                         PERKGRATE = model.PERKGRATE,
+                                        INCENTIVEPERCENT = model.INCENTIVEPERCENT,
+                                        INCENTIVEVALUE = model.INCENTIVEVALUE,
+                                        INCENTIVETOTALVALUE = model.INCENTIVETOTALVALUE,
                                         CUSRID = currentUserId ?? "SYSTEM",
                                         LMUSRID = currentUserId ?? "SYSTEM",
                                         DISPSTATUS = 0,
@@ -2162,9 +2172,10 @@ namespace KVM_ERP.Controllers
                                 var sqlInsert = @"
                                     INSERT INTO TRANSACTION_INVOICE_WEIGHT_DETAILS 
                                     (TRANDID, PACKMID, PACKTMID, SLABVALUE, PNDSVALUE, TOTALPNDS, PACKWGT, TOTALWGHT, 
-                                     ONEDOLLAR, TOTALDOLVAL, WEIGHTINKGS, PERKGRATE, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
+                                     ONEDOLLAR, TOTALDOLVAL, WEIGHTINKGS, PERKGRATE, INCENTIVEPERCENT, INCENTIVEVALUE, 
+                                     INCENTIVETOTALVALUE, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
                                     VALUES 
-                                    (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15)";
+                                    (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18)";
                                 
                                 var sqlResult = context.Database.ExecuteSqlCommand(sqlInsert,
                                     model.TRANDID,
@@ -2179,6 +2190,9 @@ namespace KVM_ERP.Controllers
                                     model.TOTALDOLVAL,
                                     model.WEIGHTINKGS,
                                     model.PERKGRATE,
+                                    model.INCENTIVEPERCENT,
+                                    model.INCENTIVEVALUE,
+                                    model.INCENTIVETOTALVALUE,
                                     currentUserId ?? "SYSTEM",
                                     currentUserId ?? "SYSTEM",
                                     (short)0,
@@ -2258,7 +2272,8 @@ namespace KVM_ERP.Controllers
             var weightDetailsList = context.Database.SqlQuery<WeightDetailsWithPackingType>($@"
                     SELECT t.TRANRID, t.PACKMID, t.PACKTMID, t.SLABVALUE, t.PNDSVALUE, 
                            t.TOTALPNDS, t.PACKWGT, t.TOTALWGHT, t.ONEDOLLAR, t.TOTALDOLVAL, 
-                           t.WEIGHTINKGS, t.PERKGRATE, p.PACKTMDESC
+                           t.WEIGHTINKGS, t.PERKGRATE, t.INCENTIVEPERCENT, t.INCENTIVEVALUE, 
+                           t.INCENTIVETOTALVALUE, p.PACKTMDESC
                     FROM TRANSACTION_INVOICE_WEIGHT_DETAILS t
                     INNER JOIN PACKINGTYPEMASTER p ON t.PACKTMID = p.PACKTMID
                     INNER JOIN TRANSACTIONDETAIL td ON t.TRANDID = td.TRANDID
@@ -2315,6 +2330,9 @@ namespace KVM_ERP.Controllers
                             TOTALDOLVAL = firstRecord.TOTALDOLVAL,
                             WEIGHTINKGS = firstRecord.WEIGHTINKGS,
                             PERKGRATE = firstRecord.PERKGRATE,
+                            INCENTIVEPERCENT = firstRecord.INCENTIVEPERCENT,
+                            INCENTIVEVALUE = firstRecord.INCENTIVEVALUE,
+                            INCENTIVETOTALVALUE = firstRecord.INCENTIVETOTALVALUE,
                             Details = detailRecords
                         }
                     });
@@ -2414,6 +2432,9 @@ namespace KVM_ERP.Controllers
         public decimal TOTALDOLVAL { get; set; }
         public decimal WEIGHTINKGS { get; set; }
         public decimal PERKGRATE { get; set; }
+        public decimal INCENTIVEPERCENT { get; set; }
+        public decimal INCENTIVEVALUE { get; set; }
+        public decimal INCENTIVETOTALVALUE { get; set; }
         public string PACKTMDESC { get; set; }
     }
 
@@ -2434,6 +2455,9 @@ namespace KVM_ERP.Controllers
         public decimal TOTALDOLVAL { get; set; }
         public decimal WEIGHTINKGS { get; set; }
         public decimal PERKGRATE { get; set; }
+        public decimal INCENTIVEPERCENT { get; set; }
+        public decimal INCENTIVEVALUE { get; set; }
+        public decimal INCENTIVETOTALVALUE { get; set; }
     }
 
     // ViewModel for Raw Material Invoice display
@@ -2579,6 +2603,9 @@ namespace KVM_ERP.Controllers
         public decimal TOTALDOLVAL { get; set; }
         public decimal WEIGHTINKGS { get; set; }
         public decimal PERKGRATE { get; set; }
+        public decimal INCENTIVEPERCENT { get; set; }
+        public decimal INCENTIVEVALUE { get; set; }
+        public decimal INCENTIVETOTALVALUE { get; set; }
         public string CUSRID { get; set; }
         public string LMUSRID { get; set; }
         public short DISPSTATUS { get; set; }

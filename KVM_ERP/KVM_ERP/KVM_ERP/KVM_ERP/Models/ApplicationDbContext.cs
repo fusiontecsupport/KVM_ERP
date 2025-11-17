@@ -183,6 +183,9 @@ namespace KVM_ERP.Models
             modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.TOTALDOLVAL).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.WEIGHTINKGS).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.PERKGRATE).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.INCENTIVEPERCENT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.INCENTIVEVALUE).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.INCENTIVETOTALVALUE).HasPrecision(18, 3);
 
             // Keep this:
             modelBuilder.Entity<IdentityUser>().ToTable("AspNetUsers");

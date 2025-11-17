@@ -59,6 +59,18 @@ namespace KVM_ERP.Models
         [Required]
         public decimal PERKGRATE { get; set; }
 
+        [Column("INCENTIVEPERCENT")]
+        [Required]
+        public decimal INCENTIVEPERCENT { get; set; }
+
+        [Column("INCENTIVEVALUE")]
+        [Required]
+        public decimal INCENTIVEVALUE { get; set; }
+
+        [Column("INCENTIVETOTALVALUE")]
+        [Required]
+        public decimal INCENTIVETOTALVALUE { get; set; }
+
         [Column("CUSRID")]
         [Required]
         [StringLength(100)]
