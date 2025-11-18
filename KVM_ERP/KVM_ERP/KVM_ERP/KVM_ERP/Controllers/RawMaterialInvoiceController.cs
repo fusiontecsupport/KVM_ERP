@@ -492,6 +492,7 @@ namespace KVM_ERP.Controllers
                         ISNULL(tpc.RCVDTID, 0) as ReceivedTypeId,
                         rt.RCVDTDESC as ReceivedType,
                         ISNULL(tpc.FACTORYWGT, 0) as ActualWeight,
+                        ISNULL(tpc.WASTEPWGT, 0) as WastePWeight,
                         ISNULL(tpc.TRANPID, 0) as TRANPID
                     FROM TRANSACTIONMASTER tm
                     INNER JOIN TRANSACTIONDETAIL td ON tm.TRANMID = td.TRANMID
@@ -563,12 +564,14 @@ namespace KVM_ERP.Controllers
                         ISNULL(td.TRANDDISCEXPRN, 0) as PackingKg,
                         ISNULL(td.TRANDDISCAMT, 0) as PackingAmount,
                         ISNULL(td.TRANDNAMT, 0) as NetAmount,
-                        ISNULL(td.TRANDAID, 0) as TRANPID
+                        ISNULL(td.TRANDAID, 0) as TRANPID,
+                        ISNULL(tpc.WASTEPWGT, 0) as WastePWeight
                     FROM TRANSACTIONDETAIL td
                     INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
                     LEFT JOIN GRADEMASTER g ON td.GRADEID = g.GRADEID
                     LEFT JOIN PRODUCTIONCOLOURMASTER pcm ON td.PCLRID = pcm.PCLRID
                     LEFT JOIN RECEIVEDTYPEMASTER rt ON td.RCVDTID = rt.RCVDTID
+                    LEFT JOIN TRANSACTION_PRODUCT_CALCULATION tpc ON td.TRANDAID = tpc.TRANPID
                     WHERE td.TRANMID = @p0
                         AND (td.DISPSTATUS = 0 OR td.DISPSTATUS IS NULL)
                     ORDER BY td.TRANDID
@@ -629,6 +632,7 @@ namespace KVM_ERP.Controllers
                         ISNULL(tpc.RCVDTID, 0) as ReceivedTypeId,
                         rt.RCVDTDESC as ReceivedType,
                         ISNULL(tpc.FACTORYWGT, 0) as ActualWeight,
+                        ISNULL(tpc.WASTEPWGT, 0) as WastePWeight,
                         ISNULL(tpc.TRANPID, 0) as TRANPID
                     FROM TRANSACTIONMASTER tm
                     INNER JOIN TRANSACTIONDETAIL td ON tm.TRANMID = td.TRANMID
@@ -713,6 +717,7 @@ namespace KVM_ERP.Controllers
                         ReceivedTypeId = item.ReceivedTypeId,
                         ReceivedType = item.ReceivedType,
                         ActualWeight = item.ActualWeight,
+                        WastePWeight = item.WastePWeight,
                         NetWeight = savedItem?.NetWeight ?? item.ActualWeight,  // Use saved or default to actual
                         Rate = savedItem?.Rate ?? 0,  // Use saved or 0
                         Amount = savedItem?.Amount ?? 0,  // Use saved or 0
@@ -1099,6 +1104,10 @@ namespace KVM_ERP.Controllers
                             w.TOTALWGHT,
                             w.ONEDOLLAR,
                             w.TOTALDOLVAL,
+                            w.TRANIDISCEXPRN,
+                            w.WASTEPWGT,
+                            w.TRANIDISCAMT,
+                            w.TOTALDOLDISCAMT,
                             w.WEIGHTINKGS,
                             w.PERKGRATE,
                             w.INCENTIVEPERCENT,
@@ -1818,7 +1827,7 @@ namespace KVM_ERP.Controllers
                            tpc.PCK6, tpc.PCK7, tpc.PCK8, tpc.PCK9, tpc.PCK10,
                            tpc.PCK11, tpc.PCK12, tpc.PCK13, tpc.PCK14, tpc.PCK15,
                            tpc.PCK16, tpc.PCK17, tpc.BKN, tpc.OTHERS, 
-                           tpc.PACKMID, pm.PACKMDESC
+                           tpc.PACKMID, pm.PACKMDESC, tpc.WASTEPWGT
                     FROM TRANSACTION_PRODUCT_CALCULATION tpc
                     INNER JOIN PACKINGMASTER pm ON tpc.PACKMID = pm.PACKMID
                     WHERE tpc.TRANPID = @p0
@@ -1903,14 +1912,15 @@ namespace KVM_ERP.Controllers
                         }
                     }
 
-                    // Return packing master info along with slab data
+                    // Return packing master info, Peeled + Weight (WASTEPWGT), and slab data
                     return Json(new { 
                         success = true, 
                         data = formattedSlabData,
                         packingMaster = new {
                             id = slabRecord.PACKMID,
                             name = slabRecord.PACKMDESC
-                        }
+                        },
+                        wastePWeight = slabRecord.WASTEPWGT
                     });
                 }
 
@@ -1959,6 +1969,7 @@ namespace KVM_ERP.Controllers
             public decimal OTHERS { get; set; }
             public int PACKMID { get; set; }
             public string PACKMDESC { get; set; }
+            public decimal WASTEPWGT { get; set; }
         }
 
         // Helper class for packing type info
@@ -2079,6 +2090,10 @@ namespace KVM_ERP.Controllers
                                         TOTALWGHT = model.TOTALWGHT,
                                         ONEDOLLAR = model.ONEDOLLAR,
                                         TOTALDOLVAL = model.TOTALDOLVAL,
+                                        TRANIDISCEXPRN = model.TRANIDISCEXPRN,
+                                        WASTEPWGT = model.WASTEPWGT,
+                                        TRANIDISCAMT = model.TRANIDISCAMT,
+                                        TOTALDOLDISCAMT = model.TOTALDOLDISCAMT,
                                         WEIGHTINKGS = model.WEIGHTINKGS,
                                         PERKGRATE = model.PERKGRATE,
                                         INCENTIVEPERCENT = model.INCENTIVEPERCENT,
@@ -2172,10 +2187,11 @@ namespace KVM_ERP.Controllers
                                 var sqlInsert = @"
                                     INSERT INTO TRANSACTION_INVOICE_WEIGHT_DETAILS 
                                     (TRANDID, PACKMID, PACKTMID, SLABVALUE, PNDSVALUE, TOTALPNDS, PACKWGT, TOTALWGHT, 
-                                     ONEDOLLAR, TOTALDOLVAL, WEIGHTINKGS, PERKGRATE, INCENTIVEPERCENT, INCENTIVEVALUE, 
+                                     ONEDOLLAR, TOTALDOLVAL, TRANIDISCEXPRN, WASTEPWGT, TRANIDISCAMT, TOTALDOLDISCAMT,
+                                     WEIGHTINKGS, PERKGRATE, INCENTIVEPERCENT, INCENTIVEVALUE, 
                                      INCENTIVETOTALVALUE, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
                                     VALUES 
-                                    (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18)";
+                                    (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21)";
                                 
                                 var sqlResult = context.Database.ExecuteSqlCommand(sqlInsert,
                                     model.TRANDID,
@@ -2188,6 +2204,10 @@ namespace KVM_ERP.Controllers
                                     model.TOTALWGHT,
                                     model.ONEDOLLAR,
                                     model.TOTALDOLVAL,
+                                    model.TRANIDISCEXPRN,
+                                    model.WASTEPWGT,
+                                    model.TRANIDISCAMT,
+                                    model.TOTALDOLDISCAMT,
                                     model.WEIGHTINKGS,
                                     model.PERKGRATE,
                                     model.INCENTIVEPERCENT,
@@ -2271,7 +2291,8 @@ namespace KVM_ERP.Controllers
             
             var weightDetailsList = context.Database.SqlQuery<WeightDetailsWithPackingType>($@"
                     SELECT t.TRANRID, t.PACKMID, t.PACKTMID, t.SLABVALUE, t.PNDSVALUE, 
-                           t.TOTALPNDS, t.PACKWGT, t.TOTALWGHT, t.ONEDOLLAR, t.TOTALDOLVAL, 
+                           t.TOTALPNDS, t.PACKWGT, t.TOTALWGHT, t.ONEDOLLAR, t.TOTALDOLVAL,
+                           t.TRANIDISCEXPRN, t.WASTEPWGT, t.TRANIDISCAMT, t.TOTALDOLDISCAMT,
                            t.WEIGHTINKGS, t.PERKGRATE, t.INCENTIVEPERCENT, t.INCENTIVEVALUE, 
                            t.INCENTIVETOTALVALUE, p.PACKTMDESC
                     FROM TRANSACTION_INVOICE_WEIGHT_DETAILS t
@@ -2328,6 +2349,10 @@ namespace KVM_ERP.Controllers
                             TOTALWGHT = firstRecord.TOTALWGHT,
                             ONEDOLLAR = firstRecord.ONEDOLLAR,
                             TOTALDOLVAL = firstRecord.TOTALDOLVAL,
+                            TRANIDISCEXPRN = firstRecord.TRANIDISCEXPRN,
+                            WASTEPWGT = firstRecord.WASTEPWGT,
+                            TRANIDISCAMT = firstRecord.TRANIDISCAMT,
+                            TOTALDOLDISCAMT = firstRecord.TOTALDOLDISCAMT,
                             WEIGHTINKGS = firstRecord.WEIGHTINKGS,
                             PERKGRATE = firstRecord.PERKGRATE,
                             INCENTIVEPERCENT = firstRecord.INCENTIVEPERCENT,
@@ -2430,6 +2455,10 @@ namespace KVM_ERP.Controllers
         public decimal TOTALWGHT { get; set; }
         public decimal ONEDOLLAR { get; set; }
         public decimal TOTALDOLVAL { get; set; }
+        public decimal TRANIDISCEXPRN { get; set; }
+        public decimal WASTEPWGT { get; set; }
+        public decimal TRANIDISCAMT { get; set; }
+        public decimal TOTALDOLDISCAMT { get; set; }
         public decimal WEIGHTINKGS { get; set; }
         public decimal PERKGRATE { get; set; }
         public decimal INCENTIVEPERCENT { get; set; }
@@ -2453,6 +2482,10 @@ namespace KVM_ERP.Controllers
         public decimal TOTALWGHT { get; set; }
         public decimal ONEDOLLAR { get; set; }
         public decimal TOTALDOLVAL { get; set; }
+        public decimal TRANIDISCEXPRN { get; set; }
+        public decimal WASTEPWGT { get; set; }
+        public decimal TRANIDISCAMT { get; set; }
+        public decimal TOTALDOLDISCAMT { get; set; }
         public decimal WEIGHTINKGS { get; set; }
         public decimal PERKGRATE { get; set; }
         public decimal INCENTIVEPERCENT { get; set; }
@@ -2487,6 +2520,7 @@ namespace KVM_ERP.Controllers
         public int ReceivedTypeId { get; set; }
         public string ReceivedType { get; set; }
         public decimal ActualWeight { get; set; }
+        public decimal WastePWeight { get; set; }
         public int TRANPID { get; set; }  // Transaction Product Calculation ID
     }
 
@@ -2561,6 +2595,7 @@ namespace KVM_ERP.Controllers
         public decimal PackingAmount { get; set; } // TRANDDISCAMT
         public decimal NetAmount { get; set; }    // TRANDNAMT
         public int TRANPID { get; set; }  // Transaction Product Calculation ID from TRANDAID
+        public decimal WastePWeight { get; set; }
     }
 
     // ViewModel for Tax Factor Editing

@@ -51,6 +51,23 @@ namespace KVM_ERP.Models
         [Required]
         public decimal TOTALDOLVAL { get; set; }
 
+        // Packing discount fields
+        [Column("TRANIDISCEXPRN")]
+        [Required]
+        public decimal TRANIDISCEXPRN { get; set; }
+
+        [Column("WASTEPWGT")]
+        [Required]
+        public decimal WASTEPWGT { get; set; }
+
+        [Column("TRANIDISCAMT")]
+        [Required]
+        public decimal TRANIDISCAMT { get; set; }
+
+        [Column("TOTALDOLDISCAMT")]
+        [Required]
+        public decimal TOTALDOLDISCAMT { get; set; }
+
         [Column("WEIGHTINKGS")]
         [Required]
         public decimal WEIGHTINKGS { get; set; }

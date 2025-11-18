@@ -181,6 +181,10 @@ namespace KVM_ERP.Models
             modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.TOTALWGHT).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.ONEDOLLAR).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.TOTALDOLVAL).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.TRANIDISCEXPRN).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.WASTEPWGT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.TRANIDISCAMT).HasPrecision(18, 3);
+            modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.TOTALDOLDISCAMT).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.WEIGHTINKGS).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.PERKGRATE).HasPrecision(18, 3);
             modelBuilder.Entity<TransactionInvoiceWeightDetails>().Property(t => t.INCENTIVEPERCENT).HasPrecision(18, 3);
