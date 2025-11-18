@@ -1427,9 +1427,10 @@ namespace KVM_ERP.Controllers
                                 var restoreSql = @"
                                     INSERT INTO TRANSACTION_INVOICE_WEIGHT_DETAILS 
                                     (TRANDID, PACKMID, PACKTMID, SLABVALUE, PNDSVALUE, TOTALPNDS, PACKWGT, TOTALWGHT, 
-                                     ONEDOLLAR, TOTALDOLVAL, WEIGHTINKGS, PERKGRATE, INCENTIVEPERCENT, INCENTIVEVALUE, INCENTIVETOTALVALUE, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
+                                     ONEDOLLAR, TOTALDOLVAL, TRANIDISCEXPRN, WASTEPWGT, TRANIDISCAMT, TOTALDOLDISCAMT,
+                                     WEIGHTINKGS, PERKGRATE, INCENTIVEPERCENT, INCENTIVEVALUE, INCENTIVETOTALVALUE, CUSRID, LMUSRID, DISPSTATUS, PRCSDATE)
                                     VALUES 
-                                    (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18)";
+                                    (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22)";
                                 
                                 context.Database.ExecuteSqlCommand(restoreSql,
                                     newTrandId,                    // @p0 - New TRANDID
@@ -1442,15 +1443,19 @@ namespace KVM_ERP.Controllers
                                     preservedWd.TOTALWGHT,         // @p7
                                     preservedWd.ONEDOLLAR,         // @p8
                                     preservedWd.TOTALDOLVAL,       // @p9
-                                    preservedWd.WEIGHTINKGS,       // @p10
-                                    updatedPerKgRate,              // @p11 - Updated PERKGRATE if rate changed
-                                    preservedWd.INCENTIVEPERCENT,  // @p12
-                                    preservedWd.INCENTIVEVALUE,    // @p13
-                                    preservedWd.INCENTIVETOTALVALUE, // @p14
-                                    preservedWd.CUSRID,            // @p15
-                                    preservedWd.LMUSRID,           // @p16
-                                    preservedWd.DISPSTATUS,        // @p17
-                                    DateTime.Now                   // @p18
+                                    preservedWd.TRANIDISCEXPRN,    // @p10
+                                    preservedWd.WASTEPWGT,         // @p11
+                                    preservedWd.TRANIDISCAMT,      // @p12
+                                    preservedWd.TOTALDOLDISCAMT,   // @p13
+                                    preservedWd.WEIGHTINKGS,       // @p14
+                                    updatedPerKgRate,              // @p15 - Updated PERKGRATE if rate changed
+                                    preservedWd.INCENTIVEPERCENT,  // @p16
+                                    preservedWd.INCENTIVEVALUE,    // @p17
+                                    preservedWd.INCENTIVETOTALVALUE, // @p18
+                                    preservedWd.CUSRID,            // @p19
+                                    preservedWd.LMUSRID,           // @p20
+                                    preservedWd.DISPSTATUS,        // @p21
+                                    DateTime.Now                   // @p22
                                 );
                             }
                             
@@ -2636,6 +2641,13 @@ namespace KVM_ERP.Controllers
         public decimal TOTALWGHT { get; set; }
         public decimal ONEDOLLAR { get; set; }
         public decimal TOTALDOLVAL { get; set; }
+
+        // Packing discount fields that must be preserved
+        public decimal TRANIDISCEXPRN { get; set; }
+        public decimal WASTEPWGT { get; set; }
+        public decimal TRANIDISCAMT { get; set; }
+        public decimal TOTALDOLDISCAMT { get; set; }
+
         public decimal WEIGHTINKGS { get; set; }
         public decimal PERKGRATE { get; set; }
         public decimal INCENTIVEPERCENT { get; set; }

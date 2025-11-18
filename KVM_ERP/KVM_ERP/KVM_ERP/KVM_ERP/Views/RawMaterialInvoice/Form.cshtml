@@ -790,7 +790,7 @@
                                     <input type="number" class="form-control" id="packingTypePackingAmount" step="0.01" readonly>
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label">Packing Expense</label>
+                                    <label class="form-label">Total Value - Packing Amount (Packing Expense)</label>
                                     <input type="number" class="form-control" id="packingTypePackingExpense" step="0.01" readonly>
                                 </div>
                             </div>
@@ -1366,6 +1366,13 @@
             // Get current net weight from the input field
             var currentNetWeight = $('.net-weight[data-index="' + itemIndex + '"]').val() || item.ActualWeight || 0;
             $('#modalNetWeight').text(parseFloat(currentNetWeight).toFixed(2) + ' KG');
+
+            // Populate Peeled + Weight (WASTEPWGT from TRANSACTION_PRODUCT_CALCULATION)
+            var peeledPlusWeight = 0;
+            if (typeof item.WastePWeight !== 'undefined' && item.WastePWeight !== null) {
+                peeledPlusWeight = parseFloat(item.WastePWeight) || 0;
+            }
+            $('#packingTypeWastePWeight').val(peeledPlusWeight.toFixed(2));
             
             // Load slab data for this item
             loadSlabData(item.TRANPID);
@@ -1582,46 +1589,39 @@
             calculateDollarValue(type);
         }
 
-        // Calculate dollar value (Total Weight * One Dollar Rate)
+        // Calculate dollar value
+        // Total Value (In INR) = Total Weight (In KGS) * Rate Per USD
+        // Per Kg Rate = Total Value (In INR) / Net Weight
         function calculateDollarValue(type) {
             var totalWeight = parseFloat($('#' + type + 'TotalWeight').val()) || 0;
+            var netWeight = parseFloat($('#' + type + 'NetWeight').val()) || 0;
             var oneDollarRate = parseFloat($('#' + type + 'OneDollarRate').val()) || 0;
+
+            // Step 1: Total Value in INR from Total Weight
             var totalValueForDollar = totalWeight * oneDollarRate;
-            
             $('#' + type + 'TotalValueForDollar').val(totalValueForDollar.toFixed(2));
-            calculatePerKgRate(type);
+
+            // Step 2: Per Kg Rate from Total Value / Net Weight
+            var perKgRate = (netWeight > 0) ? (totalValueForDollar / netWeight) : 0;
+            $('#' + type + 'PerKgRate').val(perKgRate.toFixed(2));
         }
 
-        // Calculate per kg rate (Total Value for Dollar / Net Weight)
+        // Incentive calculation ONLY on Packing Expense (does NOT change Per Kg Rate or Total Value)
         function calculatePerKgRate(type) {
-            var baseTotalValue = parseFloat($('#' + type + 'TotalValueForDollar').val()) || 0;
-            var netWeight = parseFloat($('#' + type + 'NetWeight').val()) || 0;
+            var packingExpense = parseFloat($('#' + type + 'PackingExpense').val()) || 0;
             var incentivePercent = parseFloat($('#' + type + 'IncentivePercent').val()) || 0;
-            var effectiveBaseForIncentive = baseTotalValue;
 
-            // First, recalculate packing discount amounts based on current Packing/Kg and Peeled + Weight
-            calculatePackingDiscount(type);
+            if (incentivePercent > 0 && packingExpense > 0) {
+                var incentiveValue = packingExpense * incentivePercent / 100.0;
+                var incentiveTotal = packingExpense + incentiveValue;
 
-            // After packing discount, use TOTALDOLDISCAMT (Packing Expense adjusted total) as the base for incentive
-            var discountedTotal = parseFloat($('#' + type + 'PackingExpense').val()) || baseTotalValue;
-            var effectiveTotal = discountedTotal;
-            
-            // Calculate incentive amounts if percentage is entered
-            if (incentivePercent > 0 && effectiveTotal > 0) {
-                var incentiveValue = effectiveTotal * incentivePercent / 100.0;
-                var incentiveTotal = effectiveTotal + incentiveValue;
-                
                 $('#' + type + 'IncentiveValue').val(incentiveValue.toFixed(2));
                 $('#' + type + 'IncentiveTotal').val(incentiveTotal.toFixed(2));
-                effectiveTotal = incentiveTotal;
             } else {
-                // No incentive: clear value and set On Account equal to base total
+                // No incentive: reset values and set On Account equal to Packing Expense
                 $('#' + type + 'IncentiveValue').val('0.00');
-                $('#' + type + 'IncentiveTotal').val(effectiveTotal.toFixed(2));
+                $('#' + type + 'IncentiveTotal').val(packingExpense.toFixed(2));
             }
-            
-            var perKgRate = (netWeight > 0) ? (effectiveTotal / netWeight) : 0;
-            $('#' + type + 'PerKgRate').val(perKgRate.toFixed(2));
         }
 
         // Calculate packing discount values based on Packing/Kg and Peeled + Weight (WASTEPWGT)
@@ -1672,10 +1672,30 @@
                         $('#packingTypeNetWeight').val(response.data.WEIGHTINKGS.toFixed(2));
                         $('#packingTypePerKgRate').val(response.data.PERKGRATE.toFixed(2));
                         // Populate packing discount fields
-                        $('#packingTypePackingPerKg').val((response.data.TRANIDISCEXPRN || 0).toFixed(2));
-                        $('#packingTypeWastePWeight').val((response.data.WASTEPWGT || 0).toFixed(2));
-                        $('#packingTypePackingAmount').val((response.data.TRANIDISCAMT || 0).toFixed(2));
-                        $('#packingTypePackingExpense').val((response.data.TOTALDOLDISCAMT || response.data.TOTALDOLVAL).toFixed(2));
+                        var existingWastePWeight = parseFloat($('#packingTypeWastePWeight').val()) || 0;
+                        var dbWastePWeight = parseFloat(response.data.WASTEPWGT || 0);
+                        var finalWastePWeight = dbWastePWeight > 0 ? dbWastePWeight : existingWastePWeight;
+                        $('#packingTypeWastePWeight').val(finalWastePWeight.toFixed(2));
+
+                        var totalDolVal = parseFloat(response.data.TOTALDOLVAL || 0);
+                        var totalDolDiscAmt = parseFloat(response.data.TOTALDOLDISCAMT || totalDolVal);
+                        var dbPackingAmount = parseFloat(response.data.TRANIDISCAMT || 0);
+                        var packingAmount = dbPackingAmount;
+
+                        if (packingAmount <= 0 && totalDolVal > 0 && totalDolDiscAmt >= 0 && totalDolDiscAmt <= totalDolVal) {
+                            packingAmount = totalDolVal - totalDolDiscAmt;
+                        }
+                        if (packingAmount < 0) packingAmount = 0;
+
+                        var dbPackingPerKg = parseFloat(response.data.TRANIDISCEXPRN || 0);
+                        var packingPerKg = dbPackingPerKg;
+                        if (packingPerKg <= 0 && finalWastePWeight > 0 && packingAmount > 0) {
+                            packingPerKg = packingAmount / finalWastePWeight;
+                        }
+
+                        $('#packingTypePackingPerKg').val(packingPerKg.toFixed(2));
+                        $('#packingTypePackingAmount').val(packingAmount.toFixed(2));
+                        $('#packingTypePackingExpense').val(totalDolDiscAmt.toFixed(2));
                         
                         // Populate incentive fields (optional)
                         if (typeof response.data.INCENTIVEPERCENT !== 'undefined' && response.data.INCENTIVEPERCENT !== null) {
