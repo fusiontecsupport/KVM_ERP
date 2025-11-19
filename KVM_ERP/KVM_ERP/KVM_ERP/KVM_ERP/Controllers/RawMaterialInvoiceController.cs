@@ -1778,7 +1778,8 @@ namespace KVM_ERP.Controllers
                              ISNULL(tm.TRANSGSTEXPRN, 0) as SGSTPER,
                              ISNULL(tm.TRANIGSTEXPRN, 0) as IGSTPER,
                              ISNULL(tm.TRANGAMT, 0) as TRANGAMT,
-                             ISNULL(tm.TRANPACKAMT, 0) as TRANPACKAMT
+                             ISNULL(tm.TRANPACKAMT, 0) as TRANPACKAMT,
+                             ISNULL(tm.TRANINCAMT, 0) as TRANINCAMT
                       FROM TRANSACTIONMASTER tm
                       LEFT JOIN PURCHASEINVOICESTATUS pis ON tm.DISPSTATUS = pis.PUINSTID
                       WHERE tm.TRANMID = @p0 AND tm.REGSTRID = 2",
@@ -1802,7 +1803,8 @@ namespace KVM_ERP.Controllers
                              td.TRANDAMT,
                              ISNULL(td.TRANDDISCEXPRN, 0) as PACKINGKG,
                              ISNULL(td.TRANDDISCAMT, 0) as PACKINGAMOUNT,
-                             ISNULL(td.TRANDNAMT, 0) as NETAMOUNT
+                             ISNULL(td.TRANDNAMT, 0) as NETAMOUNT,
+                             ISNULL(td.TRANDINCAMT, 0) as INCENTIVEAMOUNT
                       FROM TRANSACTIONDETAIL td
                       INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
                       LEFT JOIN GRADEMASTER g ON td.GRADEID = g.GRADEID
@@ -2783,6 +2785,7 @@ namespace KVM_ERP.Controllers
         public decimal IGSTPER { get; set; }
         public decimal TRANGAMT { get; set; }
         public decimal TRANPACKAMT { get; set; }
+        public decimal TRANINCAMT { get; set; }
         public List<InvoiceItemPrintViewModel> Items { get; set; }
         public List<TaxFactorPrintViewModel> TaxFactors { get; set; }
     }
@@ -2800,6 +2803,7 @@ namespace KVM_ERP.Controllers
         public decimal PACKINGKG { get; set; }
         public decimal PACKINGAMOUNT { get; set; }
         public decimal NETAMOUNT { get; set; }
+        public decimal INCENTIVEAMOUNT { get; set; } // TRANDINCAMT
     }
 
     public class TaxFactorPrintViewModel
