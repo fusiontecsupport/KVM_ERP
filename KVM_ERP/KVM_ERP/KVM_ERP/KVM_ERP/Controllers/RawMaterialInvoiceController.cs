@@ -330,7 +330,7 @@ namespace KVM_ERP.Controllers
                 {
                     var invoice = context.Database.SqlQuery<InvoiceEditViewModel>(
                         @"SELECT tm.TRANMID, tm.TRANDATE, tm.TRANNO, tm.TRANDNO, tm.TRANREFNO, 
-                                 tm.CATENAME, tm.TRANNAMT, tm.DISPSTATUS, tm.TRANREFID, tm.CATECODE
+                                 tm.CATENAME, tm.TRANNAMT, tm.DISPSTATUS, tm.TRANREFID, tm.CATECODE, tm.TRANINCAMT
                           FROM TRANSACTIONMASTER tm
                           WHERE tm.TRANMID = @p0 AND tm.REGSTRID = 2",
                         id.Value
@@ -358,6 +358,8 @@ namespace KVM_ERP.Controllers
                         ViewBag.RefNo = invoice.TRANREFNO;
                         ViewBag.Status = invoice.DISPSTATUS;
                         ViewBag.SupplierId = invoice.TRANREFID;
+                        ViewBag.InvoiceIncentiveAmount = invoice.TRANINCAMT;
+                        ViewBag.InvoiceGrandTotal = invoice.TRANNAMT; // Saved Grand Total (TRANNAMT)
                         ViewBag.IsEdit = true;
                         ViewBag.EditId = id.Value;
                         
@@ -565,7 +567,8 @@ namespace KVM_ERP.Controllers
                         ISNULL(td.TRANDDISCAMT, 0) as PackingAmount,
                         ISNULL(td.TRANDNAMT, 0) as NetAmount,
                         ISNULL(td.TRANDAID, 0) as TRANPID,
-                        ISNULL(tpc.WASTEPWGT, 0) as WastePWeight
+                        ISNULL(tpc.WASTEPWGT, 0) as WastePWeight,
+                        ISNULL(td.TRANDINCAMT, 0) as IncentiveAmount
                     FROM TRANSACTIONDETAIL td
                     INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
                     LEFT JOIN GRADEMASTER g ON td.GRADEID = g.GRADEID
@@ -689,7 +692,8 @@ namespace KVM_ERP.Controllers
                         ISNULL(td.TRANDDISCEXPRN, 0) as PackingKg,
                         ISNULL(td.TRANDDISCAMT, 0) as PackingAmount,
                         ISNULL(td.TRANDNAMT, 0) as NetAmount,
-                        ISNULL(td.TRANDAID, 0) as TRANPID
+                        ISNULL(td.TRANDAID, 0) as TRANPID,
+                        ISNULL(td.TRANDINCAMT, 0) as IncentiveAmount
                     FROM TRANSACTIONDETAIL td
                     WHERE td.TRANMID = @p0
                         AND (td.DISPSTATUS = 0 OR td.DISPSTATUS IS NULL)
@@ -726,6 +730,7 @@ namespace KVM_ERP.Controllers
                         NetAmount = savedItem?.NetAmount ?? 0,  // Use saved or 0
                         TRANPID = item.TRANPID,
                         TRANDID = savedItem?.TRANDID ?? 0,  // Include TRANDID for rate updates
+                        IncentiveAmount = savedItem?.IncentiveAmount ?? 0,
                         IsSelected = isSelected  // Checked if it was saved
                     };
                 }).ToList();
@@ -1062,7 +1067,7 @@ namespace KVM_ERP.Controllers
                     System.Diagnostics.Debug.WriteLine($"EDIT MODE: Updating existing invoice TRANMID={tranMId}");
 
                     // Update TRANSACTIONMASTER basic fields - only for Raw Material Invoice (REGSTRID=2)
-                    // NOTE: GST totals will be updated after items are saved and calculated
+                    // NOTE: GST totals and incentive will be updated after items are saved and calculated
                     var updateSql = @"
                         UPDATE TRANSACTIONMASTER SET
                             TRANDATE = @p0,
@@ -1072,8 +1077,9 @@ namespace KVM_ERP.Controllers
                             LMUSRID = @p4,
                             PRCSDATE = @p5,
                             TRANREFID = @p6,
-                            TRANREFNO = @p7
-                        WHERE TRANMID = @p8 AND REGSTRID = 2";
+                            TRANREFNO = @p7,
+                            TRANINCAMT = @p8
+                        WHERE TRANMID = @p9 AND REGSTRID = 2";
 
                     context.Database.ExecuteSqlCommand(updateSql,
                         invoiceDate,                    // TRANDATE
@@ -1084,6 +1090,7 @@ namespace KVM_ERP.Controllers
                         DateTime.Now,                   // PRCSDATE
                         model.SupplierId,               // TRANREFID (Supplier ID)
                         model.RefNo,                    // TRANREFNO (Reference Number)
+                        model.IncentiveAmount,          // TRANINCAMT (On Incentive value)
                         tranMId                         // TRANMID (WHERE clause)
                     );
 
@@ -1190,7 +1197,8 @@ namespace KVM_ERP.Controllers
                             TRANAMTWRDS, TRANREFNO,
                             TRANCGSTAMT, TRANSGSTAMT, TRANIGSTAMT,
                             TRANCGSTEXPRN, TRANSGSTEXPRN, TRANIGSTEXPRN,
-                            TRANGAMT, TRANPACKAMT
+                            TRANGAMT, TRANPACKAMT,
+                            TRANINCAMT
                         ) VALUES (
                             @p0, @p1, @p2, @p3, @p4, 
                             @p5, @p6, @p7, @p8, @p9, 
@@ -1198,7 +1206,8 @@ namespace KVM_ERP.Controllers
                             @p14, @p15,
                             @p16, @p17, @p18,
                             @p19, @p20, @p21,
-                            @p22, @p23
+                            @p22, @p23,
+                            @p24
                         );
                         SELECT CAST(SCOPE_IDENTITY() as int)";
 
@@ -1227,7 +1236,8 @@ namespace KVM_ERP.Controllers
                         0.00m,                          // @p20 TRANSGSTEXPRN (will be updated later)
                         0.00m,                          // @p21 TRANIGSTEXPRN (will be updated later)
                         model.GrossAmount,              // @p22 TRANGAMT (Subtotal)
-                        model.PackingAmount             // @p23 TRANPACKAMT (Packing Amount)
+                        model.PackingAmount,            // @p23 TRANPACKAMT (Packing Amount)
+                        model.IncentiveAmount           // @p24 TRANINCAMT (On Incentive value)
                     ).FirstOrDefault();
 
                     System.Diagnostics.Debug.WriteLine($"Invoice created successfully. TRANMID: {tranMId}, TRANNO: {tranNo}");
@@ -1311,7 +1321,7 @@ namespace KVM_ERP.Controllers
                                 TRANDDISCEXPRN, TRANDDISCAMT, TRANDGAMT,
                                 TRANDCGSTEXPRN, TRANDSGSTEXPRN, TRANDIGSTEXPRN,
                                 TRANDCGSTAMT, TRANDSGSTAMT, TRANDIGSTAMT, TRANDNAMT, TRANDAID,
-                                CUSRID, LMUSRID, DISPSTATUS, PRCSDATE
+                                CUSRID, LMUSRID, DISPSTATUS, PRCSDATE, TRANDINCAMT
                             ) VALUES (
                                 @p0, @p1, @p2, @p3, @p4,
                                 @p5, @p6, @p7, @p8,
@@ -1319,7 +1329,7 @@ namespace KVM_ERP.Controllers
                                 @p14, @p15, @p16,
                                 @p17, @p18, @p19,
                                 @p20, @p21, @p22, @p23, @p24,
-                                @p25, @p26, @p27, @p28
+                                @p25, @p26, @p27, @p28, @p29
                             )";
 
                         // TRANDAID: Store TRANPID for reference in invoice (REGSTRID=2 only)
@@ -1358,7 +1368,7 @@ namespace KVM_ERP.Controllers
                                 TRANDDISCEXPRN, TRANDDISCAMT, TRANDGAMT,
                                 TRANDCGSTEXPRN, TRANDSGSTEXPRN, TRANDIGSTEXPRN,
                                 TRANDCGSTAMT, TRANDSGSTAMT, TRANDIGSTAMT, TRANDNAMT, TRANDAID,
-                                CUSRID, LMUSRID, DISPSTATUS, PRCSDATE
+                                CUSRID, LMUSRID, DISPSTATUS, PRCSDATE, TRANDINCAMT
                             ) 
                             OUTPUT INSERTED.TRANDID
                             VALUES (
@@ -1368,7 +1378,7 @@ namespace KVM_ERP.Controllers
                                 @p14, @p15, @p16,
                                 @p17, @p18, @p19,
                                 @p20, @p21, @p22, @p23, @p24,
-                                @p25, @p26, @p27, @p28
+                                @p25, @p26, @p27, @p28, @p29
                             )";
 
                         newTrandId = context.Database.SqlQuery<int>(itemSqlWithOutput,
@@ -1400,7 +1410,8 @@ namespace KVM_ERP.Controllers
                             currentUser,             // @p25 - CUSRID
                             currentUser,             // @p26 - LMUSRID
                             0,                       // @p27 - DISPSTATUS (0=Active)
-                            DateTime.Now             // @p28 - PRCSDATE
+                            DateTime.Now,            // @p28 - PRCSDATE
+                            item.IncentiveAmount     // @p29 - TRANDINCAMT (line-level incentive)
                         ).FirstOrDefault();
                         
                         System.Diagnostics.Debug.WriteLine($"  Created new TRANSACTIONDETAIL: TRANDID={newTrandId}, TRANDAID={trandaid}");
@@ -2379,6 +2390,30 @@ namespace KVM_ERP.Controllers
                 return Json(new { success = false, message = "Error retrieving weight details: " + ex.Message });
             }
         }
+
+        // Get total incentive value for an invoice (summary for display only)
+        [HttpPost]
+        public JsonResult GetInvoiceIncentiveSummary(int invoiceId)
+        {
+            try
+            {
+                var totalIncentive = context.Database.SqlQuery<decimal>(@"
+                        SELECT ISNULL(SUM(w.INCENTIVEVALUE), 0)
+                        FROM TRANSACTION_INVOICE_WEIGHT_DETAILS w
+                        INNER JOIN TRANSACTIONDETAIL td ON w.TRANDID = td.TRANDID
+                        INNER JOIN TRANSACTIONMASTER tm ON td.TRANMID = tm.TRANMID
+                        WHERE td.TRANMID = @p0
+                          AND tm.REGSTRID = 2
+                          AND (w.DISPSTATUS = 0 OR w.DISPSTATUS IS NULL)
+                    ", invoiceId).FirstOrDefault();
+
+                return Json(new { success = true, totalIncentive = totalIncentive });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
         
         // Update PERKGRATE in weight details when rate is changed directly
         [HttpPost]
@@ -2542,6 +2577,7 @@ namespace KVM_ERP.Controllers
         public decimal GrossAmount { get; set; }   // TRANGAMT (Subtotal)
         public decimal PackingAmount { get; set; } // TRANPACKAMT (Discount on Packing)
         public decimal GrandTotal { get; set; }   // TRANNAMT (Grand Total)
+        public decimal IncentiveAmount { get; set; } // TRANINCAMT (On Incentive value)
         public bool IsApprovalMode { get; set; } = false; // Indicates if saving from approval page
     }
 
@@ -2561,6 +2597,7 @@ namespace KVM_ERP.Controllers
         public decimal PackingAmount { get; set; } // TRANDDISCAMT
         public decimal NetAmount { get; set; }    // TRANDNAMT
         public int TRANPID { get; set; }            // Transaction Product Calculation ID
+        public decimal IncentiveAmount { get; set; } // TRANDINCAMT (line-level incentive)
         public bool IsSelected { get; set; }      // Whether item is selected for tax calculation
     }
 
@@ -2577,6 +2614,7 @@ namespace KVM_ERP.Controllers
         public short DISPSTATUS { get; set; }
         public int TRANREFID { get; set; }
         public string CATECODE { get; set; }
+        public decimal TRANINCAMT { get; set; }
     }
 
     // ViewModel for Invoice Item Editing
@@ -2601,6 +2639,7 @@ namespace KVM_ERP.Controllers
         public decimal NetAmount { get; set; }    // TRANDNAMT
         public int TRANPID { get; set; }  // Transaction Product Calculation ID from TRANDAID
         public decimal WastePWeight { get; set; }
+        public decimal IncentiveAmount { get; set; } // TRANDINCAMT (line-level incentive)
     }
 
     // ViewModel for Tax Factor Editing

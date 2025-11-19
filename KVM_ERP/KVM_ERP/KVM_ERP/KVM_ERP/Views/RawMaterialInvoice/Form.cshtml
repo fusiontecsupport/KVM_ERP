@@ -519,13 +519,14 @@
                                 <th id="amountColumn" style="display: none;">Amount (₹)</th>
                                 <th id="packingKgColumn" style="display: none;">Packing/Kg (₹)</th>
                                 <th id="packingAmountColumn" style="display: none;">Packing Amount (₹)</th>
+                                <th id="incentiveColumn" style="display: none;">Incentive (₹)</th>
                                 <th id="netAmountColumn" style="display: none;">Net Amount (₹)</th>
                                 <th id="actionColumn" style="display: none;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="itemsTableBody">
                             <tr>
-                                <td colspan="14" class="text-center text-muted">
+                                <td colspan="15" class="text-center text-muted">
                                     Please select a supplier to load items
                                 </td>
                             </tr>
@@ -549,8 +550,13 @@
                         </h4>
                         
                         <h4 class="mb-3">
-                            <strong>Discount on Packing: </strong>
+                            <strong>Expenses (Discount): </strong>
                             <span id="packingDiscountAmount" class="text-warning" style="font-size: 20px; font-weight: bold;">₹ 0.00</span>
+                        </h4>
+
+                        <h4 class="mb-3">
+                            <strong>On Incentive value: </strong>
+                            <span id="incentiveSummaryAmount" class="text-info" style="font-size: 20px; font-weight: bold;">₹ @(((decimal?)ViewBag.InvoiceIncentiveAmount ?? 0M).ToString("0.00"))</span>
                         </h4>
                         
                         <!-- HSN-Based GST Breakdown -->
@@ -583,7 +589,16 @@
                         
                         <h4 class="mb-3" style="border-top: 2px solid #ddd; padding-top: 10px;">
                             <strong>Grand Total: </strong>
-                            <span id="grandTotalDisplay" class="text-success" style="font-size: 24px; font-weight: bold;">₹ 0.00</span>
+                            <span id="grandTotalDisplay" class="text-success" style="font-size: 24px; font-weight: bold;">
+                                @if (ViewBag.IsEdit != null && ViewBag.IsEdit == true && ViewBag.InvoiceGrandTotal != null)
+                                {
+                                    @:₹ @(((decimal)ViewBag.InvoiceGrandTotal).ToString("0.00"))
+                                }
+                                else
+                                {
+                                    @:₹ 0.00
+                                }
+                            </span>
                         </h4>
                     </div>
                 </div>
@@ -965,19 +980,19 @@
                 type: 'POST',
                 data: { supplierId: supplierId },
                 beforeSend: function () {
-                    $('#itemsTableBody').html('<tr><td colspan="14" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading items...</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="15" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading items...</td></tr>');
                 },
                 success: function (response) {
                     if (response.success && response.data && response.data.length > 0) {
                         itemsData = response.data;
                         renderItemsTable();
                     } else {
-                        $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-muted">No items found for this supplier</td></tr>');
+                        $('#itemsTableBody').html('<tr><td colspan="15" class="text-center text-muted">No items found for this supplier</td></tr>');
                     }
                 },
                 error: function (xhr, status, error) {
                     console.error('Error loading items:', error);
-                    $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-danger">Failed to load items</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="15" class="text-center text-danger">Failed to load items</td></tr>');
                 }
             });
         }
@@ -992,7 +1007,7 @@
                     isApprovalMode: isApprovalMode
                 },
                 beforeSend: function () {
-                    $('#itemsTableBody').html('<tr><td colspan="14" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading saved items...</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="15" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading saved items...</td></tr>');
                 },
                 success: function (response) {
                     if (response.success && response.data && response.data.length > 0) {
@@ -1027,6 +1042,9 @@
                                 calculateNetAmount(index);
                             }
                         });
+
+                        // Refresh incentive summary for this invoice
+                        refreshInvoiceIncentiveSummary();
                         
                         // In edit mode, disable all checkboxes to prevent unchecking saved items
                         var isEditMode = @(ViewBag.IsEdit != null ? "true" : "false");
@@ -1043,12 +1061,12 @@
                         
                         calculateGrossAmount();
                     } else {
-                        $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-muted">No items found for this invoice</td></tr>');
+                        $('#itemsTableBody').html('<tr><td colspan="15" class="text-center text-muted">No items found for this invoice</td></tr>');
                     }
                 },
                 error: function (xhr, status, error) {
                     console.error('Error loading invoice items:', error);
-                    $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-danger">Failed to load invoice items</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="15" class="text-center text-danger">Failed to load invoice items</td></tr>');
                 }
             });
         }
@@ -1094,6 +1112,9 @@
                                 calculateNetAmount(index);
                             }
                         });
+
+                        // Refresh incentive summary for this invoice
+                        refreshInvoiceIncentiveSummary();
                         
                         // Update Select All checkbox state
                         var totalCheckboxes = $('.row-checkbox').length;
@@ -1104,12 +1125,12 @@
                         
                         console.log('Loaded ' + response.data.length + ' total items, ' + response.data.filter(i => i.IsSelected).length + ' selected');
                     } else {
-                        $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-muted">No items found</td></tr>');
+                        $('#itemsTableBody').html('<tr><td colspan="15" class="text-center text-muted">No items found</td></tr>');
                     }
                 },
                 error: function (xhr, status, error) {
                     console.error('Error loading items for edit:', error);
-                    $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-danger">Failed to load items</td></tr>');
+                    $('#itemsTableBody').html('<tr><td colspan="15" class="text-center text-danger">Failed to load items</td></tr>');
                 }
             });
         }
@@ -1149,15 +1170,11 @@
                                     
                                     // Update main form display
                                     $('#taxAmountDisplay').text('₹ ' + totalTax.toFixed(2));
-                                    
-                                    // Calculate grand total (using net amount)
-                                    var netAmount = parseFloat($('#packingDiscountAmount').text().replace('₹ ', '').replace(',', '')) || 0;
-                                    var grossAmount = parseFloat($('#grossAmount').text().replace('₹ ', '').replace(',', '')) || 0;
-                                    var actualNetAmount = grossAmount - netAmount; // Net Amount = Gross Amount - Packing Amount
-                                    var grandTotal = actualNetAmount + totalTax;
-                                    $('#grandTotalDisplay').text('₹ ' + grandTotal.toFixed(2));
-                                    
-                                    console.log('Tax amount: ₹' + totalTax.toFixed(2) + ', Grand Total: ₹' + grandTotal.toFixed(2));
+                                    console.log('Tax amount: ₹' + totalTax.toFixed(2));
+
+                                    // Recalculate full totals (Net + Incentive + HSN GST + manual taxes)
+                                    // This uses taxData + item incentives inside calculateGrossAmount()
+                                    calculateGrossAmount();
                                     
                                     // Add each saved tax factor as a row
                                     response.data.forEach(function(tax, index) {
@@ -1230,10 +1247,9 @@
                                     // Reset tax display to 0
                                     $('#taxAmountDisplay').text('₹ 0.00');
                                     $('#manualTaxBreakdown').empty(); // Clear manual tax display
-                                    var grossAmount = parseFloat($('#grossAmount').text().replace('₹ ', '').replace(',', '')) || 0;
-                                    var packingAmount = parseFloat($('#packingDiscountAmount').text().replace('₹ ', '').replace(',', '')) || 0;
-                                    var netAmount = grossAmount - packingAmount;
-                                    $('#grandTotalDisplay').text('₹ ' + netAmount.toFixed(2));
+
+                                    // Recalculate totals without manual cost factors
+                                    calculateGrossAmount();
                                 }
                             },
                             error: function (xhr, status, error) {
@@ -1258,6 +1274,7 @@
             var html = '';
             itemsData.forEach(function (item, index) {
                 var actualWeight = (item.ActualWeight || 0).toFixed(2);
+                var incentiveAmount = (item.IncentiveAmount || 0).toFixed(2);
                 html += '<tr data-item-id="' + (item.ItemId || 0) + '" data-index="' + index + '">';
                 html += '<td><input type="checkbox" class="row-checkbox" data-index="' + index + '" /></td>';
                 html += '<td>' + (index + 1) + '</td>';
@@ -1275,6 +1292,7 @@
                     html += '<td class="amount-cell"><input type="text" readonly class="amount" data-index="' + index + '" value="0.00" /></td>';
                     html += '<td class="packing-kg-cell"><input type="number" step="0.01" class="packing-kg" data-index="' + index + '" placeholder="0.00" /></td>';
                     html += '<td class="packing-amount-cell"><input type="text" readonly class="packing-amount" data-index="' + index + '" value="0.00" /></td>';
+                    html += '<td class="incentive-cell"><input type="text" readonly class="incentive-amount" data-index="' + index + '" value="' + incentiveAmount + '" /></td>';
                     html += '<td class="net-amount-cell"><input type="text" readonly class="net-amount" data-index="' + index + '" value="0.00" /></td>';
                     html += '<td class="action-cell"><button type="button" class="btn btn-sm btn-info" onclick="openRateModal(' + index + ')" title="Rate Calculation"><i class="fa fa-calculator"></i> R</button></td>';
                 }
@@ -1320,17 +1338,19 @@
                 $('#amountColumn').css('display', 'table-cell');
                 $('#packingKgColumn').css('display', 'table-cell');
                 $('#packingAmountColumn').css('display', 'table-cell');
+                $('#incentiveColumn').css('display', 'table-cell');
                 $('#netAmountColumn').css('display', 'table-cell');
                 $('#actionColumn').css('display', 'table-cell');
                 $('.rate-cell').css('display', 'table-cell');
                 $('.amount-cell').css('display', 'table-cell');
                 $('.packing-kg-cell').css('display', 'table-cell');
                 $('.packing-amount-cell').css('display', 'table-cell');
+                $('.incentive-cell').css('display', 'table-cell');
                 $('.net-amount-cell').css('display', 'table-cell');
                 $('.action-cell').css('display', 'table-cell');
             } else {
-                $('#rateColumn, #amountColumn, #packingKgColumn, #packingAmountColumn, #netAmountColumn, #actionColumn').css('display', 'none');
-                $('.rate-cell, .amount-cell, .packing-kg-cell, .packing-amount-cell, .net-amount-cell, .action-cell').css('display', 'none');
+                $('#rateColumn, #amountColumn, #packingKgColumn, #packingAmountColumn, #incentiveColumn, #netAmountColumn, #actionColumn').css('display', 'none');
+                $('.rate-cell, .amount-cell, .packing-kg-cell, .packing-amount-cell, .incentive-cell, .net-amount-cell, .action-cell').css('display', 'none');
             }
         }
 
@@ -1617,10 +1637,20 @@
 
                 $('#' + type + 'IncentiveValue').val(incentiveValue.toFixed(2));
                 $('#' + type + 'IncentiveTotal').val(incentiveTotal.toFixed(2));
+
+                // Also update the invoice-level "On Incentive value" summary
+                if (type === 'packingType') {
+                    $('#incentiveSummaryAmount').text('₹ ' + incentiveValue.toFixed(2));
+                }
             } else {
                 // No incentive: reset values and set On Account equal to Packing Expense
                 $('#' + type + 'IncentiveValue').val('0.00');
                 $('#' + type + 'IncentiveTotal').val(packingExpense.toFixed(2));
+
+                // Reset the invoice-level summary when there is no incentive
+                if (type === 'packingType') {
+                    $('#incentiveSummaryAmount').text('₹ 0.00');
+                }
             }
         }
 
@@ -1782,6 +1812,13 @@
             console.log('🔍 Final rate:', finalRate);
             
             if (finalRate > 0) {
+                // Also copy packing values from modal to the main grid row
+                var modalPackingPerKg = parseFloat($('#packingTypePackingPerKg').val()) || 0;
+                var modalPackingAmount = parseFloat($('#packingTypePackingAmount').val()) || 0;
+
+                $('.packing-kg[data-index="' + itemIndex + '"]').val(modalPackingPerKg.toFixed(2));
+                $('.packing-amount[data-index="' + itemIndex + '"]').val(modalPackingAmount.toFixed(2));
+
                 // Get invoice ID (only save if we're in edit mode with a valid invoice ID)
                 var isEditMode = @(ViewBag.IsEdit != null ? "true" : "false");
                 var invoiceId = @(ViewBag.EditId ?? 0);
@@ -1892,11 +1929,18 @@
                                 // Update the rate in the main form
                                 $('.rate[data-index="' + itemIndex + '"]').val(finalRate.toFixed(2));
                                 
-                                // Trigger calculation
+                                // Update line incentive from modal and recalculate amounts
+                                var lineIncentive = parseFloat($('#packingTypeIncentiveValue').val()) || 0;
+                                $('.incentive-amount[data-index="' + itemIndex + '"]').val(lineIncentive.toFixed(2));
+                                
+                                // Trigger calculation (amount, net, totals including incentive)
                                 calculateAmount(itemIndex);
                                 
                                 alert('✅ SUCCESS: Rate applied and weight details saved!\n' + response.message + '\n₹' + finalRate.toFixed(2) + ' per KG');
                                 
+                                // Refresh incentive summary on the invoice
+                                refreshInvoiceIncentiveSummary();
+
                                 // Close modal
                                 $('#rateModal').modal('hide');
                             } else {
@@ -2042,11 +2086,12 @@
             calculateGrossAmount();
         }
 
-        // Calculate Total Amount from CHECKED rows only + HSN-based GST
+        // Calculate Total Amount from CHECKED rows only + HSN-based GST + Incentive
         function calculateGrossAmount() {
             var grossAmount = 0;
             var totalPackingAmount = 0;
             var totalNetAmount = 0;
+            var totalIncentiveAmount = 0;
             var supplierState = $('#state').val() || '';
             var isTamilNadu = supplierState.toUpperCase().includes('TAMIL');
             
@@ -2063,6 +2108,7 @@
                     var amount = parseFloat($(this).find('.amount').val()) || 0;
                     var packingAmount = parseFloat($(this).find('.packing-amount').val()) || 0;
                     var netAmount = parseFloat($(this).find('.net-amount').val()) || 0;
+                    var incentiveAmount = parseFloat($(this).find('.incentive-amount').val()) || 0;
                     var itemId = parseInt($(this).data('item-id')) || 0;
                     
                     console.log('Checked item:', itemId, 'Amount:', amount, 'PackingAmount:', packingAmount, 'NetAmount:', netAmount);
@@ -2070,6 +2116,7 @@
                     grossAmount += amount;
                     totalPackingAmount += packingAmount;
                     totalNetAmount += netAmount;
+                    totalIncentiveAmount += incentiveAmount;
                     checkedItems.push({ itemId: itemId, amount: amount });
                 }
             });
@@ -2079,6 +2126,7 @@
             // Update the display values
             $('#grossAmount').text('₹ ' + grossAmount.toFixed(2));
             $('#packingDiscountAmount').text('₹ ' + totalPackingAmount.toFixed(2));
+            $('#incentiveSummaryAmount').text('₹ ' + totalIncentiveAmount.toFixed(2));
             
             // Calculate GST for each checked item
             if (checkedItems.length > 0 && grossAmount > 0) {
@@ -2156,9 +2204,9 @@
             }
             
             var totalTax = hsnGSTTotal + manualCostFactorTotal;
-            var grandTotal = totalNetAmount + totalTax;
-            
-            // Update Grand Total display (based on Net Amount)
+            var grandTotal = totalNetAmount + totalIncentiveAmount + totalTax;
+
+            // Update Grand Total display (Net Amount + Incentive + Tax)
             $('#grandTotalDisplay').text('₹ ' + grandTotal.toFixed(2));
             
             // Remove existing otherChargesRow first to prevent duplicates
@@ -2171,7 +2219,12 @@
                 $('#gstBreakdown').append('<div id="otherChargesRow">' + costFactorHtml + '</div>');
             }
             
-            console.log('Gross: ₹' + grossAmount.toFixed(2) + ', HSN GST: ₹' + hsnGSTTotal.toFixed(2) + ', Manual Cost: ₹' + manualCostFactorTotal.toFixed(2) + ', Total Tax: ₹' + totalTax.toFixed(2) + ', Grand: ₹' + grandTotal.toFixed(2));
+            console.log('Gross: ₹' + grossAmount.toFixed(2) + ', Packing: ₹' + totalPackingAmount.toFixed(2) + ', Incentive: ₹' + totalIncentiveAmount.toFixed(2) + ', HSN GST: ₹' + hsnGSTTotal.toFixed(2) + ', Manual Cost: ₹' + manualCostFactorTotal.toFixed(2) + ', Total Tax: ₹' + totalTax.toFixed(2) + ', Grand: ₹' + grandTotal.toFixed(2));
+        }
+
+        // Helper to refresh incentive summary (used after loading items and saving rate)
+        function refreshInvoiceIncentiveSummary() {
+            calculateGrossAmount();
         }
 
         function clearSupplierDetails() {
@@ -2182,10 +2235,11 @@
 
         function clearItemsTable() {
             itemsData = [];
-            $('#itemsTableBody').html('<tr><td colspan="14" class="text-center text-muted">Please select a supplier to load items</td></tr>');
+            $('#itemsTableBody').html('<tr><td colspan="15" class="text-center text-muted">Please select a supplier to load items</td></tr>');
             $('#selectAll').prop('checked', false);
             $('#grossAmount').text('₹ 0.00');
             $('#packingDiscountAmount').text('₹ 0.00');
+            $('#incentiveSummaryAmount').text('₹ 0.00');
             $('#grandTotalDisplay').text('₹ 0.00');
             // Reset GST display
             $('#noTaxRow').show();
@@ -2470,6 +2524,7 @@
                 var packingKg = parseFloat($('.packing-kg[data-index="' + index + '"]').val()) || 0;
                 var packingAmount = parseFloat($('.packing-amount[data-index="' + index + '"]').val()) || 0;
                 var netAmount = parseFloat($('.net-amount[data-index="' + index + '"]').val()) || 0;
+                var incentiveAmount = parseFloat($('.incentive-amount[data-index="' + index + '"]').val()) || 0;
 
                 // ONLY include items that are CHECKED (isSelected = true)
                 if (isSelected) {
@@ -2519,6 +2574,7 @@
                         PackingKg: packingKg,           // TRANDDISCEXPRN
                         PackingAmount: packingAmount,   // TRANDDISCAMT  
                         NetAmount: netAmount,           // TRANDNAMT
+                        IncentiveAmount: incentiveAmount, // TRANDINCAMT
                         TRANPID: item.TRANPID || 0,  // Transaction Product Calculation ID
                         IsSelected: true    // All items in array are selected
                     });
@@ -2548,10 +2604,12 @@
             var grossAmount = parseFloat($('#grossAmount').text().replace('₹ ', '').replace(',', '')) || 0;
             var packingAmount = parseFloat($('#packingDiscountAmount').text().replace('₹ ', '').replace(',', '')) || 0;
             var grandTotal = parseFloat($('#grandTotalDisplay').text().replace('₹ ', '').replace(',', '')) || 0;
+            var incentiveAmount = parseFloat($('#incentiveSummaryAmount').text().replace('₹ ', '').replace(',', '')) || 0;
             
             invoiceData.GrossAmount = grossAmount;      // TRANGAMT (Subtotal)
             invoiceData.PackingAmount = packingAmount;  // TRANPACKAMT (Discount on Packing)
             invoiceData.GrandTotal = grandTotal;       // TRANNAMT (Grand Total)
+            invoiceData.IncentiveAmount = incentiveAmount;
 
             console.log('========== INVOICE DATA TO SEND ==========');
             console.log('Total Items:', invoiceData.Items.length);
