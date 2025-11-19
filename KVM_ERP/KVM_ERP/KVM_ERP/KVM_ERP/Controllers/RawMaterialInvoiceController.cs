@@ -494,6 +494,7 @@ namespace KVM_ERP.Controllers
                         ISNULL(tpc.RCVDTID, 0) as ReceivedTypeId,
                         rt.RCVDTDESC as ReceivedType,
                         ISNULL(tpc.FACTORYWGT, 0) as ActualWeight,
+                        ISNULL(tpc.WASTEWGT, 0) as WasteWeight,
                         ISNULL(tpc.WASTEPWGT, 0) as WastePWeight,
                         ISNULL(tpc.TRANPID, 0) as TRANPID
                     FROM TRANSACTIONMASTER tm
@@ -568,6 +569,7 @@ namespace KVM_ERP.Controllers
                         ISNULL(td.TRANDNAMT, 0) as NetAmount,
                         ISNULL(td.TRANDAID, 0) as TRANPID,
                         ISNULL(tpc.WASTEPWGT, 0) as WastePWeight,
+                        ISNULL(tpc.WASTEWGT, 0) as WasteWeight,
                         ISNULL(td.TRANDINCAMT, 0) as IncentiveAmount
                     FROM TRANSACTIONDETAIL td
                     INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
@@ -635,6 +637,7 @@ namespace KVM_ERP.Controllers
                         ISNULL(tpc.RCVDTID, 0) as ReceivedTypeId,
                         rt.RCVDTDESC as ReceivedType,
                         ISNULL(tpc.FACTORYWGT, 0) as ActualWeight,
+                        ISNULL(tpc.WASTEWGT, 0) as WasteWeight,
                         ISNULL(tpc.WASTEPWGT, 0) as WastePWeight,
                         ISNULL(tpc.TRANPID, 0) as TRANPID
                     FROM TRANSACTIONMASTER tm
@@ -722,6 +725,7 @@ namespace KVM_ERP.Controllers
                         ReceivedType = item.ReceivedType,
                         ActualWeight = item.ActualWeight,
                         WastePWeight = item.WastePWeight,
+                        WasteWeight = item.WasteWeight,
                         NetWeight = savedItem?.NetWeight ?? item.ActualWeight,  // Use saved or default to actual
                         Rate = savedItem?.Rate ?? 0,  // Use saved or 0
                         Amount = savedItem?.Amount ?? 0,  // Use saved or 0
@@ -2561,6 +2565,7 @@ namespace KVM_ERP.Controllers
         public string ReceivedType { get; set; }
         public decimal ActualWeight { get; set; }
         public decimal WastePWeight { get; set; }
+        public decimal WasteWeight { get; set; }  // WASTEWGT from TRANSACTION_PRODUCT_CALCULATION
         public int TRANPID { get; set; }  // Transaction Product Calculation ID
     }
 
@@ -2639,6 +2644,7 @@ namespace KVM_ERP.Controllers
         public decimal NetAmount { get; set; }    // TRANDNAMT
         public int TRANPID { get; set; }  // Transaction Product Calculation ID from TRANDAID
         public decimal WastePWeight { get; set; }
+        public decimal WasteWeight { get; set; }  // WASTEWGT from TRANSACTION_PRODUCT_CALCULATION
         public decimal IncentiveAmount { get; set; } // TRANDINCAMT (line-level incentive)
     }
 

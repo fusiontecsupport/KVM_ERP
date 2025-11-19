@@ -1275,6 +1275,9 @@
             itemsData.forEach(function (item, index) {
                 var actualWeight = (item.ActualWeight || 0).toFixed(2);
                 var incentiveAmount = (item.IncentiveAmount || 0).toFixed(2);
+                var wasteWeight = (item.WasteWeight || 0);
+
+                // Main invoice row (with checkbox and editable fields)
                 html += '<tr data-item-id="' + (item.ItemId || 0) + '" data-index="' + index + '">';
                 html += '<td><input type="checkbox" class="row-checkbox" data-index="' + index + '" /></td>';
                 html += '<td>' + (index + 1) + '</td>';
@@ -1298,6 +1301,32 @@
                 }
                 
                 html += '</tr>';
+
+                // Optional waste-weight row when WASTEWGT has a value
+                if (wasteWeight && parseFloat(wasteWeight) > 0) {
+                    var wasteDisplay = parseFloat(wasteWeight).toFixed(2);
+                    html += '<tr class="waste-row" data-item-id="' + (item.ItemId || 0) + '" data-index="' + index + '">';
+                    html += '<td></td>';
+                    html += '<td>' + (index + 1) + '</td>';
+                    html += '<td><input type="text" readonly value="' + (item.ItemName || '') + '" /></td>';
+                    html += '<td><input type="text" readonly value="' + (item.Grade || '') + '" /></td>';
+                    html += '<td><input type="text" readonly value="' + (item.ProductionColour || '') + '" /></td>';
+                    html += '<td><input type="text" readonly value="' + (item.ReceivedType || '') + '" /></td>';
+                    html += '<td><input type="text" readonly value="' + wasteDisplay + '" /></td>'; // Actual Weight (WASTEWGT)
+                    html += '<td><input type="number" step="0.01" class="waste-net-weight" data-index="' + index + '" value="' + wasteDisplay + '" /></td>'; // Net Weight (editable)
+
+                    if (shouldShowEditColumns) {
+                        html += '<td class="rate-cell"><input type="number" step="0.01" class="waste-rate" data-index="' + index + '" placeholder="0.00" /></td>';
+                        html += '<td class="amount-cell"><input type="text" readonly class="waste-amount" data-index="' + index + '" value="0.00" /></td>';
+                        html += '<td class="packing-kg-cell"><input type="number" step="0.01" class="waste-packing-kg" data-index="' + index + '" placeholder="0.00" /></td>';
+                        html += '<td class="packing-amount-cell"><input type="text" readonly class="waste-packing-amount" data-index="' + index + '" value="0.00" /></td>';
+                        html += '<td class="incentive-cell"><input type="text" readonly class="waste-incentive-amount" data-index="' + index + '" value="0.00" /></td>';
+                        html += '<td class="net-amount-cell"><input type="text" readonly class="waste-net-amount" data-index="' + index + '" value="0.00" /></td>';
+                        html += '<td class="action-cell"></td>';
+                    }
+
+                    html += '</tr>';
+                }
             });
             $('#itemsTableBody').html(html);
             
@@ -1315,6 +1344,17 @@
             $('.packing-kg').on('input', function () {
                 var index = $(this).data('index');
                 calculatePackingAmount(index);
+            });
+
+            // Add event listeners for waste-row calculations
+            $('.waste-net-weight, .waste-rate').on('input', function () {
+                var index = $(this).data('index');
+                calculateWasteAmount(index);
+            });
+
+            $('.waste-packing-kg').on('input', function () {
+                var index = $(this).data('index');
+                calculateWastePackingAmount(index);
             });
 
             // Add event listener for row checkbox
@@ -2086,6 +2126,77 @@
             calculateGrossAmount();
         }
 
+        // Calculate Amount for waste-weight row (Rate × Waste Net Weight)
+        function calculateWasteAmount(index) {
+            var netWeightInput = $('.waste-net-weight[data-index="' + index + '"]');
+            var netWeight = parseFloat(netWeightInput.val()) || 0;
+            var rate = parseFloat($('.waste-rate[data-index="' + index + '"]').val()) || 0;
+            var amount = (netWeight * rate).toFixed(2);
+            $('.waste-amount[data-index="' + index + '"]').val(amount);
+
+            // Validate Net Weight against Waste Weight (visual feedback only)
+            var wasteActual = 0;
+            if (itemsData && itemsData[index] && typeof itemsData[index].WasteWeight !== 'undefined') {
+                wasteActual = parseFloat(itemsData[index].WasteWeight) || 0;
+            }
+
+            var netWeightRounded = Math.round(netWeight * 100) / 100;
+            var wasteActualRounded = Math.round(wasteActual * 100) / 100;
+            if (wasteActual > 0 && netWeightRounded > wasteActualRounded) {
+                netWeightInput.css({
+                    'border': '2px solid #dc3545',
+                    'background-color': '#fff5f5'
+                });
+                netWeightInput.attr('title', 'Net Waste Weight (' + netWeight.toFixed(2) + ' kg) cannot exceed Waste Weight (' + wasteActual.toFixed(2) + ' kg)');
+            } else {
+                netWeightInput.css({
+                    'border': '1px solid #ced4da',
+                    'background-color': 'white'
+                });
+                netWeightInput.removeAttr('title');
+            }
+
+            // Also update packing and net for waste row
+            calculateWastePackingAmount(index);
+        }
+
+        // Calculate Packing Amount for waste-weight row, similar to main row
+        function calculateWastePackingAmount(index) {
+            var netWeight = parseFloat($('.waste-net-weight[data-index="' + index + '"]').val()) || 0;
+            var packingKg = parseFloat($('.waste-packing-kg[data-index="' + index + '"]').val()) || 0;
+
+            // Prefer WASTEPWGT from itemsData if available
+            var wastePWeight = 0;
+            if (itemsData && itemsData[index] && typeof itemsData[index].WastePWeight !== 'undefined') {
+                wastePWeight = parseFloat(itemsData[index].WastePWeight) || 0;
+            }
+
+            var basisWeight = wastePWeight > 0 ? wastePWeight : netWeight;
+            var packingAmount = (basisWeight * packingKg).toFixed(2);
+            $('.waste-packing-amount[data-index="' + index + '"]').val(packingAmount);
+
+            calculateWasteNetAmount(index);
+        }
+
+        // Calculate Net Amount for waste-weight row = Amount - Packing Amount
+        function calculateWasteNetAmount(index) {
+            var amount = parseFloat($('.waste-amount[data-index="' + index + '"]').val()) || 0;
+            var packingAmount = parseFloat($('.waste-packing-amount[data-index="' + index + '"]').val()) || 0;
+            var netAmount = (amount - packingAmount).toFixed(2);
+            $('.waste-net-amount[data-index="' + index + '"]').val(netAmount);
+            
+            // Recalculate totals after waste-row net changes
+            calculateGrossAmount();
+            
+            // Recalculate all tax rows if tax exists
+            if ($('#taxTableBody tr').length > 0) {
+                $('#taxTableBody tr').each(function() {
+                    var rowId = $(this).data('row-id');
+                    calculateTaxRow(rowId);
+                });
+            }
+        }
+
         // Calculate Total Amount from CHECKED rows only + HSN-based GST + Incentive
         function calculateGrossAmount() {
             var grossAmount = 0;
@@ -2110,6 +2221,18 @@
                     var netAmount = parseFloat($(this).find('.net-amount').val()) || 0;
                     var incentiveAmount = parseFloat($(this).find('.incentive-amount').val()) || 0;
                     var itemId = parseInt($(this).data('item-id')) || 0;
+                    var index = parseInt(checkbox.data('index')) || 0;
+
+                    // Include waste-row values (if present) in totals for this checked item
+                    var wasteAmount = parseFloat($('.waste-amount[data-index="' + index + '"]').val()) || 0;
+                    var wastePackingAmount = parseFloat($('.waste-packing-amount[data-index="' + index + '"]').val()) || 0;
+                    var wasteNetAmount = parseFloat($('.waste-net-amount[data-index="' + index + '"]').val()) || 0;
+                    var wasteIncentiveAmount = parseFloat($('.waste-incentive-amount[data-index="' + index + '"]').val()) || 0;
+
+                    amount += wasteAmount;
+                    packingAmount += wastePackingAmount;
+                    netAmount += wasteNetAmount;
+                    incentiveAmount += wasteIncentiveAmount;
                     
                     console.log('Checked item:', itemId, 'Amount:', amount, 'PackingAmount:', packingAmount, 'NetAmount:', netAmount);
                     
@@ -2363,6 +2486,12 @@
                 var checkbox = $(this).find('.row-checkbox');
                 if (checkbox.is(':checked')) {
                     var amount = parseFloat($(this).find('.amount').val()) || 0;
+                    var index = parseInt(checkbox.data('index')) || 0;
+
+                    // Include waste-row amount (if present) in selected total
+                    var wasteAmount = parseFloat($('.waste-amount[data-index="' + index + '"]').val()) || 0;
+                    amount += wasteAmount;
+
                     selectedTotal += amount;
                 }
             });
