@@ -91,13 +91,13 @@ namespace KVM_ERP.Controllers
             }
         }
 
-        // Print Invoice
+        // Print Invoice (Approval) - reuse the same data and template as Raw Material Invoice print
         [Authorize(Roles = "PurchaseInvoiceApprovalPrint")]
         public ActionResult Print(int id)
         {
             try
             {
-                // Get invoice header
+                // Get invoice header (same fields as RawMaterialInvoiceController.Print)
                 var invoice = context.Database.SqlQuery<InvoicePrintViewModel>(
                     @"SELECT tm.TRANMID, tm.TRANNO, tm.TRANDNO, tm.TRANREFNO, tm.TRANDATE,
                              tm.CATENAME, tm.CATECODE, tm.TRANNAMT, 
@@ -107,7 +107,10 @@ namespace KVM_ERP.Controllers
                              ISNULL(tm.TRANIGSTAMT, 0) as IGSTAMT,
                              ISNULL(tm.TRANCGSTEXPRN, 0) as CGSTPER,
                              ISNULL(tm.TRANSGSTEXPRN, 0) as SGSTPER,
-                             ISNULL(tm.TRANIGSTEXPRN, 0) as IGSTPER
+                             ISNULL(tm.TRANIGSTEXPRN, 0) as IGSTPER,
+                             ISNULL(tm.TRANGAMT, 0) as TRANGAMT,
+                             ISNULL(tm.TRANPACKAMT, 0) as TRANPACKAMT,
+                             ISNULL(tm.TRANINCAMT, 0) as TRANINCAMT
                       FROM TRANSACTIONMASTER tm
                       LEFT JOIN PURCHASEINVOICESTATUS pis ON tm.DISPSTATUS = pis.PUINSTID
                       WHERE tm.TRANMID = @p0 AND tm.REGSTRID = 2",
@@ -120,7 +123,7 @@ namespace KVM_ERP.Controllers
                     return RedirectToAction("Index");
                 }
 
-                // Get invoice items
+                // Get invoice items (same fields as RawMaterialInvoiceController.Print)
                 invoice.Items = context.Database.SqlQuery<InvoiceItemPrintViewModel>(
                     @"SELECT td.TRANDID, m.MTRLDESC as MTRLNAME, 
                              ISNULL(g.GRADEDESC, '') as GRADEDESC,
@@ -128,7 +131,11 @@ namespace KVM_ERP.Controllers
                              ISNULL(rt.RCVDTDESC, '') as RCVDTDESC,
                              td.TRANDQTY as TRANQTY, 
                              td.TRANDRATE as TRANRATE, 
-                             td.TRANDAMT
+                             td.TRANDAMT,
+                             ISNULL(td.TRANDDISCEXPRN, 0) as PACKINGKG,
+                             ISNULL(td.TRANDDISCAMT, 0) as PACKINGAMOUNT,
+                             ISNULL(td.TRANDNAMT, 0) as NETAMOUNT,
+                             ISNULL(td.TRANDINCAMT, 0) as INCENTIVEAMOUNT
                       FROM TRANSACTIONDETAIL td
                       INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
                       LEFT JOIN GRADEMASTER g ON td.GRADEID = g.GRADEID
@@ -139,7 +146,7 @@ namespace KVM_ERP.Controllers
                     id
                 ).ToList();
 
-                // Get tax factors
+                // Get tax factors (unchanged, same model as invoice print)
                 invoice.TaxFactors = context.Database.SqlQuery<TaxFactorPrintViewModel>(
                     @"SELECT tmf.TRANMFID, 
                              ISNULL(tmf.TRANCFDESC, cf.CFDESC) as CFDESC,
@@ -154,7 +161,8 @@ namespace KVM_ERP.Controllers
                     id
                 ).ToList();
 
-                return View(invoice);
+                // Reuse the same Razor view as the main Raw Material Invoice print
+                return View("~/Views/RawMaterialInvoice/Print.cshtml", invoice);
             }
             catch (Exception ex)
             {

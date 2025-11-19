@@ -1047,10 +1047,12 @@ namespace KVM_ERP.Controllers
                 string amountInWords = "";
                 
                 // Declare existingQuantities at method scope for approval mode
-                Dictionary<int, Tuple<decimal, decimal>> existingQuantities = null;
+                // Key format: "TRANDAID|IsWasteRow" so that main and waste rows keep their own quantities
+                Dictionary<string, Tuple<decimal, decimal>> existingQuantities = null;
                 
                 // Declare weightDetailsToPreserve at method scope for preserving weight details during edit
-                Dictionary<int, List<WeightDetailsPreserveModel>> weightDetailsToPreserve = null;
+                // Key format: "TRANDAID|IsWasteRow" so weight details are kept separate for main vs waste rows
+                Dictionary<string, List<WeightDetailsPreserveModel>> weightDetailsToPreserve = null;
 
                 // Check if this is an UPDATE (edit existing invoice) or INSERT (new invoice)
                 if (model.InvoiceId.HasValue && model.InvoiceId.Value > 0)
@@ -1104,8 +1106,8 @@ namespace KVM_ERP.Controllers
                     );
 
                     // PRESERVE WEIGHT DETAILS: Save weight details before deleting TRANSACTIONDETAIL
-                    // Map by TRANDAID (which stores TRANPID) so we can restore them after new TRANDIDs are created
-                    weightDetailsToPreserve = new Dictionary<int, List<WeightDetailsPreserveModel>>();
+                    // Map by (TRANDAID, IsWasteRow) so we can restore them per main/waste row after new TRANDIDs are created
+                    weightDetailsToPreserve = new Dictionary<string, List<WeightDetailsPreserveModel>>();
                     var existingDetails = context.Database.SqlQuery<WeightDetailsPreserveModel>(@"
                         SELECT 
                             td.TRANDID,
@@ -1132,43 +1134,61 @@ namespace KVM_ERP.Controllers
                             w.CUSRID,
                             w.LMUSRID,
                             w.DISPSTATUS,
-                            w.PRCSDATE
+                            w.PRCSDATE,
+                            CASE 
+                                WHEN ISNULL(tpc.WASTEWGT, 0) > 0 
+                                     AND ABS(ISNULL(td.TRANAQTY, 0) - ISNULL(tpc.WASTEWGT, 0)) < 0.0001 
+                                THEN 1 ELSE 0 
+                            END as IsWasteRow
                         FROM TRANSACTIONDETAIL td
                         INNER JOIN TRANSACTION_INVOICE_WEIGHT_DETAILS w ON td.TRANDID = w.TRANDID
+                        LEFT JOIN TRANSACTION_PRODUCT_CALCULATION tpc ON td.TRANDAID = tpc.TRANPID
                         WHERE td.TRANMID = @p0
                           AND (w.DISPSTATUS = 0 OR w.DISPSTATUS IS NULL)
                     ", tranMId).ToList();
                     
                     foreach (var wd in existingDetails)
                     {
-                        if (!weightDetailsToPreserve.ContainsKey(wd.TRANDAID))
+                        var key = wd.TRANDAID.ToString() + "|" + wd.IsWasteRow.ToString();
+                        if (!weightDetailsToPreserve.ContainsKey(key))
                         {
-                            weightDetailsToPreserve[wd.TRANDAID] = new List<WeightDetailsPreserveModel>();
+                            weightDetailsToPreserve[key] = new List<WeightDetailsPreserveModel>();
                         }
-                        weightDetailsToPreserve[wd.TRANDAID].Add(wd);
+                        weightDetailsToPreserve[key].Add(wd);
                     }
                     
-                    System.Diagnostics.Debug.WriteLine($"*** PRESERVING {existingDetails.Count} weight detail records mapped by TRANDAID (TRANPID)");
+                    System.Diagnostics.Debug.WriteLine($"*** PRESERVING {existingDetails.Count} weight detail records mapped by TRANDAID + IsWasteRow");
                     foreach (var kvp in weightDetailsToPreserve)
                     {
-                        System.Diagnostics.Debug.WriteLine($"  TRANDAID {kvp.Key}: {kvp.Value.Count} weight detail records");
+                        System.Diagnostics.Debug.WriteLine($"  Key {kvp.Key}: {kvp.Value.Count} weight detail records");
                     }
 
                     // If in Approval Mode, save existing TRANAQTY and TRANEQTY before deleting
                     if (model.IsApprovalMode)
                     {
-                        existingQuantities = new Dictionary<int, Tuple<decimal, decimal>>();
+                        // Store quantities per (TRANDAID, IsWasteRow) so main and waste rows are preserved separately
+                        existingQuantities = new Dictionary<string, Tuple<decimal, decimal>>();
                         var existingItems = context.Database.SqlQuery<ExistingItemQuantities>(@"
-                            SELECT TRANDAID, TRANAQTY, TRANEQTY 
-                            FROM TRANSACTIONDETAIL 
-                            WHERE TRANMID = @p0
+                            SELECT 
+                                td.TRANDAID, 
+                                td.TRANAQTY, 
+                                td.TRANEQTY,
+                                CASE 
+                                    WHEN ISNULL(tpc.WASTEWGT, 0) > 0 
+                                         AND ABS(ISNULL(td.TRANAQTY, 0) - ISNULL(tpc.WASTEWGT, 0)) < 0.0001 
+                                    THEN 1 ELSE 0 
+                                END as IsWasteRow
+                            FROM TRANSACTIONDETAIL td
+                            LEFT JOIN TRANSACTION_PRODUCT_CALCULATION tpc ON td.TRANDAID = tpc.TRANPID
+                            WHERE td.TRANMID = @p0
                         ", tranMId).ToList();
                         
                         foreach (var item in existingItems)
                         {
-                            existingQuantities[item.TRANDAID] = Tuple.Create(item.TRANAQTY, item.TRANEQTY);
+                            var key = item.TRANDAID.ToString() + "|" + item.IsWasteRow.ToString();
+                            existingQuantities[key] = Tuple.Create(item.TRANAQTY, item.TRANEQTY);
                         }
-                        System.Diagnostics.Debug.WriteLine($"Approval Mode: Saved {existingQuantities.Count} existing quantity records");
+                        System.Diagnostics.Debug.WriteLine($"Approval Mode: Saved {existingQuantities.Count} existing quantity records (by TRANDAID + IsWasteRow)");
                     }
 
                     // Delete existing items - only for Raw Material Invoice (REGSTRID=2)
@@ -1347,17 +1367,18 @@ namespace KVM_ERP.Controllers
                         
                         // Determine quantities based on approval mode
                         decimal tranaqty, traneqty, trandqty;
-                        if (model.IsApprovalMode && existingQuantities != null && existingQuantities.ContainsKey(trandaid))
+                        var quantityKey = trandaid.ToString() + "|" + (item.IsWasteRow ? "1" : "0");
+                        if (model.IsApprovalMode && existingQuantities != null && existingQuantities.ContainsKey(quantityKey))
                         {
-                            // Approval Mode: Keep original TRANAQTY and TRANEQTY, only update TRANDQTY with new Net Weight
-                            tranaqty = existingQuantities[trandaid].Item1;  // Original TRANAQTY (unchanged)
-                            traneqty = existingQuantities[trandaid].Item2;  // Original TRANEQTY (unchanged - for reference/checking)
-                            trandqty = item.NetWeight;                       // Update TRANDQTY with new Net Weight (approval quantity)
-                            System.Diagnostics.Debug.WriteLine($"  Approval Mode: TRANAQTY={tranaqty}, TRANEQTY={traneqty} (ORIGINAL), TRANDQTY={trandqty} (NEW)");
+                            // Approval Mode: Keep original TRANAQTY and TRANEQTY per main/waste row, only update TRANDQTY with new Net Weight
+                            tranaqty = existingQuantities[quantityKey].Item1;  // Original TRANAQTY (unchanged)
+                            traneqty = existingQuantities[quantityKey].Item2;  // Original TRANEQTY (unchanged - for reference/checking)
+                            trandqty = item.NetWeight;                          // Update TRANDQTY with new Net Weight (approval quantity)
+                            System.Diagnostics.Debug.WriteLine($"  Approval Mode ({quantityKey}): TRANAQTY={tranaqty}, TRANEQTY={traneqty} (ORIGINAL), TRANDQTY={trandqty} (NEW)");
                         }
                         else
                         {
-                            // Regular Mode: NetWeight goes to both TRANEQTY and TRANDQTY
+                            // Regular Mode or missing history: NetWeight goes to both TRANEQTY and TRANDQTY
                             tranaqty = item.ActualWeight;
                             traneqty = item.NetWeight;
                             trandqty = item.NetWeight;
@@ -1425,13 +1446,15 @@ namespace KVM_ERP.Controllers
                         
                         System.Diagnostics.Debug.WriteLine($"  Created new TRANSACTIONDETAIL: TRANDID={newTrandId}, TRANDAID={trandaid}");
 
-                        // RESTORE WEIGHT DETAILS: If this is edit mode and we have preserved weight details for this TRANDAID
+                        // RESTORE WEIGHT DETAILS: If this is edit mode and we have preserved weight details
+                        // for this (TRANDAID, IsWasteRow) combination
+                        var weightKey = trandaid.ToString() + "|" + (item.IsWasteRow ? "1" : "0");
                         if (model.InvoiceId.HasValue && model.InvoiceId.Value > 0 && 
-                            weightDetailsToPreserve != null && weightDetailsToPreserve.ContainsKey(trandaid) && 
+                            weightDetailsToPreserve != null && weightDetailsToPreserve.ContainsKey(weightKey) && 
                             newTrandId > 0)
                         {
-                            var preservedWeightDetails = weightDetailsToPreserve[trandaid];
-                            System.Diagnostics.Debug.WriteLine($"  Restoring {preservedWeightDetails.Count} weight detail records for new TRANDID={newTrandId} (TRANDAID={trandaid})");
+                            var preservedWeightDetails = weightDetailsToPreserve[weightKey];
+                            System.Diagnostics.Debug.WriteLine($"  Restoring {preservedWeightDetails.Count} weight detail records for new TRANDID={newTrandId} (Key={weightKey})");
                             
                             foreach (var preservedWd in preservedWeightDetails)
                             {
@@ -2711,6 +2734,7 @@ namespace KVM_ERP.Controllers
         public string LMUSRID { get; set; }
         public short DISPSTATUS { get; set; }
         public DateTime PRCSDATE { get; set; }
+        public int IsWasteRow { get; set; }  // 1 = Waste row, 0 = Main row (derived from WASTEWGT vs TRANAQTY)
     }
 
     // Model for tax factors
@@ -2735,6 +2759,7 @@ namespace KVM_ERP.Controllers
         public int TRANDAID { get; set; }
         public decimal TRANAQTY { get; set; }
         public decimal TRANEQTY { get; set; }
+        public int IsWasteRow { get; set; }  // 1 = Waste row, 0 = Main row (derived from WASTEWGT vs TRANAQTY)
     }
 
     // ViewModel for Cost Factor
