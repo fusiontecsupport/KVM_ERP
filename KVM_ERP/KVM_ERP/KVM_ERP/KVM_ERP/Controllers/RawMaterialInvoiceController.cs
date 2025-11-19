@@ -570,7 +570,12 @@ namespace KVM_ERP.Controllers
                         ISNULL(td.TRANDAID, 0) as TRANPID,
                         ISNULL(tpc.WASTEPWGT, 0) as WastePWeight,
                         ISNULL(tpc.WASTEWGT, 0) as WasteWeight,
-                        ISNULL(td.TRANDINCAMT, 0) as IncentiveAmount
+                        ISNULL(td.TRANDINCAMT, 0) as IncentiveAmount,
+                        CASE 
+                            WHEN ISNULL(tpc.WASTEWGT, 0) > 0 
+                                 AND ABS(ISNULL(td.TRANAQTY, 0) - ISNULL(tpc.WASTEWGT, 0)) < 0.0001 
+                            THEN 1 ELSE 0 
+                        END as IsWasteRow
                     FROM TRANSACTIONDETAIL td
                     INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
                     LEFT JOIN GRADEMASTER g ON td.GRADEID = g.GRADEID
@@ -2604,6 +2609,7 @@ namespace KVM_ERP.Controllers
         public int TRANPID { get; set; }            // Transaction Product Calculation ID
         public decimal IncentiveAmount { get; set; } // TRANDINCAMT (line-level incentive)
         public bool IsSelected { get; set; }      // Whether item is selected for tax calculation
+        public bool IsWasteRow { get; set; }      // Whether this item represents a Waste Weight row
     }
 
     // Model for editing invoice
@@ -2646,6 +2652,7 @@ namespace KVM_ERP.Controllers
         public decimal WastePWeight { get; set; }
         public decimal WasteWeight { get; set; }  // WASTEWGT from TRANSACTION_PRODUCT_CALCULATION
         public decimal IncentiveAmount { get; set; } // TRANDINCAMT (line-level incentive)
+        public int IsWasteRow { get; set; }       // 1 if this TRANSACTIONDETAIL row represents a Waste Weight line, otherwise 0
     }
 
     // ViewModel for Tax Factor Editing

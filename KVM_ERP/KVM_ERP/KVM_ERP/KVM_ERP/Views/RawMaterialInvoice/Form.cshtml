@@ -945,6 +945,19 @@
                 }
             });
 
+            // Add event listener for waste-row checkbox
+            $('.waste-row-checkbox').on('change', function () {
+                calculateGrossAmount();
+
+                // Recalculate all tax rows if tax modal is open or if tax data exists
+                if ($('#taxTableBody tr').length > 0) {
+                    $('#taxTableBody tr').each(function() {
+                        var rowId = $(this).data('row-id');
+                        calculateTaxRow(rowId);
+                    });
+                }
+            });
+
             // Update Select All checkbox state when individual checkboxes change
             $(document).on('change', '.row-checkbox', function() {
                 var totalCheckboxes = $('.row-checkbox').length;
@@ -1011,35 +1024,98 @@
                 },
                 success: function (response) {
                     if (response.success && response.data && response.data.length > 0) {
-                        itemsData = response.data;
+                        // Merge main and waste TRANSACTIONDETAIL rows per TRANPID so UI shows one logical item
+                        var rawItems = response.data;
+                        var grouped = {};
+
+                        rawItems.forEach(function (item) {
+                            var key = item.TRANPID || 0;
+                            if (!grouped[key]) {
+                                grouped[key] = { main: null, waste: null };
+                            }
+
+                            var isWaste = item.IsWasteRow === true || item.IsWasteRow === 1;
+                            if (isWaste) {
+                                grouped[key].waste = item;
+                            } else {
+                                grouped[key].main = item;
+                            }
+                        });
+
+                        var mergedItems = [];
+                        Object.keys(grouped).forEach(function (key) {
+                            var group = grouped[key];
+                            var mainItem = group.main || group.waste; // Fallback: invoices before waste saving
+                            var wasteItem = group.waste;
+
+                            // Clone main item so we don't accidentally mutate original
+                            var merged = $.extend(true, {}, mainItem);
+
+                            if (wasteItem) {
+                                merged.SavedWasteNetWeight = wasteItem.NetWeight || 0;
+                                merged.SavedWasteRate = wasteItem.Rate || 0;
+                                merged.SavedWasteAmount = wasteItem.Amount || 0;
+                                merged.SavedWastePackingKg = wasteItem.PackingKg || 0;
+                                merged.SavedWastePackingAmount = wasteItem.PackingAmount || 0;
+                                merged.SavedWasteNetAmount = wasteItem.NetAmount || 0;
+                                merged.SavedWasteIncentiveAmount = wasteItem.IncentiveAmount || 0;
+                                merged.HasSavedWasteRow = true;
+                            } else {
+                                merged.SavedWasteNetWeight = 0;
+                                merged.SavedWasteRate = 0;
+                                merged.SavedWasteAmount = 0;
+                                merged.SavedWastePackingKg = 0;
+                                merged.SavedWastePackingAmount = 0;
+                                merged.SavedWasteNetAmount = 0;
+                                merged.SavedWasteIncentiveAmount = 0;
+                                merged.HasSavedWasteRow = false;
+                            }
+
+                            mergedItems.push(merged);
+                        });
+
+                        // Use merged items as the single source of truth for rendering & saving
+                        itemsData = mergedItems;
                         renderItemsTable();
-                        
-                        // Populate Net Weight, Rate, Amount and CHECK CHECKBOXES ONLY for items with TRANPID > 0
-                        response.data.forEach(function(item, index) {
-                            console.log('Item ' + index + ': TRANPID=' + item.TRANPID + ' (type: ' + typeof item.TRANPID + '), ItemName=' + item.ItemName);
-                            
-                            // ONLY check checkbox if TRANPID > 0 (mapped with TRANDAID in database - INT type)
+
+                        // Populate main-row values and checkboxes
+                        itemsData.forEach(function(item, index) {
+                            console.log('Merged Item ' + index + ': TRANPID=' + item.TRANPID + ', HasSavedWasteRow=' + item.HasSavedWasteRow + ', ItemName=' + item.ItemName);
+
                             if (item.TRANPID > 0) {
                                 $('.row-checkbox[data-index="' + index + '"]').prop('checked', true);
-                                console.log('✓ Checkbox CHECKED for index ' + index + ' (TRANPID=' + item.TRANPID + ')');
-                            } else {
-                                console.log('✗ Checkbox UNCHECKED for index ' + index + ' (TRANPID=' + item.TRANPID + ')');
                             }
-                            
-                            // Populate values
-                            $('.net-weight[data-index="' + index + '"]').val(item.NetWeight.toFixed(2));
-                            $('.rate[data-index="' + index + '"]').val(item.Rate.toFixed(2));
-                            $('.amount[data-index="' + index + '"]').val(item.Amount.toFixed(2));
+
+                            $('.net-weight[data-index="' + index + '"]').val((item.NetWeight || 0).toFixed(2));
+                            $('.rate[data-index="' + index + '"]').val((item.Rate || 0).toFixed(2));
+                            $('.amount[data-index="' + index + '"]').val((item.Amount || 0).toFixed(2));
                             $('.packing-kg[data-index="' + index + '"]').val((item.PackingKg || 0).toFixed(2));
                             $('.packing-amount[data-index="' + index + '"]').val((item.PackingAmount || 0).toFixed(2));
                             $('.net-amount[data-index="' + index + '"]').val((item.NetAmount || 0).toFixed(2));
+
+                            // Populate waste-row values and checkbox if a saved waste line exists
+                            if (item.HasSavedWasteRow && item.WasteWeight && item.WasteWeight > 0) {
+                                $('.waste-row-checkbox[data-index="' + index + '"]').prop('checked', true);
+                                $('.waste-net-weight[data-index="' + index + '"]').val((item.SavedWasteNetWeight || 0).toFixed(2));
+                                $('.waste-rate[data-index="' + index + '"]').val((item.SavedWasteRate || 0).toFixed(2));
+                                $('.waste-amount[data-index="' + index + '"]').val((item.SavedWasteAmount || 0).toFixed(2));
+                                $('.waste-packing-kg[data-index="' + index + '"]').val((item.SavedWastePackingKg || 0).toFixed(2));
+                                $('.waste-packing-amount[data-index="' + index + '"]').val((item.SavedWastePackingAmount || 0).toFixed(2));
+                                $('.waste-net-amount[data-index="' + index + '"]').val((item.SavedWasteNetAmount || 0).toFixed(2));
+                                $('.waste-incentive-amount[data-index="' + index + '"]').val((item.SavedWasteIncentiveAmount || 0).toFixed(2));
+                            }
                         });
-                        
-                        // Recalculate packing amounts for all items after loading
-                        response.data.forEach(function(item, index) {
-                            if (item.TRANPID > 0 && item.PackingKg > 0) {
+
+                        // Recalculate packing / net amounts after loading
+                        itemsData.forEach(function(item, index) {
+                            if (item.PackingKg > 0) {
                                 calculatePackingAmount(index);
                                 calculateNetAmount(index);
+                            }
+
+                            if (item.HasSavedWasteRow && item.WasteWeight && item.WasteWeight > 0 && item.SavedWasteRate > 0) {
+                                calculateWasteAmount(index);
+                                calculateWastePackingAmount(index);
                             }
                         });
 
@@ -1306,7 +1382,8 @@
                 if (wasteWeight && parseFloat(wasteWeight) > 0) {
                     var wasteDisplay = parseFloat(wasteWeight).toFixed(2);
                     html += '<tr class="waste-row" data-item-id="' + (item.ItemId || 0) + '" data-index="' + index + '">';
-                    html += '<td></td>';
+                    // Separate checkbox to control whether this waste row should be invoiced/saved
+                    html += '<td><input type="checkbox" class="waste-row-checkbox" data-index="' + index + '" /></td>';
                     html += '<td>' + (index + 1) + '</td>';
                     html += '<td><input type="text" readonly value="' + (item.ItemName || '') + '" /></td>';
                     html += '<td><input type="text" readonly value="' + (item.Grade || '') + '" /></td>';
@@ -2223,16 +2300,20 @@
                     var itemId = parseInt($(this).data('item-id')) || 0;
                     var index = parseInt(checkbox.data('index')) || 0;
 
-                    // Include waste-row values (if present) in totals for this checked item
-                    var wasteAmount = parseFloat($('.waste-amount[data-index="' + index + '"]').val()) || 0;
-                    var wastePackingAmount = parseFloat($('.waste-packing-amount[data-index="' + index + '"]').val()) || 0;
-                    var wasteNetAmount = parseFloat($('.waste-net-amount[data-index="' + index + '"]').val()) || 0;
-                    var wasteIncentiveAmount = parseFloat($('.waste-incentive-amount[data-index="' + index + '"]').val()) || 0;
+                    // Include waste-row values ONLY if its checkbox is checked
+                    var wasteCheckbox = $('.waste-row-checkbox[data-index="' + index + '"]');
+                    var isWasteSelected = wasteCheckbox.length > 0 && wasteCheckbox.is(':checked');
+                    if (isWasteSelected) {
+                        var wasteAmount = parseFloat($('.waste-amount[data-index="' + index + '"]').val()) || 0;
+                        var wastePackingAmount = parseFloat($('.waste-packing-amount[data-index="' + index + '"]').val()) || 0;
+                        var wasteNetAmount = parseFloat($('.waste-net-amount[data-index="' + index + '"]').val()) || 0;
+                        var wasteIncentiveAmount = parseFloat($('.waste-incentive-amount[data-index="' + index + '"]').val()) || 0;
 
-                    amount += wasteAmount;
-                    packingAmount += wastePackingAmount;
-                    netAmount += wasteNetAmount;
-                    incentiveAmount += wasteIncentiveAmount;
+                        amount += wasteAmount;
+                        packingAmount += wastePackingAmount;
+                        netAmount += wasteNetAmount;
+                        incentiveAmount += wasteIncentiveAmount;
+                    }
                     
                     console.log('Checked item:', itemId, 'Amount:', amount, 'PackingAmount:', packingAmount, 'NetAmount:', netAmount);
                     
@@ -2488,9 +2569,13 @@
                     var amount = parseFloat($(this).find('.amount').val()) || 0;
                     var index = parseInt(checkbox.data('index')) || 0;
 
-                    // Include waste-row amount (if present) in selected total
-                    var wasteAmount = parseFloat($('.waste-amount[data-index="' + index + '"]').val()) || 0;
-                    amount += wasteAmount;
+                    // Include waste-row amount ONLY if its checkbox is checked
+                    var wasteCheckbox = $('.waste-row-checkbox[data-index="' + index + '"]');
+                    var isWasteSelected = wasteCheckbox.length > 0 && wasteCheckbox.is(':checked');
+                    if (isWasteSelected) {
+                        var wasteAmount = parseFloat($('.waste-amount[data-index="' + index + '"]').val()) || 0;
+                        amount += wasteAmount;
+                    }
 
                     selectedTotal += amount;
                 }
@@ -2690,6 +2775,7 @@
 
                     console.log('Adding CHECKED item: ' + item.ItemName + ', ActualWeight=' + actualWeight + ', NetWeight=' + netWeight + ', Rate=' + rate);
                     
+                    // Main (non-waste) row item
                     invoiceData.Items.push({
                         ItemId: item.ItemId,
                         MaterialGroupId: item.MaterialGroupId || 0,
@@ -2705,8 +2791,68 @@
                         NetAmount: netAmount,           // TRANDNAMT
                         IncentiveAmount: incentiveAmount, // TRANDINCAMT
                         TRANPID: item.TRANPID || 0,  // Transaction Product Calculation ID
-                        IsSelected: true    // All items in array are selected
+                        IsSelected: true,
+                        IsWasteRow: false   // Main row
                     });
+
+                    // If waste row checkbox is checked, add a second item for waste
+                    var wasteCheckbox = $('.waste-row-checkbox[data-index="' + index + '"]');
+                    var isWasteSelected = wasteCheckbox.length > 0 && wasteCheckbox.is(':checked');
+                    if (isWasteSelected) {
+                        var wasteNetWeight = parseFloat($('.waste-net-weight[data-index="' + index + '"]').val()) || 0;
+                        var wasteRate = parseFloat($('.waste-rate[data-index="' + index + '"]').val()) || 0;
+                        var wasteAmount = parseFloat($('.waste-amount[data-index="' + index + '"]').val()) || 0;
+                        var wastePackingKg = parseFloat($('.waste-packing-kg[data-index="' + index + '"]').val()) || 0;
+                        var wastePackingAmount = parseFloat($('.waste-packing-amount[data-index="' + index + '"]').val()) || 0;
+                        var wasteNetAmount = parseFloat($('.waste-net-amount[data-index="' + index + '"]').val()) || 0;
+                        var wasteIncentiveAmount = parseFloat($('.waste-incentive-amount[data-index="' + index + '"]').val()) || 0;
+
+                        // Basic validation for waste row: allow zero rate in add mode, same as main row
+                        if (wasteNetWeight <= 0) {
+                            alert('Waste row for item "' + item.ItemName + '" is selected but has no Net Waste Weight. Please enter a value or uncheck the waste row.');
+                            invoiceData.Items = [];
+                            return false;
+                        }
+
+                        if (isEditMode === "true" && wasteRate <= 0) {
+                            alert('Waste row for item "' + item.ItemName + '" is selected but has no Rate. Please enter a value or uncheck the waste row.');
+                            invoiceData.Items = [];
+                            return false;
+                        }
+
+                        if (isEditMode === "false") {
+                            wasteRate = 0;
+                            wasteAmount = 0;
+                        }
+
+                        var wasteActualWeight = parseFloat(item.WasteWeight || 0) || 0;
+                        var wasteNetWeightRounded = Math.round(wasteNetWeight * 100) / 100;
+                        var wasteActualWeightRounded = Math.round(wasteActualWeight * 100) / 100;
+                        if (wasteActualWeight > 0 && wasteNetWeightRounded > wasteActualWeightRounded) {
+                            alert('Waste row for item "' + item.ItemName + '": Net Waste Weight (' + wasteNetWeight.toFixed(2) + ' kg) cannot be greater than Waste Weight (' + wasteActualWeight.toFixed(2) + ' kg). Please enter a valid Net Weight.');
+                            invoiceData.Items = [];
+                            return false;
+                        }
+
+                        invoiceData.Items.push({
+                            ItemId: item.ItemId,
+                            MaterialGroupId: item.MaterialGroupId || 0,
+                            GradeId: item.GradeId || 0,
+                            ProductionColourId: item.ProductionColourId || 0,
+                            ReceivedTypeId: item.ReceivedTypeId || 0,
+                            ActualWeight: wasteActualWeight,
+                            NetWeight: wasteNetWeight,
+                            Rate: wasteRate,
+                            Amount: wasteAmount,
+                            PackingKg: wastePackingKg,
+                            PackingAmount: wastePackingAmount,
+                            NetAmount: wasteNetAmount,
+                            IncentiveAmount: wasteIncentiveAmount,
+                            TRANPID: item.TRANPID || 0,
+                            IsSelected: true,
+                            IsWasteRow: true
+                        });
+                    }
                 } else {
                     console.log('Skipping UNCHECKED item: ' + item.ItemName);
                 }
