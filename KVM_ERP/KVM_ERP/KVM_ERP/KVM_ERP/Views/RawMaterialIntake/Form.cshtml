@@ -1897,6 +1897,63 @@
             return 1; // Default fallback
         }
 
+        // Helper to detect BKN / OTHERS fields in a consistent way
+        function isBknLabel(fieldLabelUpper) {
+            if (!fieldLabelUpper) return false;
+            const upper = fieldLabelUpper.toUpperCase().trim();
+            return upper === 'BKN' || upper === 'BROKEN' || upper.indexOf('BKN') !== -1;
+        }
+
+        function isOthersLabel(fieldLabelUpper) {
+            if (!fieldLabelUpper) return false;
+            const upper = fieldLabelUpper.toUpperCase().trim();
+            return upper === 'OTHERS' || upper === 'OTHER' || upper.indexOf('OTHERS') !== -1;
+        }
+
+        // Helper to control visual order of packing fields inside the P-button popup
+        // Head On style: U-5, U-7, U-10, U-15, 10-20, 20-30, 30/40, 40/50, 50/60, then BKN and OTHERS
+        // Works generically for Head Less / Easy Peel etc. based on label text
+        function getPackingFieldOrderKey(labelUpper) {
+            if (!labelUpper) return 1000;
+            const upper = labelUpper.toUpperCase().trim();
+
+            // Always keep BKN and OTHERS at the end
+            if (isBknLabel(upper)) return 9000;
+            if (isOthersLabel(upper)) return 9001;
+
+            // Normalise common formats: remove spaces/colons so "U - 5" -> "U-5", "30 / 40" -> "30/40"
+            const normalized = upper.replace(/\s+/g, '').replace(/:/g, '');
+
+            const orderMap = {
+                'U-5': 1,
+                'U-7': 2,
+                'U-10': 3,
+                'U-15': 4,
+                '10-20': 5,
+                '20-30': 6,
+                '30/40': 7,
+                '30-40': 7,
+                '40/50': 8,
+                '40-50': 8,
+                '50/60': 9,
+                '50-60': 9
+            };
+
+            if (orderMap.hasOwnProperty(normalized)) {
+                return orderMap[normalized];
+            }
+
+            // Fallback: use highest numeric value found in the label so smaller sizes come first
+            const numbers = upper.match(/\d+/g);
+            if (numbers && numbers.length > 0) {
+                const max = Math.max.apply(null, numbers.map(function(n) { return parseInt(n, 10) || 0; }));
+                return 100 + max;
+            }
+
+            // Default middle position for labels without numbers
+            return 500;
+        }
+
         function loadPackingTypeFieldsForTab(packingId) {
             // Check if fields are already loaded for this tab
             const container = $(`#pane-${packingId} .packing-fields-container`);
@@ -1928,16 +1985,28 @@
         function renderPackingTypeFieldsForTab(fields, packingId) {
             let html = '';
             let pckIndex = 1; // Track PCK index separately
+
+            // Sort fields into a logical slab order (U-5, U-7, ..., 50/60, then BKN and OTHERS)
+            const sortedFields = (fields || []).slice().sort(function(a, b) {
+                const aLabel = (a.label || '').toUpperCase().trim();
+                const bLabel = (b.label || '').toUpperCase().trim();
+                const aKey = getPackingFieldOrderKey(aLabel);
+                const bKey = getPackingFieldOrderKey(bLabel);
+                if (aKey === bKey) {
+                    return aLabel.localeCompare(bLabel);
+                }
+                return aKey - bKey;
+            });
             
-            fields.forEach(function(field, index) {
-                const colClass = fields.length <= 6 ? 'col-md-4' : 'col-md-3';
-                const fieldLabel = field.label.toUpperCase().trim();
+            sortedFields.forEach(function(field, index) {
+                const colClass = sortedFields.length <= 6 ? 'col-md-4' : 'col-md-3';
+                const fieldLabel = (field.label || '').toUpperCase().trim();
                 
                 // Check if this field is BKN (Broken)
-                const isBKNField = fieldLabel === 'BKN' || fieldLabel === 'BROKEN' || fieldLabel.includes('BKN');
+                const isBKNField = isBknLabel(fieldLabel);
                 
                 // Check if this field is OTHERS
-                const isOTHERSField = fieldLabel === 'OTHERS' || fieldLabel === 'OTHER' || fieldLabel.includes('OTHERS');
+                const isOTHERSField = isOthersLabel(fieldLabel);
                 
                 if (isBKNField) {
                     // Create BKN field with special class
@@ -1950,11 +2019,11 @@
                         </div>
                     `;
                 } else if (isOTHERSField) {
-                    // Create OTHERS field with special class
+                    // Create OTHERS field with special class and bold label text
                     html += `
                         <div class="${colClass} mb-3">
                             <div class="form-group">
-                                <label for="others_${packingId}">${field.label}:</label>
+                                <label for="others_${packingId}"><strong>${field.label}:</strong></label>
                                 <input type="number" class="form-control others-field" id="others_${packingId}" min="0" step="0.001" placeholder="0.000" data-multiplier="${getMultiplierFromLabel(field.label)}">
                             </div>
                         </div>
