@@ -1052,15 +1052,9 @@ namespace KVM_ERP.Controllers
                 int pckIndex = 0;
                 foreach (var packingType in packingTypes)
                 {
-                    // Check if this is BKN field
-                    bool isBKN = packingType.PACKTMDESC.ToUpper().Trim() == "BKN" || 
-                                 packingType.PACKTMDESC.ToUpper().Trim() == "BROKEN" || 
-                                 packingType.PACKTMDESC.ToUpper().Contains("BKN");
-                    
-                    // Check if this is OTHERS field
-                    bool isOTHERS = packingType.PACKTMDESC.ToUpper().Trim() == "OTHERS" || 
-                                    packingType.PACKTMDESC.ToUpper().Trim() == "OTHER" || 
-                                    packingType.PACKTMDESC.ToUpper().Contains("OTHERS");
+                    var desc = packingType.PACKTMDESC ?? string.Empty;
+                    bool isBKN = IsBknLabel(desc);
+                    bool isOTHERS = IsOthersLabel(desc);
                     
                     if (isBKN)
                     {
@@ -1094,6 +1088,20 @@ namespace KVM_ERP.Controllers
             }
 
             return pcklValue;
+        }
+
+        private static bool IsBknLabel(string label)
+        {
+            if (string.IsNullOrWhiteSpace(label)) return false;
+            var upper = label.ToUpper().Trim();
+            return upper == "BKN" || upper == "BROKEN" || upper.Contains("BKN");
+        }
+
+        private static bool IsOthersLabel(string label)
+        {
+            if (string.IsNullOrWhiteSpace(label)) return false;
+            var upper = label.ToUpper().Trim();
+            return upper == "OTHERS" || upper == "OTHER" || upper.Contains("OTHERS");
         }
 
         private decimal ExtractMultiplierFromDescription(string description)
@@ -2093,6 +2101,16 @@ namespace KVM_ERP.Controllers
                             nonZeroPackings.Add((packingFields[i], pckValues[i]));
                         }
                     }
+
+                    // Append BKN and OTHERS fields explicitly using their own values
+                    if (calculation.BKN > 0)
+                    {
+                        nonZeroPackings.Add(("Bkn", calculation.BKN));
+                    }
+                    if (calculation.OTHERS > 0)
+                    {
+                        nonZeroPackings.Add(("Others", calculation.OTHERS));
+                    }
                     
                     html += @"
         <div style='margin: 15px 0;'>
@@ -2468,6 +2486,16 @@ namespace KVM_ERP.Controllers
                                 nonZeroPackings.Add((packingFields[i], pckValues[i]));
                             }
                         }
+
+                        // Append BKN and OTHERS fields explicitly using their own values
+                        if (calculation.BKN > 0)
+                        {
+                            nonZeroPackings.Add(("Bkn", calculation.BKN));
+                        }
+                        if (calculation.OTHERS > 0)
+                        {
+                            nonZeroPackings.Add(("Others", calculation.OTHERS));
+                        }
                         
                         html += @"
         <div style='margin: 15px 0;'>
@@ -2612,24 +2640,34 @@ namespace KVM_ERP.Controllers
         {
             try
             {
+                // Get packing types in database order and filter out BKN / OTHERS
                 var packingTypes = db.PackingTypeMasters
                     .Where(pt => pt.PACKMID == packingId && pt.DISPSTATUS == 0)
                     .OrderBy(pt => pt.PACKTMCODE)
-                    .Select(pt => pt.PACKTMDESC)
                     .ToList();
 
-                return packingTypes.Any() ? packingTypes : new List<string> 
-                { 
-                    "PCK1", "PCK2", "PCK3", "PCK4", "PCK5", "PCK6", "PCK7", "PCK8", "PCK9", 
-                    "PCK10", "PCK11", "PCK12", "PCK13", "PCK14", "PCK15", "PCK16", "PCK17" 
+                var labels = new List<string>();
+                foreach (var pt in packingTypes)
+                {
+                    var desc = pt.PACKTMDESC ?? string.Empty;
+                    if (!IsBknLabel(desc) && !IsOthersLabel(desc))
+                    {
+                        labels.Add(desc);
+                    }
+                }
+
+                return labels.Any() ? labels : new List<string>
+                {
+                    "PCK1", "PCK2", "PCK3", "PCK4", "PCK5", "PCK6", "PCK7", "PCK8", "PCK9",
+                    "PCK10", "PCK11", "PCK12", "PCK13", "PCK14", "PCK15", "PCK16", "PCK17"
                 };
             }
             catch
             {
-                return new List<string> 
-                { 
-                    "PCK1", "PCK2", "PCK3", "PCK4", "PCK5", "PCK6", "PCK7", "PCK8", "PCK9", 
-                    "PCK10", "PCK11", "PCK12", "PCK13", "PCK14", "PCK15", "PCK16", "PCK17" 
+                return new List<string>
+                {
+                    "PCK1", "PCK2", "PCK3", "PCK4", "PCK5", "PCK6", "PCK7", "PCK8", "PCK9",
+                    "PCK10", "PCK11", "PCK12", "PCK13", "PCK14", "PCK15", "PCK16", "PCK17"
                 };
             }
         }

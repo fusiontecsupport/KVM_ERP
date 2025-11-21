@@ -1984,7 +1984,21 @@
 
         function renderPackingTypeFieldsForTab(fields, packingId) {
             let html = '';
-            let pckIndex = 1; // Track PCK index separately
+
+            // Map each packing type (by PACKTMID) to its PCK index based on
+            // original database order (PACKTMCODE), skipping BKN / OTHERS.
+            // This keeps PCK1..PCK17 aligned with server-side calculations
+            // even though we visually sort the fields for a nicer layout.
+            const dbIndexById = {};
+            let dbIndex = 1;
+            (fields || []).forEach(function(field) {
+                const labelUpper = (field.label || '').toUpperCase().trim();
+                if (!isBknLabel(labelUpper) && !isOthersLabel(labelUpper)) {
+                    dbIndexById[field.id] = dbIndex++;
+                }
+            });
+
+            let fallbackIndex = dbIndex; // Fallback for any unexpected field
 
             // Sort fields into a logical slab order (U-5, U-7, ..., 50/60, then BKN and OTHERS)
             const sortedFields = (fields || []).slice().sort(function(a, b) {
@@ -2029,7 +2043,8 @@
                         </div>
                     `;
                 } else {
-                    // Create regular PCK field
+                    // Create regular PCK field, but use DB-based PCK index for saving
+                    const pckIndex = dbIndexById[field.id] || (fallbackIndex++);
                     html += `
                         <div class="${colClass} mb-3">
                             <div class="form-group">
@@ -2038,7 +2053,6 @@
                             </div>
                         </div>
                     `;
-                    pckIndex++; // Increment only for non-BKN and non-OTHERS fields
                 }
             });
             
