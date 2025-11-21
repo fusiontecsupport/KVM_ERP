@@ -1471,8 +1471,36 @@
             }
         }
 
+        // Reset all fields in the Rate Calculation modal so values from one row
+        // do not leak into another row when opening the modal
+        function resetRateModalFields() {
+            // Clear summary / calculation fields
+            $('#packingTypeTotal').val('0.000');
+            $('#packingTypePackingWeight').val('');
+            $('#packingTypeTotalWeight').val('0.00');
+            $('#packingTypeOneDollarRate').val('');
+            $('#packingTypeTotalValueForDollar').val('0.00');
+            $('#packingTypeNetWeight').val('0.00');
+            $('#packingTypePerKgRate').val('0.00');
+
+            // Packing / discount and incentive related fields
+            $('#packingTypePackingPerKg').val('');
+            $('#packingTypeWastePWeight').val('0.00');
+            $('#packingTypePackingAmount').val('0.00');
+            $('#packingTypePackingExpense').val('0.00');
+            $('#packingTypeIncentivePercent').val('');
+            $('#packingTypeIncentiveValue').val('0.00');
+            $('#packingTypeIncentiveTotal').val('0.00');
+
+            // Clear dynamic slab inputs container (will be repopulated by loadSlabData)
+            $('#packingTypeSlabs').empty();
+        }
+
         // Open Rate Calculation Modal
         function openRateModal(itemIndex) {
+            // Always reset modal fields first so previous row's values are cleared
+            resetRateModalFields();
+
             if (!itemsData[itemIndex]) {
                 alert('Item data not found');
                 return;
