@@ -408,14 +408,26 @@ namespace KVM_ERP.Controllers
                 foreach (var productGroup in groupedByPackingAndProduct)
                 {
                     // Get column headers for this packing master from PackingTypeMaster
-                    var columnHeaders = db.PackingTypeMasters
-                        .Where(pt => pt.PACKMID == productGroup.Key.PackingMasterId 
-                                  && (pt.DISPSTATUS == 0 || pt.DISPSTATUS == null)
-                                  && !pt.PACKTMDESC.ToUpper().Contains("BKN")
-                                  && !pt.PACKTMDESC.ToUpper().Contains("BROKEN"))
+                    var packingTypes = db.PackingTypeMasters
+                        .Where(pt => pt.PACKMID == productGroup.Key.PackingMasterId
+                                  && (pt.DISPSTATUS == 0 || pt.DISPSTATUS == null))
                         .OrderBy(pt => pt.PACKTMCODE)
-                        .Select(pt => pt.PACKTMDESC)
                         .ToList();
+
+                    var columnHeaders = new List<string>();
+                    foreach (var pt in packingTypes)
+                    {
+                        var desc = pt.PACKTMDESC ?? string.Empty;
+                        var upper = desc.ToUpper().Trim();
+
+                        if (upper == "BKN" || upper == "BROKEN" || upper.Contains("BKN"))
+                            continue;
+
+                        if (upper == "OTHERS" || upper == "OTHER" || upper.Contains("OTHERS"))
+                            continue;
+
+                        columnHeaders.Add(desc);
+                    }
 
                     // Split data based on DateCategory from stored procedure
                     // DateCategory 0 = Opening Stock (before fromDate)
