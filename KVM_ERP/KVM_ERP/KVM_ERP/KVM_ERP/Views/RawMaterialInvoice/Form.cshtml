@@ -756,7 +756,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Packing Weight</label>
-                                    <input type="number" class="form-control" id="packingTypePackingWeight" step="0.01" onchange="calculateTotalWeight('packingType')">
+                                    <input type="number" class="form-control" id="packingTypePackingWeight" step="0.01" oninput="calculateTotalWeight('packingType')">
                                 </div>
                             </div>
                             
@@ -767,7 +767,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Rate Per USD</label>
-                                    <input type="number" class="form-control" id="packingTypeOneDollarRate" step="0.01" onchange="calculateDollarValue('packingType')">
+                                    <input type="number" class="form-control" id="packingTypeOneDollarRate" step="0.01" oninput="calculateDollarValue('packingType')">
                                 </div>
                             </div>
                             
@@ -794,7 +794,7 @@
                             <div class="row mt-2">
                                 <div class="col-md-3">
                                     <label class="form-label">Packing/Kg (₹)</label>
-                                    <input type="number" class="form-control" id="packingTypePackingPerKg" step="0.01" onchange="calculatePackingDiscount('packingType')">
+                                    <input type="number" class="form-control" id="packingTypePackingPerKg" step="0.01" oninput="calculatePackingDiscount('packingType')">
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Peeled + Weight</label>
@@ -813,7 +813,7 @@
                             <div class="row mt-3">
                                 <div class="col-md-4">
                                     <label class="form-label">Incentive (In %)</label>
-                                    <input type="number" class="form-control" id="packingTypeIncentivePercent" step="0.001" onchange="calculatePerKgRate('packingType')">
+                                    <input type="number" class="form-control" id="packingTypeIncentivePercent" step="0.001" oninput="calculatePerKgRate('packingType')">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Incentive Value</label>
@@ -1706,7 +1706,7 @@
                                 'data-intake-value="' + (slab.value || 0) + '" ' +
                                 'data-pck-column="' + (slab.pckColumn || '') + '" ' +
                                 'placeholder="Enter calculation value" ' +
-                                'step="0.001" onchange="calculateSlabTotal(\'' + type + '\')">' +
+                                'step="0.001" oninput="calculateSlabTotal(\'' + type + '\')">' +
                         '</td>' +
                     '</tr>';
                 });
@@ -1747,7 +1747,11 @@
             if (typeof window.currentRateItemIndex !== 'undefined') {
                 var currentItem = itemsData[window.currentRateItemIndex];
                 if (currentItem) {
-                    $('#' + type + 'NetWeight').val(parseFloat(currentItem.NetWeight || 0).toFixed(2));
+                    var currentNetWeight = $('.net-weight[data-index="' + window.currentRateItemIndex + '"]').val();
+                    if (!currentNetWeight || isNaN(parseFloat(currentNetWeight))) {
+                        currentNetWeight = currentItem.NetWeight || currentItem.ActualWeight || 0;
+                    }
+                    $('#' + type + 'NetWeight').val(parseFloat(currentNetWeight).toFixed(2));
                 }
             }
             
@@ -1769,6 +1773,26 @@
             // Step 2: Per Kg Rate from Total Value / Net Weight
             var perKgRate = (netWeight > 0) ? (totalValueForDollar / netWeight) : 0;
             $('#' + type + 'PerKgRate').val(perKgRate.toFixed(2));
+
+            // When the base value changes, also refresh packing discount and incentive
+            // so Packing Amount, Packing Expense, Incentive Value and On Account
+            // stay in sync without retyping other fields
+            if (type === 'packingType') {
+                // Recalculate packing discount if a Packing/Kg value exists
+                var packingPerKgVal = $('#'+ type + 'PackingPerKg').val();
+                if (packingPerKgVal !== undefined && packingPerKgVal !== null && packingPerKgVal !== '') {
+                    calculatePackingDiscount(type);
+                }
+
+                // Recalculate incentive / On Account if an incentive percent exists
+                var incentivePercentVal = $('#'+ type + 'IncentivePercent').val();
+                if (incentivePercentVal !== undefined && incentivePercentVal !== null && incentivePercentVal !== '') {
+                    calculatePerKgRate(type);
+                } else {
+                    // Even when no incentive % is entered, keep On Account synced
+                    calculatePerKgRate(type);
+                }
+            }
         }
 
         // Incentive calculation ONLY on Packing Expense (does NOT change Per Kg Rate or Total Value)
