@@ -408,7 +408,7 @@ namespace KVM_ERP.Controllers
                 foreach (var productGroup in groupedByPackingAndProduct)
                 {
                     // Get column headers for this packing master from PackingTypeMaster
-                    var packingTypes = db.PackingTypeMasters gy43waz hytcx
+                    var packingTypes = db.PackingTypeMasters
                         .Where(pt => pt.PACKMID == productGroup.Key.PackingMasterId
                                   && (pt.DISPSTATUS == 0 || pt.DISPSTATUS == null))
                         .OrderBy(pt => pt.PACKTMCODE)
@@ -420,6 +420,7 @@ namespace KVM_ERP.Controllers
                         var desc = pt.PACKTMDESC ?? string.Empty;
                         var upper = desc.ToUpper().Trim();
 
+                        // Exclude BKN/BROKEN and OTHERS from slab headers – they are handled separately
                         if (upper == "BKN" || upper == "BROKEN" || upper.Contains("BKN"))
                             continue;
 
@@ -494,7 +495,85 @@ namespace KVM_ERP.Controllers
                     stockData.Add(item);
                 }
 
-                System.Diagnostics.Debug.WriteLine($"Combined into {stockData.Count} products");
+                // Add separate summary sections for BKN and Others (like Stock View virtual products)
+                try
+                {
+                    // Common query for BKN and OTHERS with date and status filters
+                    var baseCalcQuery = from tpc in db.TransactionProductCalculations
+                                        join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
+                                        join m in db.MaterialMasters on td.MTRLID equals m.MTRLID
+                                        join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
+                                        where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
+                                              && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
+                                              && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
+                                              && tm.TRANDATE <= toDate
+                                        select new
+                                        {
+                                            tm.TRANDATE,
+                                            tpc.BKN,
+                                            tpc.OTHERS
+                                        };
+
+                    var bknData = baseCalcQuery.Where(x => x.BKN > 0).ToList();
+                    if (bknData.Any())
+                    {
+                        decimal openingBkn = bknData.Where(x => x.TRANDATE < fromDate).Sum(x => x.BKN);
+                        decimal productionBkn = bknData.Where(x => x.TRANDATE >= fromDate && x.TRANDATE <= toDate).Sum(x => x.BKN);
+                        decimal totalBkn = openingBkn + productionBkn;
+
+                        if (totalBkn > 0)
+                        {
+                            var bknItem = new StockViewReportData
+                            {
+                                ProductName = "BKN (Broken)",
+                                ReceivedType = "BKN (Broken)",
+                                PackingMasterId = -1,
+                                ColumnHeaders = new List<string> { "BKN (KG)" },
+                                OpeningData = new List<decimal> { openingBkn },
+                                OpeningTotalSlabs = openingBkn,
+                                ProductionData = new List<decimal> { productionBkn },
+                                ProductionTotalSlabs = productionBkn,
+                                TotalData = new List<decimal> { totalBkn },
+                                TotalSlabs = totalBkn
+                            };
+
+                            stockData.Add(bknItem);
+                        }
+                    }
+
+                    var othersData = baseCalcQuery.Where(x => x.OTHERS > 0).ToList();
+                    if (othersData.Any())
+                    {
+                        decimal openingOthers = othersData.Where(x => x.TRANDATE < fromDate).Sum(x => x.OTHERS);
+                        decimal productionOthers = othersData.Where(x => x.TRANDATE >= fromDate && x.TRANDATE <= toDate).Sum(x => x.OTHERS);
+                        decimal totalOthers = openingOthers + productionOthers;
+
+                        if (totalOthers > 0)
+                        {
+                            var othersItem = new StockViewReportData
+                            {
+                                ProductName = "Others(Peeled)",
+                                ReceivedType = "Others(Peeled)",
+                                PackingMasterId = -2,
+                                ColumnHeaders = new List<string> { "Others(Peeled) (KG)" },
+                                OpeningData = new List<decimal> { openingOthers },
+                                OpeningTotalSlabs = openingOthers,
+                                ProductionData = new List<decimal> { productionOthers },
+                                ProductionTotalSlabs = productionOthers,
+                                TotalData = new List<decimal> { totalOthers },
+                                TotalSlabs = totalOthers
+                            };
+
+                            stockData.Add(othersItem);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error adding BKN/Others summary rows: {ex.Message}");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Combined into {stockData.Count} products (including BKN/Others summaries if any)");
                 stockData = stockData.OrderBy(x => x.ReceivedType).ThenBy(x => x.ProductName).ToList();
                 
                 return stockData;
