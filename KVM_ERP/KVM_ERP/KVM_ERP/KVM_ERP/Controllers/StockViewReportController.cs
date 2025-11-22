@@ -408,7 +408,7 @@ namespace KVM_ERP.Controllers
                 foreach (var productGroup in groupedByPackingAndProduct)
                 {
                     // Get column headers for this packing master from PackingTypeMaster
-                    var packingTypes = db.PackingTypeMasters
+                    var packingTypes = db.PackingTypeMasters gy43waz hytcx
                         .Where(pt => pt.PACKMID == productGroup.Key.PackingMasterId
                                   && (pt.DISPSTATUS == 0 || pt.DISPSTATUS == null))
                         .OrderBy(pt => pt.PACKTMCODE)
