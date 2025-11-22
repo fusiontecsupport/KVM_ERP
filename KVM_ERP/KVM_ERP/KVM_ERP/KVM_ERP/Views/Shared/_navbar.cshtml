@@ -274,6 +274,7 @@
                     @if (Model != null && (isAdmin || 
                         User.IsInRole("RawMaterialIntakeIndex") || 
                         User.IsInRole("StockViewIndex") || 
+                        User.IsInRole("SupplierStockViewIndex") ||
                         User.IsInRole("PurchaseInvoiceIndex") ||
                         User.IsInRole("PurchaseInvoiceApprovalIndex")))
                     {
@@ -330,22 +331,32 @@
                                         </a>
                                     </li>
                                 }
-                                <!-- Invoice - Order: 3, GroupId: 1 -->
+                                <!-- Supplier wise Stock View - Order: 3, GroupId: 1 -->
+                                @if (User.IsInRole("SupplierStockViewIndex"))
+                                {
+                                    <li>
+                                        <a class="dropdown-item" href="@Url.Action("Index", "SupplierStockView")"
+                                           data-role="SupplierStockView" data-menugroupid="1" data-menuorder="3">
+                                            <i class="fa fa-chart-line"></i> Supplier wise Stock View
+                                        </a>
+                                    </li>
+                                }
+                                <!-- Invoice - Order: 4, GroupId: 1 -->
                                 @if (User.IsInRole("PurchaseInvoiceIndex"))
                                 {
                                     <li>
                                         <a class="dropdown-item" href="@Url.Action("Index", "RawMaterialInvoice")"
-                                           data-role="RawMaterialInvoice" data-menugroupid="1" data-menuorder="3">
+                                           data-role="RawMaterialInvoice" data-menugroupid="1" data-menuorder="4">
                                             <i class="fa fa-file-invoice"></i> Invoice
                                         </a>
                                     </li>
                                 }
-                                <!-- Invoice Approval - Order: 4, GroupId: 1 -->
+                                <!-- Invoice Approval - Order: 5, GroupId: 1 -->
                                 @if (User.IsInRole("PurchaseInvoiceApprovalIndex"))
                                 {
                                     <li>
                                         <a class="dropdown-item" href="@Url.Action("Index", "PurchaseInvoiceApproval")"
-                                           data-role="PurchaseInvoiceApproval" data-menugroupid="1" data-menuorder="4">
+                                           data-role="PurchaseInvoiceApproval" data-menugroupid="1" data-menuorder="5">
                                             <i class="fa fa-check-circle"></i> Invoice Approval
                                         </a>
                                     </li>
