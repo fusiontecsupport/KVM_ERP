@@ -315,8 +315,9 @@
                 <thead>
                     <tr>
                         <th width="10%" style="text-align: center;">S.No</th>
-                        <th width="70%" style="text-align: left;">Item</th>
+                        <th width="55%" style="text-align: left;">Item</th>
                         <th width="20%" style="text-align: left;">Total</th>
+                        <th width="15%" style="text-align: left;">Cases</th>
                     </tr>
                 </thead>
                 <tfoot>
@@ -324,6 +325,7 @@
                         <th style="text-align: center;">S.No</th>
                         <th style="text-align: left;">Item</th>
                         <th style="text-align: left;">Total</th>
+                        <th style="text-align: left;">Cases</th>
                     </tr>
                 </tfoot>
             </table>
@@ -406,7 +408,7 @@
                     },
                     { 
                         "data": 1, 
-                        "width": "70%",
+                        "width": "55%",
                         "render": function (data, type, row) {
                             return '<div class="item-name">' +
                                    '<button class="expand-btn" onclick="toggleDetails(this, ' + row[0] + ')">' +
@@ -421,6 +423,13 @@
                         "width": "20%",
                         "render": function (data, type, row) {
                             return '<div class="total-weight" style="text-align: left;">' + data + ' SLAB</div>';
+                        }
+                    },
+                    {
+                        "data": 3,
+                        "width": "15%",
+                        "render": function (data, type, row) {
+                            return '<div class="total-weight" style="text-align: left;">' + data + ' CASES</div>';
                         }
                     }
                 ],
@@ -458,7 +467,7 @@
                 // Get details data via AJAX
                 getItemDetails(rowId, function(details) {
                     var detailsHtml = '<tr class="details-row">' +
-                                     '<td colspan="3">' +
+                                     '<td colspan="4">' +
                                      '<div class="details-content">' +
                                      details +
                                      '</div>' +

@@ -301,7 +301,8 @@ namespace KVM_ERP.Controllers
                                           TranDate = tm.TRANDATE,
                                           ColourDesc = pclr != null ? pclr.PCLRDESC : null,
                                           ReceivedTypeDesc = rcvdt != null ? rcvdt.RCVDTDESC : null,
-                                          GradeDesc = grade != null ? grade.GRADEDESC : null
+                                          GradeDesc = grade != null ? grade.GRADEDESC : null,
+                                          SupplierName = tm.CATENAME
                                       }).ToList();
 
                 System.Diagnostics.Debug.WriteLine($"Loaded {allCalculations.Count} total calculation records");
@@ -317,7 +318,8 @@ namespace KVM_ERP.Controllers
                         GRADEID = x.Calculation.GRADEID,
                         x.ColourDesc,
                         x.ReceivedTypeDesc,
-                        x.GradeDesc
+                        x.GradeDesc,
+                        x.SupplierName
                     })
                     .Select(g => {
                         // Build display name
@@ -338,6 +340,10 @@ namespace KVM_ERP.Controllers
                         // Add Received Type if present
                         if (!string.IsNullOrEmpty(g.Key.ReceivedTypeDesc))
                             displayName += " - " + g.Key.ReceivedTypeDesc;
+
+                        // Add Supplier Name if present
+                        if (!string.IsNullOrEmpty(g.Key.SupplierName))
+                            displayName += " - " + g.Key.SupplierName;
                         
                         return new {
                             PackingType = displayName,
@@ -1138,7 +1144,13 @@ namespace KVM_ERP.Controllers
                                        PCK14 = tpc.PCK14,
                                        PCK15 = tpc.PCK15,
                                        PCK16 = tpc.PCK16,
-                                       PCK17 = tpc.PCK17
+                                        PCK17 = tpc.PCK17,
+                                       // Extra fields so we can mirror the detail breakdown grouping
+                                       PackingId = tpc.PACKMID,
+                                       KgWeight = tpc.KGWGT,
+                                       GradeId = tpc.GRADEID,
+                                       PclrId = tpc.PCLRID,
+                                       RcvdtId = tpc.RCVDTID
                                    }).ToList();
 
                     System.Diagnostics.Debug.WriteLine($"Loaded {allCalcs.Count} calculation records into memory");
@@ -1162,16 +1174,75 @@ namespace KVM_ERP.Controllers
                         .ToList();
 
                     System.Diagnostics.Debug.WriteLine($"Product totals found: {productCalcs.Count}");
-                    
+
                     foreach (var product in productCalcs)
                     {
-                        productTotals.Add(new object[] { 
-                            product.ProductId, 
-                            product.ProductName, 
-                            product.TotalPCK.ToString("N2") 
+                        // To make Cases consistent with the detail view, we must:
+                        // 1) Calculate NO OF CASES per packing master and slab column
+                        // 2) Sum those case counts for the product
+
+                        var productRows = allCalcs
+                            .Where(x => x.ProductId == product.ProductId)
+                            .ToList();
+
+                        decimal totalCases = 0;
+
+                        // Group exactly like the detail breakdown: by packing + weight + grade + colour + received type
+                        var productGroups = productRows
+                            .GroupBy(x => new { x.PackingId, x.KgWeight, x.GradeId, x.PclrId, x.RcvdtId });
+
+                        foreach (var grp in productGroups)
+                        {
+                            // Column totals for this packing group
+                            decimal col1 = grp.Sum(r => r.PCK1);
+                            decimal col2 = grp.Sum(r => r.PCK2);
+                            decimal col3 = grp.Sum(r => r.PCK3);
+                            decimal col4 = grp.Sum(r => r.PCK4);
+                            decimal col5 = grp.Sum(r => r.PCK5);
+                            decimal col6 = grp.Sum(r => r.PCK6);
+                            decimal col7 = grp.Sum(r => r.PCK7);
+                            decimal col8 = grp.Sum(r => r.PCK8);
+                            decimal col9 = grp.Sum(r => r.PCK9);
+                            decimal col10 = grp.Sum(r => r.PCK10);
+                            decimal col11 = grp.Sum(r => r.PCK11);
+                            decimal col12 = grp.Sum(r => r.PCK12);
+                            decimal col13 = grp.Sum(r => r.PCK13);
+                            decimal col14 = grp.Sum(r => r.PCK14);
+                            decimal col15 = grp.Sum(r => r.PCK15);
+                            decimal col16 = grp.Sum(r => r.PCK16);
+                            decimal col17 = grp.Sum(r => r.PCK17);
+
+                            // NO OF CASES for this packing group = sum of boxes per column (same as detail view)
+                            decimal groupCases =
+                                CalculateBoxes(col1) +
+                                CalculateBoxes(col2) +
+                                CalculateBoxes(col3) +
+                                CalculateBoxes(col4) +
+                                CalculateBoxes(col5) +
+                                CalculateBoxes(col6) +
+                                CalculateBoxes(col7) +
+                                CalculateBoxes(col8) +
+                                CalculateBoxes(col9) +
+                                CalculateBoxes(col10) +
+                                CalculateBoxes(col11) +
+                                CalculateBoxes(col12) +
+                                CalculateBoxes(col13) +
+                                CalculateBoxes(col14) +
+                                CalculateBoxes(col15) +
+                                CalculateBoxes(col16) +
+                                CalculateBoxes(col17);
+
+                            totalCases += groupCases;
+                        }
+
+                        productTotals.Add(new object[] {
+                            product.ProductId,
+                            product.ProductName,
+                            product.TotalPCK.ToString("N2"),
+                            totalCases.ToString("N0")
                         });
-                        
-                        System.Diagnostics.Debug.WriteLine($"Added: {product.ProductName} (ID: {product.ProductId}) with total PCK: {product.TotalPCK:N2}");
+
+                        System.Diagnostics.Debug.WriteLine($"Added: {product.ProductName} (ID: {product.ProductId}) with total PCK: {product.TotalPCK:N2}, Cases (from NO OF CASES rows): {totalCases:N0}");
                     }
                     
                     // STEP 4: Add BKN as a separate virtual product
@@ -1188,13 +1259,16 @@ namespace KVM_ERP.Controllers
                     
                     if (bknTotal > 0)
                     {
+                        var bknCases = CalculateBoxes(bknTotal);
+
                         // Add BKN as virtual product with ID = -1
                         productTotals.Add(new object[] { 
                             -1, 
                             "BKN (Broken)", 
-                            bknTotal.ToString("N2") 
+                            bknTotal.ToString("N2"),
+                            bknCases.ToString("N0")
                         });
-                        System.Diagnostics.Debug.WriteLine($"Added: BKN (Broken) with total: {bknTotal:N2}");
+                        System.Diagnostics.Debug.WriteLine($"Added: BKN (Broken) with total: {bknTotal:N2}, Cases: {bknCases:N0}");
                     }
                     
                     // STEP 5: Add OTHERS as a separate virtual product
@@ -1211,13 +1285,16 @@ namespace KVM_ERP.Controllers
                     
                     if (othersTotal > 0)
                     {
+                        var othersCases = CalculateBoxes(othersTotal);
+
                         // Add OTHERS as virtual product with ID = -2
                         productTotals.Add(new object[] { 
                             -2, 
                             "Others(Peeled)", 
-                            othersTotal.ToString("N2") 
+                            othersTotal.ToString("N2"),
+                            othersCases.ToString("N0") 
                         });
-                        System.Diagnostics.Debug.WriteLine($"Added: Others(Peeled) with total: {othersTotal:N2}");
+                        System.Diagnostics.Debug.WriteLine($"Added: Others(Peeled) with total: {othersTotal:N2}, Cases: {othersCases:N0}");
                     }
                 }
                 catch (Exception ex)
