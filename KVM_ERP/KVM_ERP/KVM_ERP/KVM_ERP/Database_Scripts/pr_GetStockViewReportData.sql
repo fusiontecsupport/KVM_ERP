@@ -20,8 +20,9 @@ BEGIN
 
     -- Get all transaction data with packing master info
     -- Split into Opening (before fromDate) and Production (fromDate to toDate)
+    -- NOTE: Use PRODDATE from TRANSACTION_PRODUCT_CALCULATION as the effective production date
     SELECT 
-        tm.TRANDATE,
+        tpc.PRODDATE AS TRANDATE,
         m.MTRLID AS ProductId,
         m.MTRLDESC AS ProductName,
         packing.PACKMID AS PackingMasterId,
@@ -39,8 +40,8 @@ BEGIN
         
         -- Date category: 0 = Opening (before fromDate), 1 = Production (fromDate to toDate)
         CASE 
-            WHEN tm.TRANDATE < @FromDate THEN 0  -- Opening Stock
-            WHEN tm.TRANDATE >= @FromDate AND tm.TRANDATE <= @ToDate THEN 1  -- Production
+            WHEN tpc.PRODDATE < @FromDate THEN 0  -- Opening Stock
+            WHEN tpc.PRODDATE >= @FromDate AND tpc.PRODDATE <= @ToDate THEN 1  -- Production
             ELSE 2  -- Exclude (after toDate, should not happen)
         END AS DateCategory
     FROM 
@@ -56,7 +57,7 @@ BEGIN
         (tpc.DISPSTATUS = 0 OR tpc.DISPSTATUS IS NULL)
         AND (m.DISPSTATUS = 0 OR m.DISPSTATUS IS NULL)
         AND (tm.DISPSTATUS = 0 OR tm.DISPSTATUS IS NULL)
-        AND tm.TRANDATE <= @ToDate  -- Include all data up to toDate
+        AND tpc.PRODDATE <= @ToDate  -- Include all data up to toDate (by production date)
     ORDER BY 
         packing.PACKMID,
         m.MTRLID,
@@ -64,7 +65,7 @@ BEGIN
         grade.GRADEDESC,
         color.PCLRDESC,
         rcvdType.RCVDTDESC,
-        tm.TRANDATE
+        tpc.PRODDATE
 END
 GO
 

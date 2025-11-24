@@ -119,7 +119,7 @@ namespace KVM_ERP.Controllers
                                 where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
                                       && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
                                       && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                      && tm.TRANDATE <= asOnDate
+                                      && tpc.PRODDATE <= asOnDate
                                       && tm.REGSTRID == 1
                                       && tm.TRANREFID == supplierId
                                 select new
@@ -247,7 +247,7 @@ namespace KVM_ERP.Controllers
                                join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
                                where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
                                      && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                     && tm.TRANDATE <= asOnDate
+                                     && tpc.PRODDATE <= asOnDate
                                      && tm.REGSTRID == 1
                                      && tm.TRANREFID == supplierId
                                      && tpc.BKN > 0
@@ -273,7 +273,7 @@ namespace KVM_ERP.Controllers
                                  join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
                                  where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
                                        && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                       && tm.TRANDATE <= asOnDate
+                                       && tpc.PRODDATE <= asOnDate
                                        && tm.REGSTRID == 1
                                        && tm.TRANREFID == supplierId
                                        && tpc.OTHERS > 0
@@ -339,7 +339,7 @@ namespace KVM_ERP.Controllers
                                              && (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
                                              && (pm.DISPSTATUS == 0 || pm.DISPSTATUS == null)
                                              && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                             && tm.TRANDATE <= selectedDate
+                                             && tpc.PRODDATE <= selectedDate
                                              && tm.REGSTRID == 1
                                              && tm.TRANREFID == supplierId
                                        select new
@@ -347,7 +347,7 @@ namespace KVM_ERP.Controllers
                                            Calculation = tpc,
                                            PackingType = pm.PACKMDESC,
                                            PackingId = pm.PACKMID,
-                                           TranDate = tm.TRANDATE,
+                                           TranDate = tpc.PRODDATE,
                                            ColourDesc = pclr != null ? pclr.PCLRDESC : null,
                                            ReceivedTypeDesc = rcvdt != null ? rcvdt.RCVDTDESC : null,
                                            GradeDesc = grade != null ? grade.GRADEDESC : null
@@ -611,7 +611,7 @@ namespace KVM_ERP.Controllers
                                          && (pm.DISPSTATUS == 0 || pm.DISPSTATUS == null)
                                          && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
                                          && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
-                                         && tm.TRANDATE <= selectedDate
+                                         && tpc.PRODDATE <= selectedDate
                                          && tm.REGSTRID == 1
                                          && tm.TRANREFID == supplierId
                                          && tpc.BKN != null && tpc.BKN > 0
@@ -621,7 +621,7 @@ namespace KVM_ERP.Controllers
                                        PackingType = pm.PACKMDESC,
                                        PackingId = pm.PACKMID,
                                        ProductName = m.MTRLDESC,
-                                       TranDate = tm.TRANDATE,
+                                       TranDate = tpc.PRODDATE,
                                        ColourDesc = pclr != null ? pclr.PCLRDESC : null,
                                        ReceivedTypeDesc = rcvdt != null ? rcvdt.RCVDTDESC : null,
                                        GradeDesc = grade != null ? grade.GRADEDESC : null
@@ -794,7 +794,7 @@ namespace KVM_ERP.Controllers
                                             && (pm.DISPSTATUS == 0 || pm.DISPSTATUS == null)
                                             && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
                                             && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
-                                            && tm.TRANDATE <= selectedDate
+                                            && tpc.PRODDATE <= selectedDate
                                             && tm.REGSTRID == 1
                                             && tm.TRANREFID == supplierId
                                             && tpc.OTHERS != null && tpc.OTHERS > 0
@@ -804,7 +804,7 @@ namespace KVM_ERP.Controllers
                                           PackingType = pm.PACKMDESC,
                                           PackingId = pm.PACKMID,
                                           ProductName = m.MTRLDESC,
-                                          TranDate = tm.TRANDATE,
+                                          TranDate = tpc.PRODDATE,
                                           ColourDesc = pclr != null ? pclr.PCLRDESC : null,
                                           ReceivedTypeDesc = rcvdt != null ? rcvdt.RCVDTDESC : null,
                                           GradeDesc = grade != null ? grade.GRADEDESC : null

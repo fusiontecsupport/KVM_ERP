@@ -169,6 +169,7 @@ namespace KVM_ERP.Controllers
                 }
 
                 // Get breakdown by packing master with all PCK values - SHOW ALL PACKING MASTERS
+                // NOTE: Use PRODDATE from TransactionProductCalculations as the effective stock date
                 var packingBreakdown = (from tpc in db.TransactionProductCalculations
                                        join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
                                        join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
@@ -177,7 +178,7 @@ namespace KVM_ERP.Controllers
                                              && (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
                                              && (pm.DISPSTATUS == 0 || pm.DISPSTATUS == null)
                                              && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                             && tm.TRANDATE <= asOnDate
+                                             && tpc.PRODDATE <= asOnDate
                                        group tpc by new { pm.PACKMDESC, pm.PACKMID } into g
                                        select new {
                                            PackingType = g.Key.PACKMDESC,
@@ -293,12 +294,12 @@ namespace KVM_ERP.Controllers
                                             && (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
                                             && (pm.DISPSTATUS == 0 || pm.DISPSTATUS == null)
                                             && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                            && tm.TRANDATE <= selectedDate
+                                            && tpc.PRODDATE <= selectedDate
                                       select new {
                                           Calculation = tpc,
                                           PackingType = pm.PACKMDESC,
                                           PackingId = pm.PACKMID,
-                                          TranDate = tm.TRANDATE,
+                                          TranDate = tpc.PRODDATE,
                                           ColourDesc = pclr != null ? pclr.PCLRDESC : null,
                                           ReceivedTypeDesc = rcvdt != null ? rcvdt.RCVDTDESC : null,
                                           GradeDesc = grade != null ? grade.GRADEDESC : null,
@@ -574,7 +575,7 @@ namespace KVM_ERP.Controllers
                     PackingMasters = new List<PackingMasterData>()
                 };
 
-                // Load all BKN data from calculations
+                // Load all BKN data from calculations (filter by PRODDATE instead of TRANDATE)
                 var allBKNData = (from tpc in db.TransactionProductCalculations
                                  join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
                                  join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
@@ -590,14 +591,14 @@ namespace KVM_ERP.Controllers
                                        && (pm.DISPSTATUS == 0 || pm.DISPSTATUS == null)
                                        && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
                                        && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
-                                       && tm.TRANDATE <= selectedDate
+                                       && tpc.PRODDATE <= selectedDate
                                        && tpc.BKN != null && tpc.BKN > 0
                                  select new {
                                      Calculation = tpc,
                                      PackingType = pm.PACKMDESC,
                                      PackingId = pm.PACKMID,
                                      ProductName = m.MTRLDESC,
-                                     TranDate = tm.TRANDATE,
+                                     TranDate = tpc.PRODDATE,
                                      ColourDesc = pclr != null ? pclr.PCLRDESC : null,
                                      ReceivedTypeDesc = rcvdt != null ? rcvdt.RCVDTDESC : null,
                                      GradeDesc = grade != null ? grade.GRADEDESC : null
@@ -758,7 +759,7 @@ namespace KVM_ERP.Controllers
                     PackingMasters = new List<PackingMasterData>()
                 };
 
-                // Load all OTHERS data from calculations
+                // Load all OTHERS data from calculations (filter by PRODDATE instead of TRANDATE)
                 var allOTHERSData = (from tpc in db.TransactionProductCalculations
                                  join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
                                  join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
@@ -774,14 +775,14 @@ namespace KVM_ERP.Controllers
                                        && (pm.DISPSTATUS == 0 || pm.DISPSTATUS == null)
                                        && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
                                        && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
-                                       && tm.TRANDATE <= selectedDate
+                                       && tpc.PRODDATE <= selectedDate
                                        && tpc.OTHERS != null && tpc.OTHERS > 0
                                  select new {
                                      Calculation = tpc,
                                      PackingType = pm.PACKMDESC,
                                      PackingId = pm.PACKMID,
                                      ProductName = m.MTRLDESC,
-                                     TranDate = tm.TRANDATE,
+                                     TranDate = tpc.PRODDATE,
                                      ColourDesc = pclr != null ? pclr.PCLRDESC : null,
                                      ReceivedTypeDesc = rcvdt != null ? rcvdt.RCVDTDESC : null,
                                      GradeDesc = grade != null ? grade.GRADEDESC : null
@@ -1096,7 +1097,7 @@ namespace KVM_ERP.Controllers
                         INNER JOIN TRANSACTIONMASTER tm ON td.TRANMID = tm.TRANMID
                         WHERE (tpc.DISPSTATUS = 0 OR tpc.DISPSTATUS IS NULL)
                         AND (tm.DISPSTATUS = 0 OR tm.DISPSTATUS IS NULL)
-                        AND tm.TRANDATE <= @p0
+                        AND tpc.PRODDATE <= @p0
                         AND (PCK1 > 0 OR PCK2 > 0 OR PCK3 > 0 OR PCK4 > 0 OR PCK5 > 0 
                              OR PCK6 > 0 OR PCK7 > 0 OR PCK8 > 0 OR PCK9 > 0 OR PCK10 > 0
                              OR PCK11 > 0 OR PCK12 > 0 OR PCK13 > 0 OR PCK14 > 0 OR PCK15 > 0
@@ -1124,7 +1125,7 @@ namespace KVM_ERP.Controllers
                                    where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
                                          && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
                                          && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                         && tm.TRANDATE <= asOnDate
+                                         && tpc.PRODDATE <= asOnDate
                                    select new {
                                        ProductId = m.MTRLID,
                                        ProductName = m.MTRLDESC,
@@ -1251,7 +1252,7 @@ namespace KVM_ERP.Controllers
                                   join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
                                   where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
                                         && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                        && tm.TRANDATE <= asOnDate
+                                        && tpc.PRODDATE <= asOnDate
                                         && tpc.BKN > 0
                                   select tpc.BKN).ToList();
                     
@@ -1277,7 +1278,7 @@ namespace KVM_ERP.Controllers
                                      join tm in db.TransactionMasters on td.TRANMID equals tm.TRANMID
                                      where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
                                            && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                           && tm.TRANDATE <= asOnDate
+                                           && tpc.PRODDATE <= asOnDate
                                            && tpc.OTHERS > 0
                                      select tpc.OTHERS).ToList();
                     

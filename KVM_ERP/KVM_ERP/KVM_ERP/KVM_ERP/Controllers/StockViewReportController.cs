@@ -499,6 +499,7 @@ namespace KVM_ERP.Controllers
                 try
                 {
                     // Common query for BKN and OTHERS with date and status filters
+                    // NOTE: Use PRODDATE from TransactionProductCalculations as the effective production date
                     var baseCalcQuery = from tpc in db.TransactionProductCalculations
                                         join td in db.TransactionDetails on tpc.TRANDID equals td.TRANDID
                                         join m in db.MaterialMasters on td.MTRLID equals m.MTRLID
@@ -506,10 +507,10 @@ namespace KVM_ERP.Controllers
                                         where (tpc.DISPSTATUS == 0 || tpc.DISPSTATUS == null)
                                               && (m.DISPSTATUS == 0 || m.DISPSTATUS == null)
                                               && (tm.DISPSTATUS == 0 || tm.DISPSTATUS == null)
-                                              && tm.TRANDATE <= toDate
+                                              && tpc.PRODDATE <= toDate
                                         select new
                                         {
-                                            tm.TRANDATE,
+                                            TRANDATE = tpc.PRODDATE,
                                             tpc.BKN,
                                             tpc.OTHERS
                                         };
