@@ -1114,8 +1114,21 @@
                         // Store all calculations in their respective tab panes
                         response.calculations.forEach(function(calc) {
                             const packingId = calc.PACKMID;
-                            $(`#pane-${packingId}`).data('existing-calculation', calc);
+                            const paneSelector = `#pane-${packingId}`;
+                            const $pane = $(paneSelector);
+                            $pane.data('existing-calculation', calc);
                             console.log('Stored calculation for packing ID:', packingId);
+
+                            // Store per-tab Grade / Colour / Received Type so each tab can have its own values
+                            if (calc.GRADEID) {
+                                $pane.data('grade-id', calc.GRADEID);
+                            }
+                            if (calc.PCLRID) {
+                                $pane.data('colour-id', calc.PCLRID);
+                            }
+                            if (calc.RCVDTID) {
+                                $pane.data('received-type-id', calc.RCVDTID);
+                            }
                             
                             // Set global factory fields from first calculation
                             if (!$('#facAvgWeight').val() && (calc.FACAVGWGT || calc.FACAVGWGT === 0)) {
@@ -1218,18 +1231,18 @@
                                     console.log('✓ Factory Avg Count set:', firstCalc.FACAVGCOUNT);
                                 }
                                 
-                                // Set dropdowns
+                                // Set dropdowns for the FIRST tab only (per-tab values are synced on tab switch)
                                 if (firstCalc.GRADEID) {
                                     $('#gradeId').val(firstCalc.GRADEID);
-                                    console.log('✓ Grade set:', firstCalc.GRADEID);
+                                    console.log('✓ Grade set (initial):', firstCalc.GRADEID);
                                 }
                                 if (firstCalc.PCLRID) {
                                     $('#colourId').val(firstCalc.PCLRID);
-                                    console.log('✓ Colour set:', firstCalc.PCLRID);
+                                    console.log('✓ Colour set (initial):', firstCalc.PCLRID);
                                 }
                                 if (firstCalc.RCVDTID) {
                                     $('#receivedTypeId').val(firstCalc.RCVDTID);
-                                    console.log('✓ Received Type set:', firstCalc.RCVDTID);
+                                    console.log('✓ Received Type set (initial):', firstCalc.RCVDTID);
                                 }
                             }
                         }, 100); // Small delay to ensure modal DOM is ready
@@ -1362,6 +1375,26 @@
             // Check if we already have calculation data stored and populate it
             const tabPane = $(`#pane-${packingId}`);
             const storedCalculation = tabPane.data('existing-calculation');
+
+            // Sync per-tab Grade / Colour / Received Type dropdowns from stored values
+            const tabGradeId = tabPane.data('grade-id');
+            const tabColourId = tabPane.data('colour-id');
+            const tabReceivedTypeId = tabPane.data('received-type-id');
+            if (tabGradeId) {
+                $('#gradeId').val(tabGradeId);
+            } else {
+                $('#gradeId').val('');
+            }
+            if (tabColourId) {
+                $('#colourId').val(tabColourId);
+            } else {
+                $('#colourId').val('');
+            }
+            if (tabReceivedTypeId) {
+                $('#receivedTypeId').val(tabReceivedTypeId);
+            } else {
+                $('#receivedTypeId').val('');
+            }
             
             // Check if fields already exist (already loaded)
             const existingFields = tabPane.find('.pck-field');
@@ -2518,6 +2551,15 @@
                 return;
             }
 
+            // Validate required dropdowns (per-tab Grade / Colour / Received Type)
+            const gradeVal = $('#gradeId').val();
+            const colourVal = $('#colourId').val();
+            const receivedTypeVal = $('#receivedTypeId').val();
+            if (!gradeVal || !colourVal || !receivedTypeVal) {
+                alert('Please select Grade, Production Colour and Received Type before saving this tab.');
+                return;
+            }
+
             // Collect all form data for this tab
                 const formData = {
                 TRANPID: calculationId,
@@ -2530,9 +2572,9 @@
                 WASTEWGT: parseFloat(tabPane.find('.wastage').val()) || 0,
                 PRODDATE: prodDate,  // Add production date
                 CalculationMode: calculationMode,  // Add calculation mode to form data
-                GRADEID: $('#gradeId').val() || null,  // Add Grade dropdown
-                PCLRID: $('#colourId').val() || null,  // Add Production Colour dropdown
-                RCVDTID: $('#receivedTypeId').val() || null,  // Add Received Type dropdown
+                GRADEID: gradeVal || null,  // Add Grade dropdown
+                PCLRID: colourVal || null,  // Add Production Colour dropdown
+                RCVDTID: receivedTypeVal || null,  // Add Received Type dropdown
                 BKN: parseFloat(tabPane.find('.bkn-field').val()) || null,  // Add BKN field
                 OTHERS: parseFloat(tabPane.find('.others-field').val()) || null,  // Add OTHERS field
                 
@@ -2592,6 +2634,16 @@
                             tabPane.attr('data-calculation-id', response.tranpid);
                             console.log('Updated calculation ID:', response.tranpid);
                         }
+
+                        // Update per-tab stored values so future tab switches keep their own Grade/Colour/Received Type
+                        tabPane.data('grade-id', gradeVal);
+                        tabPane.data('colour-id', colourVal);
+                        tabPane.data('received-type-id', receivedTypeVal);
+                        const existingCalc = tabPane.data('existing-calculation') || {};
+                        existingCalc.GRADEID = parseInt(gradeVal || 0);
+                        existingCalc.PCLRID = parseInt(colourVal || 0);
+                        existingCalc.RCVDTID = parseInt(receivedTypeVal || 0);
+                        tabPane.data('existing-calculation', existingCalc);
                         
                         // Update the weight column for this product row
                         updateFactoryWeightDisplay(trandid);
@@ -3377,19 +3429,19 @@
                         <div class="row mt-3">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="gradeId" class="control-label"><strong>Grade:</strong></label>
+                                    <label for="gradeId" class="control-label"><strong>Grade <span class="text-danger">*</span> :</strong></label>
                                     @Html.DropDownList("GRADEID", ViewBag.Grades as List<SelectListItem>, new { @class = "form-control", id = "gradeId" })
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="colourId" class="control-label"><strong>Production Colour:</strong></label>
+                                    <label for="colourId" class="control-label"><strong>Production Colour <span class="text-danger">*</span> :</strong></label>
                                     @Html.DropDownList("PCLRID", ViewBag.ProductionColours as List<SelectListItem>, new { @class = "form-control", id = "colourId" })
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="receivedTypeId" class="control-label"><strong>Received Type:</strong></label>
+                                    <label for="receivedTypeId" class="control-label"><strong>Received Type <span class="text-danger">*</span> :</strong></label>
                                     @Html.DropDownList("RCVDTID", ViewBag.ReceivedTypes as List<SelectListItem>, new { @class = "form-control", id = "receivedTypeId" })
                                 </div>
                             </div>
@@ -3397,7 +3449,7 @@
                         <div class="row mt-3">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="prodDate" class="control-label"><strong>Date:</strong></label>
+                                    <label for="prodDate" class="control-label"><strong>Date <span class="text-danger">*</span> :</strong></label>
                                     <input type="date" class="form-control" id="prodDate" name="PRODDATE" />
                                 </div>
                             </div>

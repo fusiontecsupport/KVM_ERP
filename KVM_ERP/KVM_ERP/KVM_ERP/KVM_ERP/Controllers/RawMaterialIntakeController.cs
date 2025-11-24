@@ -889,6 +889,13 @@ namespace KVM_ERP.Controllers
                 // Sanitize PCK values - ensure null values are properly handled
                 SanitizePCKValues(model);
                 
+                // VALIDATION: Grade, Production Colour and Received Type are required for each calculation
+                if (model.GRADEID <= 0 || model.PCLRID <= 0 || model.RCVDTID <= 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Validation failed - GRADEID: {model.GRADEID}, PCLRID: {model.PCLRID}, RCVDTID: {model.RCVDTID}");
+                    return Json(new { success = false, message = "Please select Grade, Production Colour and Received Type for this calculation." });
+                }
+
                 // Check if all PCK values are null
                 var pckValues = new[] { model.PCK1, model.PCK2, model.PCK3, model.PCK4, model.PCK5, model.PCK6, 
                                        model.PCK7, model.PCK8, model.PCK9, model.PCK10, model.PCK11, model.PCK12, 
