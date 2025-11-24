@@ -773,18 +773,6 @@
                             
                             <div class="row mt-2">
                                 <div class="col-md-6">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Net Weight</label>
-                                            <input type="number" class="form-control" id="packingTypeNetWeight" step="0.01" readonly>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Per Kg Rate</label>
-                                            <input type="number" class="form-control" id="packingTypePerKgRate" step="0.01" readonly>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
                                     <label class="form-label">Total Value (In INR)</label>
                                     <input type="number" class="form-control" id="packingTypeTotalValueForDollar" step="0.01" readonly>
                                 </div>
@@ -822,6 +810,16 @@
                                 <div class="col-md-4">
                                     <label class="form-label">On Account</label>
                                     <input type="number" class="form-control" id="packingTypeIncentiveTotal" step="0.01" readonly>
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Net Weight</label>
+                                    <input type="number" class="form-control" id="packingTypeNetWeight" step="0.01" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Per Kg Rate</label>
+                                    <input type="number" class="form-control" id="packingTypePerKgRate" step="0.01" readonly>
                                 </div>
                             </div>
                         </div>
@@ -1799,10 +1797,12 @@
         function calculatePerKgRate(type) {
             var packingExpense = parseFloat($('#' + type + 'PackingExpense').val()) || 0;
             var incentivePercent = parseFloat($('#' + type + 'IncentivePercent').val()) || 0;
+            var incentiveValue = 0;
+            var incentiveTotal = 0;
 
             if (incentivePercent > 0 && packingExpense > 0) {
-                var incentiveValue = packingExpense * incentivePercent / 100.0;
-                var incentiveTotal = packingExpense + incentiveValue;
+                incentiveValue = packingExpense * incentivePercent / 100.0;
+                incentiveTotal = packingExpense + incentiveValue;
 
                 $('#' + type + 'IncentiveValue').val(incentiveValue.toFixed(2));
                 $('#' + type + 'IncentiveTotal').val(incentiveTotal.toFixed(2));
@@ -1814,12 +1814,24 @@
             } else {
                 // No incentive: reset values and set On Account equal to Packing Expense
                 $('#' + type + 'IncentiveValue').val('0.00');
+                incentiveTotal = packingExpense;
                 $('#' + type + 'IncentiveTotal').val(packingExpense.toFixed(2));
 
                 // Reset the invoice-level summary when there is no incentive
                 if (type === 'packingType') {
                     $('#incentiveSummaryAmount').text('₹ 0.00');
                 }
+            }
+
+            // After On Account is set, recalculate Per Kg Rate based on On Account / Net Weight
+            var netWeight = parseFloat($('#' + type + 'NetWeight').val()) || 0;
+            var onAccount = parseFloat($('#' + type + 'IncentiveTotal').val()) || 0;
+
+            if (netWeight > 0 && onAccount > 0) {
+                var perKgFromOnAccount = onAccount / netWeight;
+                $('#' + type + 'PerKgRate').val(perKgFromOnAccount.toFixed(2));
+            } else {
+                $('#' + type + 'PerKgRate').val('0.00');
             }
         }
 
