@@ -496,7 +496,11 @@ namespace KVM_ERP.Controllers
                         ISNULL(tpc.FACTORYWGT, 0) as ActualWeight,
                         ISNULL(tpc.WASTEWGT, 0) as WasteWeight,
                         ISNULL(tpc.WASTEPWGT, 0) as WastePWeight,
-                        ISNULL(tpc.TRANPID, 0) as TRANPID
+                        ISNULL(tpc.TRANPID, 0) as TRANPID,
+                        CASE 
+                            WHEN ISNULL(tpc.BKN, 0) <> 0 OR ISNULL(tpc.OTHERS, 0) <> 0 THEN 1 
+                            ELSE 0 
+                        END as HasBknOrOthers
                     FROM TRANSACTIONMASTER tm
                     INNER JOIN TRANSACTIONDETAIL td ON tm.TRANMID = td.TRANMID
                     INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
@@ -575,7 +579,11 @@ namespace KVM_ERP.Controllers
                             WHEN ISNULL(tpc.WASTEWGT, 0) > 0 
                                  AND ABS(ISNULL(td.TRANAQTY, 0) - ISNULL(tpc.WASTEWGT, 0)) < 0.0001 
                             THEN 1 ELSE 0 
-                        END as IsWasteRow
+                        END as IsWasteRow,
+                        CASE 
+                            WHEN ISNULL(tpc.BKN, 0) <> 0 OR ISNULL(tpc.OTHERS, 0) <> 0 THEN 1 
+                            ELSE 0 
+                        END as HasBknOrOthers
                     FROM TRANSACTIONDETAIL td
                     INNER JOIN MATERIALMASTER m ON td.MTRLID = m.MTRLID
                     LEFT JOIN GRADEMASTER g ON td.GRADEID = g.GRADEID
@@ -2597,6 +2605,7 @@ namespace KVM_ERP.Controllers
         public decimal WastePWeight { get; set; }
         public decimal WasteWeight { get; set; }  // WASTEWGT from TRANSACTION_PRODUCT_CALCULATION
         public int TRANPID { get; set; }  // Transaction Product Calculation ID
+        public int HasBknOrOthers { get; set; }
     }
 
     // Model for saving invoice
@@ -2678,6 +2687,7 @@ namespace KVM_ERP.Controllers
         public decimal WasteWeight { get; set; }  // WASTEWGT from TRANSACTION_PRODUCT_CALCULATION
         public decimal IncentiveAmount { get; set; } // TRANDINCAMT (line-level incentive)
         public int IsWasteRow { get; set; }       // 1 if this TRANSACTIONDETAIL row represents a Waste Weight line, otherwise 0
+        public int HasBknOrOthers { get; set; }
     }
 
     // ViewModel for Tax Factor Editing
