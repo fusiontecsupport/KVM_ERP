@@ -2274,8 +2274,24 @@
         function calculateNetAmount(index) {
             var amount = parseFloat($('.amount[data-index="' + index + '"]').val()) || 0;
             var packingAmount = parseFloat($('.packing-amount[data-index="' + index + '"]').val()) || 0;
-            var netAmount = (amount - packingAmount).toFixed(2);
-            $('.net-amount[data-index="' + index + '"]').val(netAmount);
+
+            // Detect BKN / OTHERS / manual rows by data-bkn-others flag on net-weight
+            var isBknOrOthers = false;
+            var netWeightInput = $('.net-weight[data-index="' + index + '"]');
+            if (netWeightInput.length) {
+                var flag = netWeightInput.data('bkn-others');
+                isBknOrOthers = (flag === 1 || flag === "1" || flag === true);
+            }
+
+            // Default: Net Amount mirrors Amount for normal R-button rows
+            var netAmount = amount;
+
+            // For BKN / Others / manual rows only, subtract Packing Amount on the row
+            if (isBknOrOthers) {
+                netAmount = amount - packingAmount;
+            }
+
+            $('.net-amount[data-index="' + index + '"]').val(netAmount.toFixed(2));
             
             // Recalculate totals
             calculateGrossAmount();
@@ -2486,9 +2502,11 @@
             }
             
             var totalTax = hsnGSTTotal + manualCostFactorTotal;
-            var grandTotal = totalNetAmount + totalIncentiveAmount + totalTax;
 
-            // Update Grand Total display (Net Amount + Incentive + Tax)
+            // Business rule: Grand Total is the total of the Net Amount column only
+            var grandTotal = totalNetAmount;
+
+            // Update Grand Total display
             $('#grandTotalDisplay').text('₹ ' + grandTotal.toFixed(2));
             
             // Remove existing otherChargesRow first to prevent duplicates
