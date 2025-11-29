@@ -378,7 +378,8 @@ namespace KVM_ERP.Controllers
                             KgWeight = g.Key.KGWGT,
                             PclrId = g.Key.PCLRID,
                             RcvdtId = g.Key.RCVDTID,
-                            GradeId = g.Key.GRADEID
+                            GradeId = g.Key.GRADEID,
+                            SupplierName = g.Key.SupplierName
                         };
                     })
                     .OrderBy(x => x.PackingId)
@@ -408,6 +409,7 @@ namespace KVM_ERP.Controllers
                                    && x.Calculation.GRADEID == pm.GradeId
                                    && x.Calculation.PCLRID == pm.PclrId
                                    && x.Calculation.RCVDTID == pm.RcvdtId
+                                   && x.SupplierName == pm.SupplierName
                                    && x.TranDate <= previousDate)
                         .Select(x => x.Calculation)
                         .ToList();
@@ -418,6 +420,7 @@ namespace KVM_ERP.Controllers
                                    && x.Calculation.GRADEID == pm.GradeId
                                    && x.Calculation.PCLRID == pm.PclrId
                                    && x.Calculation.RCVDTID == pm.RcvdtId
+                                   && x.SupplierName == pm.SupplierName
                                    && x.TranDate == selectedDate)
                         .Select(x => x.Calculation)
                         .ToList();
