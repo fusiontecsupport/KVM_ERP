@@ -467,10 +467,20 @@ namespace KVM_ERP.Controllers
                         totalDataArray.Add(openingSum + productionSum);
                     }
 
-                    // Calculate totals
+                    // Calculate totals across all slab columns
                     decimal openingTotal = openingDataArray.Sum();
                     decimal productionTotal = productionDataArray.Sum();
                     decimal total = totalDataArray.Sum();
+
+                    // If there are no slabs at all for this product/packing combination,
+                    // skip it. These zero-slab groups typically come from BKN/OTHERS-only
+                    // calculations which are already handled separately as virtual products
+                    // at the bottom of this method.
+                    if (openingTotal == 0 && productionTotal == 0 && total == 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Skipping product group {productGroup.Key.ProductName} (PACKMID {productGroup.Key.PackingMasterId}) because all slab totals are zero.");
+                        continue;
+                    }
 
                     // Create StockViewReportData item
                     var item = new StockViewReportData

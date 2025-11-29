@@ -353,7 +353,32 @@ namespace KVM_ERP.Controllers
                                            GradeDesc = grade != null ? grade.GRADEDESC : null
                                        }).ToList();
 
-                System.Diagnostics.Debug.WriteLine($"Loaded {allCalculations.Count} total calculation records for supplier {supplierId}");
+                System.Diagnostics.Debug.WriteLine($"Loaded {allCalculations.Count} total calculation records for supplier {supplierId} (including BKN/OTHERS)");
+
+                // Exclude records that have no slab values (all PCK1-PCK17 are null or zero) so that
+                // BKN/OTHERS-only rows do not create empty packing master tables under normal products.
+                allCalculations = allCalculations
+                    .Where(x =>
+                        x.Calculation.PCK1 > 0 ||
+                        x.Calculation.PCK2 > 0 ||
+                        x.Calculation.PCK3 > 0 ||
+                        x.Calculation.PCK4 > 0 ||
+                        x.Calculation.PCK5 > 0 ||
+                        x.Calculation.PCK6 > 0 ||
+                        x.Calculation.PCK7 > 0 ||
+                        x.Calculation.PCK8 > 0 ||
+                        x.Calculation.PCK9 > 0 ||
+                        x.Calculation.PCK10 > 0 ||
+                        x.Calculation.PCK11 > 0 ||
+                        x.Calculation.PCK12 > 0 ||
+                        x.Calculation.PCK13 > 0 ||
+                        x.Calculation.PCK14 > 0 ||
+                        x.Calculation.PCK15 > 0 ||
+                        x.Calculation.PCK16 > 0 ||
+                        x.Calculation.PCK17 > 0)
+                    .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"After filtering slab records, remaining calculations for supplier {supplierId}: {allCalculations.Count}");
 
                 var packingMasters = allCalculations
                     .GroupBy(x => new
