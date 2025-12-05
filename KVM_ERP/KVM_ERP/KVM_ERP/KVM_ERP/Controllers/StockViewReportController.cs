@@ -218,25 +218,25 @@ namespace KVM_ERP.Controllers
                     worksheet.Range(row, 1, row, totalColumns).Style.Font.Bold = true;
                     row++;
 
-                    // RATE Row
-                    worksheet.Cell(row, 1).Value = "RATE";
-                    for (int col = 2; col <= totalColumns; col++)
-                    {
-                        worksheet.Cell(row, col).Value = 0;
-                    }
-                    worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(248, 215, 218);
-                    row++;
+                    // RATE Row (commented out as per latest requirement)
+                    // worksheet.Cell(row, 1).Value = "RATE";
+                    // for (int col = 2; col <= totalColumns; col++)
+                    // {
+                    //     worksheet.Cell(row, col).Value = 0;
+                    // }
+                    // worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(248, 215, 218);
+                    // row++;
 
-                    // AMOUNT Row
-                    worksheet.Cell(row, 1).Value = "AMOUNT";
-                    for (int col = 2; col <= totalColumns; col++)
-                    {
-                        worksheet.Cell(row, col).Value = 0;
-                    }
-                    worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(209, 236, 241);
-                    row++;
-                    
-                    // Add blank row after AMOUNT
+                    // AMOUNT Row (commented out as per latest requirement)
+                    // worksheet.Cell(row, 1).Value = "AMOUNT";
+                    // for (int col = 2; col <= totalColumns; col++)
+                    // {
+                    //     worksheet.Cell(row, col).Value = 0;
+                    // }
+                    // worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(209, 236, 241);
+                    // row++;
+
+                    // Add blank row after TOTAL for spacing
                     row++;
 
                     itemNumber++;
@@ -342,25 +342,25 @@ namespace KVM_ERP.Controllers
                 worksheet.Range(row, 1, row, totalColumns).Style.Font.Bold = true;
                 row++;
 
-                // RATE Row (all zeros) - Dynamic
-                worksheet.Cell(row, 1).Value = "RATE";
-                for (int col = 2; col <= totalColumns; col++)
-                {
-                    worksheet.Cell(row, col).Value = 0;
-                }
-                worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(248, 215, 218); // Light Red
-                row++;
+                // RATE Row (commented out as per latest requirement)
+                // worksheet.Cell(row, 1).Value = "RATE";
+                // for (int col = 2; col <= totalColumns; col++)
+                // {
+                //     worksheet.Cell(row, col).Value = 0;
+                // }
+                // worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(248, 215, 218); // Light Red
+                // row++;
 
-                // AMOUNT Row (all zeros) - Dynamic
-                worksheet.Cell(row, 1).Value = "AMOUNT";
-                for (int col = 2; col <= totalColumns; col++)
-                {
-                    worksheet.Cell(row, col).Value = 0;
-                }
-                worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(209, 236, 241); // Light Cyan
-                row++;
-                
-                // Add blank row after AMOUNT for spacing between products
+                // AMOUNT Row (commented out as per latest requirement)
+                // worksheet.Cell(row, 1).Value = "AMOUNT";
+                // for (int col = 2; col <= totalColumns; col++)
+                // {
+                //     worksheet.Cell(row, col).Value = 0;
+                // }
+                // worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(209, 236, 241); // Light Cyan
+                // row++;
+
+                // Add blank row after TOTAL for spacing between products
                 row++;
 
                 itemNumber++;
@@ -485,7 +485,7 @@ namespace KVM_ERP.Controllers
                     // Create StockViewReportData item
                     var item = new StockViewReportData
                     {
-                        ProductName = $"{productGroup.Key.ProductName} 6 x {productGroup.Key.KGWGT:F1}" +
+                        ProductName = $"{productGroup.Key.ProductName} 6 x {productGroup.Key.KGWGT}" +
                                      (!string.IsNullOrEmpty(productGroup.Key.GradeName) ? $" - {productGroup.Key.GradeName}" : "") +
                                      (!string.IsNullOrEmpty(productGroup.Key.ColorName) ? $" - {productGroup.Key.ColorName}" : "") +
                                      (!string.IsNullOrEmpty(productGroup.Key.ReceivedTypeName) ? $" - {productGroup.Key.ReceivedTypeName}" : ""),

@@ -235,7 +235,7 @@
             <div class="row">
                 <div class="col-md-3">
                     <label class="form-label">From Date:</label>
-                    <input type="date" id="fromDate" class="form-control" value="@DateTime.Now.AddDays(-30).ToString("yyyy-MM-dd")" />
+                    <input type="date" id="fromDate" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">To Date:</label>
@@ -405,23 +405,23 @@
                         }
                         totalRow += `<td>${item.TotalSlabs || 0}</td></tr>`;
                         tbody.append(totalRow);
-
-                        // RATE Row (all zeros) - Dynamic columns
-                        let rateRow = '<tr class="rate"><td class="particulars-cell">RATE</td>';
-                        for (let i = 0; i < colCount; i++) {
-                            rateRow += '<td>0</td>';
-                        }
-                        rateRow += '<td>0</td></tr>';
-                        tbody.append(rateRow);
-
-                        // AMOUNT Row (all zeros) - Dynamic columns
-                        let amountRow = '<tr class="amount"><td class="particulars-cell">AMOUNT</td>';
-                        for (let i = 0; i < colCount; i++) {
-                            amountRow += '<td>0</td>';
-                        }
-                        amountRow += '<td>0</td></tr>';
-                        tbody.append(amountRow);
                         
+                        // RATE Row (all zeros) - Dynamic columns (commented out as per latest requirement)
+                        // let rateRow = '<tr class="rate"><td class="particulars-cell">RATE</td>';
+                        // for (let i = 0; i < colCount; i++) {
+                        //     rateRow += '<td>0</td>';
+                        // }
+                        // rateRow += '<td>0</td></tr>';
+                        // tbody.append(rateRow);
+
+                        // AMOUNT Row (all zeros) - Dynamic columns (commented out as per latest requirement)
+                        // let amountRow = '<tr class="amount"><td class="particulars-cell">AMOUNT</td>';
+                        // for (let i = 0; i < colCount; i++) {
+                        //     amountRow += '<td>0</td>';
+                        // }
+                        // amountRow += '<td>0</td></tr>';
+                        // tbody.append(amountRow);
+
                         // Add blank row for spacing between products
                         tbody.append('<tr class="spacing-row"><td colspan="' + (colCount + 2) + '" style="height: 15px; background: transparent; border: none;"></td></tr>');
                     });
