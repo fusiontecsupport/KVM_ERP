@@ -31,6 +31,7 @@ BEGIN
         ISNULL(grade.GRADEDESC, '') AS GradeName,
         ISNULL(color.PCLRDESC, '') AS ColorName,
         ISNULL(rcvdType.RCVDTDESC, '') AS ReceivedTypeName,
+        ISNULL(tm.CATENAME, '') AS SupplierName,
         
         -- PCK columns
         tpc.PCK1, tpc.PCK2, tpc.PCK3, tpc.PCK4, tpc.PCK5, 

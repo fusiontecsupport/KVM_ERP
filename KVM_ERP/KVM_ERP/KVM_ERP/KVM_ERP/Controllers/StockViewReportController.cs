@@ -398,9 +398,9 @@ namespace KVM_ERP.Controllers
 
                 System.Diagnostics.Debug.WriteLine($"Stored procedure returned {allData.Count} records");
 
-                // Group by packing master and product
+                // Group by packing master, product and supplier so that each supplier gets its own row
                 var groupedByPackingAndProduct = allData
-                    .GroupBy(x => new { x.PackingMasterId, x.PackingMasterName, x.ProductId, x.ProductName, x.KGWGT, x.GradeName, x.ColorName, x.ReceivedTypeName })
+                    .GroupBy(x => new { x.PackingMasterId, x.PackingMasterName, x.ProductId, x.ProductName, x.KGWGT, x.GradeName, x.ColorName, x.ReceivedTypeName, x.SupplierName })
                     .ToList();
 
                 System.Diagnostics.Debug.WriteLine($"Grouped into {groupedByPackingAndProduct.Count} unique products");
@@ -488,7 +488,8 @@ namespace KVM_ERP.Controllers
                         ProductName = $"{productGroup.Key.ProductName} 6 x {productGroup.Key.KGWGT}" +
                                      (!string.IsNullOrEmpty(productGroup.Key.GradeName) ? $" - {productGroup.Key.GradeName}" : "") +
                                      (!string.IsNullOrEmpty(productGroup.Key.ColorName) ? $" - {productGroup.Key.ColorName}" : "") +
-                                     (!string.IsNullOrEmpty(productGroup.Key.ReceivedTypeName) ? $" - {productGroup.Key.ReceivedTypeName}" : ""),
+                                     (!string.IsNullOrEmpty(productGroup.Key.ReceivedTypeName) ? $" - {productGroup.Key.ReceivedTypeName}" : "") +
+                                     (!string.IsNullOrEmpty(productGroup.Key.SupplierName) ? $" - {productGroup.Key.SupplierName}" : ""),
                         ReceivedType = string.IsNullOrWhiteSpace(productGroup.Key.PackingMasterName) ? "Unknown" : productGroup.Key.PackingMasterName,
                         PackingMasterId = productGroup.Key.PackingMasterId,
                         
@@ -642,6 +643,7 @@ namespace KVM_ERP.Controllers
         public string GradeName { get; set; }
         public string ColorName { get; set; }
         public string ReceivedTypeName { get; set; }
+        public string SupplierName { get; set; }
         
         // PCK columns
         public decimal PCK1 { get; set; }
