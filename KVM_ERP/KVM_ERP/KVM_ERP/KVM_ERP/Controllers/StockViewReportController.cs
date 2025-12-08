@@ -173,6 +173,11 @@ namespace KVM_ERP.Controllers
 
                 // Add data rows for this group
                 int itemNumber = 1;
+
+                // Track overall totals across all products in this packing type group (per slab and total slabs)
+                var groupOverallTotalData = new decimal[columnHeaders.Count];
+                decimal groupOverallTotalSlabs = 0;
+
                 foreach (var item in groupData)
                 {
                     var openingData = item.OpeningData ?? new List<decimal>();
@@ -193,7 +198,6 @@ namespace KVM_ERP.Controllers
                         worksheet.Cell(row, i + 2).Value = openingData[i];
                     }
                     worksheet.Cell(row, totalColumns).Value = item.OpeningTotalSlabs;
-                    worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(227, 242, 253);
                     row++;
 
                     // PRODUCTION Row (data from fromDate to toDate)
@@ -203,20 +207,24 @@ namespace KVM_ERP.Controllers
                         worksheet.Cell(row, i + 2).Value = productionData[i];
                     }
                     worksheet.Cell(row, totalColumns).Value = item.ProductionTotalSlabs;
-                    worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(173, 216, 230);
-                    worksheet.Range(row, 1, row, totalColumns).Style.Font.FontColor = XLColor.Blue;
                     row++;
 
-                    // TOTAL Row
+                    // TOTAL Row (Opening + Production) for this product
                     worksheet.Cell(row, 1).Value = "TOTAL";
                     for (int i = 0; i < totalData.Count; i++)
                     {
                         worksheet.Cell(row, i + 2).Value = totalData[i];
                     }
                     worksheet.Cell(row, totalColumns).Value = item.TotalSlabs;
-                    worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(212, 237, 218);
                     worksheet.Range(row, 1, row, totalColumns).Style.Font.Bold = true;
                     row++;
+
+                    // Accumulate overall totals for this packing type group
+                    for (int i = 0; i < totalData.Count && i < groupOverallTotalData.Length; i++)
+                    {
+                        groupOverallTotalData[i] += totalData[i];
+                    }
+                    groupOverallTotalSlabs += item.TotalSlabs;
 
                     // RATE Row (commented out as per latest requirement)
                     // worksheet.Cell(row, 1).Value = "RATE";
@@ -241,6 +249,17 @@ namespace KVM_ERP.Controllers
 
                     itemNumber++;
                 }
+
+                // Add OVERALL TOTAL row for this packing type group (sum of all products in the group)
+                worksheet.Cell(row, 1).Value = "OVERALL TOTAL";
+                for (int i = 0; i < groupOverallTotalData.Length; i++)
+                {
+                    worksheet.Cell(row, i + 2).Value = groupOverallTotalData[i];
+                }
+                worksheet.Cell(row, totalColumns).Value = groupOverallTotalSlabs;
+                worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(212, 237, 218);
+                worksheet.Range(row, 1, row, totalColumns).Style.Font.Bold = true;
+                row++;
 
                 // Add spacing between groups
                 row += 2;
@@ -297,6 +316,11 @@ namespace KVM_ERP.Controllers
             // Add data rows
             row++;
             int itemNumber = 1;
+
+            // Track overall totals across all products on this sheet (per slab and total slabs)
+            var sheetOverallTotalData = new decimal[columnHeaders.Count];
+            decimal sheetOverallTotalSlabs = 0;
+
             foreach (var item in stockData)
             {
                 var openingData = item.OpeningData ?? new List<decimal>();
@@ -317,7 +341,6 @@ namespace KVM_ERP.Controllers
                     worksheet.Cell(row, i + 2).Value = openingData[i];
                 }
                 worksheet.Cell(row, totalColumns).Value = item.OpeningTotalSlabs;
-                worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(227, 242, 253); // Light Blue
                 row++;
 
                 // PRODUCTION Row (data from fromDate to toDate) - Dynamic
@@ -327,20 +350,24 @@ namespace KVM_ERP.Controllers
                     worksheet.Cell(row, i + 2).Value = productionData[i];
                 }
                 worksheet.Cell(row, totalColumns).Value = item.ProductionTotalSlabs;
-                worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(173, 216, 230); // Blue
-                worksheet.Range(row, 1, row, totalColumns).Style.Font.FontColor = XLColor.Blue;
                 row++;
 
-                // TOTAL Row (Opening + Production) - Dynamic
+                // TOTAL Row (Opening + Production) for this product - Dynamic
                 worksheet.Cell(row, 1).Value = "TOTAL";
                 for (int i = 0; i < totalData.Count; i++)
                 {
                     worksheet.Cell(row, i + 2).Value = totalData[i];
                 }
                 worksheet.Cell(row, totalColumns).Value = item.TotalSlabs;
-                worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(212, 237, 218); // Light Green
                 worksheet.Range(row, 1, row, totalColumns).Style.Font.Bold = true;
                 row++;
+
+                // Accumulate overall totals for this sheet
+                for (int i = 0; i < totalData.Count && i < sheetOverallTotalData.Length; i++)
+                {
+                    sheetOverallTotalData[i] += totalData[i];
+                }
+                sheetOverallTotalSlabs += item.TotalSlabs;
 
                 // RATE Row (commented out as per latest requirement)
                 // worksheet.Cell(row, 1).Value = "RATE";
@@ -365,6 +392,17 @@ namespace KVM_ERP.Controllers
 
                 itemNumber++;
             }
+
+            // Add OVERALL TOTAL row (sum of all products on this sheet)
+            worksheet.Cell(row, 1).Value = "OVERALL TOTAL";
+            for (int i = 0; i < sheetOverallTotalData.Length; i++)
+            {
+                worksheet.Cell(row, i + 2).Value = sheetOverallTotalData[i];
+            }
+            worksheet.Cell(row, totalColumns).Value = sheetOverallTotalSlabs;
+            worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.FromArgb(212, 237, 218); // Light Green
+            worksheet.Range(row, 1, row, totalColumns).Style.Font.Bold = true;
+            row++;
 
             // Add borders to all data cells
             worksheet.Range(2, 1, row - 1, totalColumns).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
