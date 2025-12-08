@@ -2347,7 +2347,7 @@
                 // Slab Calculation: show Slab and Yield Percent, hide other slab calculation fields
                 $('#slab-field').show();
                 $('.slab-field').hide();
-                $('#yield-percent-field').show();
+                $('.yield-percent-field').show();
                 $('#total-yield-counts-field').hide();
                 $('#avg-pack-value-field').hide();
                 $('#pounds-value-field').hide();
@@ -2360,7 +2360,7 @@
                 $('#pack-kg-weight-field').show();
                 $('#waste-weight-field').show();
                 $('#factory-weight-field').show();
-                $('.weight-field').not('#per-kg-weight-field, #pack-kg-weight-field, #waste-weight-field, #factory-weight-field, #yield-percent-field').hide();
+                $('.weight-field').not('#per-kg-weight-field, #pack-kg-weight-field, #waste-weight-field, #factory-weight-field').hide();
                 
             } else {
                 // Packing mode: Show all fields
@@ -3607,7 +3607,7 @@
                                                                 <strong class="total-pounds calculation-result">0.000</strong>
                                                             </div>
                                                         </div>
-                                                        <div class="form-group slab-field" id="yield-percent-field">
+                                                        <div class="form-group slab-field yield-percent-field" id="yield-percent-field">
                                                             <label for="yieldPercent_@packing.Value">Yield Percent (%):</label>
                                                             <input type="number" class="form-control yield-percent" id="yieldPercent_@packing.Value" step="0.001" min="0" max="100">
                                                         </div>
