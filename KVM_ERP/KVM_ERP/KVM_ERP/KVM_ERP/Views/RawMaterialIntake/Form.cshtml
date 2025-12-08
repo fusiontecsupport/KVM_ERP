@@ -832,7 +832,7 @@
                 var $ptd = $('<td></td>');
                 var $box = $('<td></td>').append('<input type="number" min="0" class="form-control nbox" placeholder="0" />');
                 var $cnt = $('<td></td>').append('<input type="number" min="0" class="form-control counts" placeholder="0" />');
-                var $weight = $('<td class="text-center align-middle"></td>').append('<span class="factory-weight-display text-muted">-</span>');
+                var $weight = $('<td class="text-center align-middle"></td>').append('<span class="factory-weight-display text-muted">-</span><br/><span class="balance-stock-display text-danger"></span>');
                 var $act = $('<td class="text-center"></td>');
                 var $del = $('<button type="button" class="btn btn-danger btn-sm removeRow"><i class="fa fa-trash"></i></button>');
                 
@@ -914,6 +914,31 @@
                 setTimeout(function() {
                     loadAllFactoryWeights();
                 }, 1000);
+
+                // In edit mode, also preload production calculations and update per-row Balance Stock
+                @if (Model.TRANMID > 0)
+                {
+                    <text>
+                setTimeout(function() {
+                    var clientWeight = parseFloat($('#CLIENTWGHT').val()) || 0;
+                    if (clientWeight > 0) {
+                        // Load all calculations once and update Balance Stock spans without opening the modal
+                        loadAllCalculationsForProduction(function() {
+                            try {
+                                // Reuse populateProductionTableWithData to compute running balances,
+                                // but only update the main grid Balance Stock spans and clear the modal table
+                                $('#productionTableBody').empty();
+                                populateProductionTableWithData(clientWeight, window.productionCalculations || {});
+                                // After updating, clear the modal table so it stays empty until user opens it
+                                $('#productionTableBody').empty();
+                            } catch (e) {
+                                console.log('Error preloading balance stock on form load:', e);
+                            }
+                        });
+                    }
+                }, 1500);
+                    </text>
+                }
             }
             
 
@@ -2873,7 +2898,6 @@
                     $tr.append('<td class="text-center">' + rowIndex + '</td>');
                     $tr.append('<td>' + productType + '</td>');
                     $tr.append('<td>' + product + '</td>');
-                    $tr.append('<td class="text-right">' + clientWeight.toFixed(3) + '</td>');
                     $tr.append('<td class="text-right">' + productionQty.toFixed(3) + '</td>');
                     $tr.append('<td class="text-right">' + balanceStock.toFixed(3) + '</td>');
                     $tr.append('<td class="text-center">' + (latestDate || 'N/A') + '</td>');
@@ -2888,86 +2912,36 @@
                 // If no rows, show message
                 if (rowIndex === 1) {
                     console.log('No transaction details found - showing empty message');
-                    var $emptyRow = $('<tr><td colspan="7" class="text-center text-muted">No transaction details available</td></tr>');
+                    var $emptyRow = $('<tr><td colspan="6" class="text-center text-muted">No transaction details available</td></tr>');
                     $tbody.append($emptyRow);
                 }
                 
                 console.log('Production table populated with', (rowIndex - 1), 'rows');
             } catch (error) {
                 console.error('Error populating production table:', error);
-                var $errorRow = $('<tr><td colspan="7" class="text-center text-danger">Error loading production data: ' + error.message + '</td></tr>');
+                var $errorRow = $('<tr><td colspan="6" class="text-center text-danger">Error loading production data: ' + error.message + '</td></tr>');
                 $tbody.append($errorRow);
             }
         }
 
         function loadProductionDataAndShow(clientWeight) {
-            console.log('Loading production data with AJAX for consistent display...');
-            
-            // Show modal first with loading message
+            console.log('Loading production data for Production modal...');
+
+            // Always show the modal
             $('#productionModal').modal('show');
-            $('#productionTableBody').html('<tr><td colspan="7" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading production data...</td></tr>');
-            
-            // Get all transaction detail rows
-            var trandIds = [];
-            var rowCount = 0;
-            $('#detailsTable tbody tr').each(function() {
-                rowCount++;
-                var trandid = $(this).data('trandid') || 0;
-                console.log('Row', rowCount, '- TRANDID:', trandid);
-                if (trandid > 0) {
-                    trandIds.push(trandid);
-                }
-            });
-            
-            console.log('Total detail rows:', rowCount);
-            console.log('Found TRANDIDs:', trandIds);
-            
-            if (trandIds.length === 0) {
-                $('#productionTableBody').html('<tr><td colspan="7" class="text-center text-muted">No transaction details available</td></tr>');
+
+            // If calculations are already loaded globally, reuse them directly
+            if (window.productionCalculations && Object.keys(window.productionCalculations).length > 0) {
+                console.log('Using preloaded productionCalculations for modal');
+                populateProductionTableWithData(clientWeight, window.productionCalculations);
                 return;
             }
-            
-            // Load calculations for each TRANDID
-            var allCalculations = {};
-            var loadPromises = [];
-            
-            trandIds.forEach(function(trandid) {
-                console.log('Loading calculations for TRANDID:', trandid);
-                // Load calculations for all packing masters for this TRANDID
-                @foreach (var packing in ViewBag.PackingMasters)
-                {
-                    <text>
-                    console.log('Creating AJAX request for TRANDID', trandid, 'PackingID', @packing.Value);
-                    var promise = $.ajax({
-                        url: '@Url.Action("GetProductCalculation", "RawMaterialIntake")',
-                        type: 'GET',
-                        data: { trandid: trandid, packingId: @packing.Value },
-                        dataType: 'json'
-                    }).done(function(data) {
-                        console.log('AJAX done for TRANDID', trandid, 'PackingID', @packing.Value, 'Response:', data);
-                        if (data && data.success && data.calculation) {
-                            var key = trandid + '_' + @packing.Value;
-                            allCalculations[key] = data.calculation;
-                            console.log('✓ Loaded calculation for TRANDID', trandid, 'PackingID', @packing.Value, 'FACTORYWGT:', data.calculation.FACTORYWGT);
-                        } else {
-                            console.log('✗ No calculation data in response for TRANDID', trandid, 'PackingID', @packing.Value);
-                        }
-                    }).fail(function(xhr, status, error) {
-                        console.log('✗ AJAX failed for TRANDID', trandid, 'PackingID', @packing.Value, 'Status:', status, 'Error:', error);
-                    });
-                    loadPromises.push(promise);
-                    </text>
-                }
-            });
-            
-            console.log('Total AJAX promises created:', loadPromises.length);
-            
-            // Wait for all AJAX calls to complete
-            $.when.apply($, loadPromises).always(function() {
-                console.log('All AJAX calls completed');
-                console.log('Total calculations loaded:', Object.keys(allCalculations).length);
-                console.log('All calculations:', allCalculations);
-                populateProductionTableWithData(clientWeight, allCalculations);
+
+            // Otherwise load calculations once and store them globally
+            $('#productionTableBody').empty();
+            loadAllCalculationsForProduction(function() {
+                console.log('Calculations loaded on-demand for modal');
+                populateProductionTableWithData(clientWeight, window.productionCalculations || {});
             });
         }
 
@@ -3027,13 +3001,18 @@
                 var dateDisplay = latestDate ? latestDate.toLocaleDateString() : 'N/A';
                 
                 console.log('Row', rowIndex, '- TRANDID:', trandid, 'Running Balance:', runningBalanceStock.toFixed(3), 'Production Qty:', productionQty.toFixed(3), 'New Balance Stock:', balanceStock.toFixed(3), 'Date:', dateDisplay);
+
+                // Update Balance Stock display in the main Intake Details table row
+                var $balanceSpan = $row.find('.balance-stock-display');
+                if ($balanceSpan.length > 0 && !isNaN(balanceStock)) {
+                    $balanceSpan.text('Balance Stock: ' + balanceStock.toFixed(3) + ' KG');
+                }
                 
                 // Create table row
                 var $tr = $('<tr></tr>');
                 $tr.append('<td class="text-center">' + rowIndex + '</td>');
                 $tr.append('<td>' + productType + '</td>');
                 $tr.append('<td>' + product + '</td>');
-                $tr.append('<td class="text-right">' + clientWeight.toFixed(3) + '</td>');
                 $tr.append('<td class="text-right">' + productionQty.toFixed(3) + '</td>');
                 $tr.append('<td class="text-right">' + balanceStock.toFixed(3) + '</td>');
                 $tr.append('<td class="text-center">' + dateDisplay + '</td>');
@@ -3047,7 +3026,7 @@
             
             // If no rows, show message
             if (rowIndex === 1) {
-                var $emptyRow = $('<tr><td colspan="7" class="text-center text-muted">No transaction details available</td></tr>');
+                var $emptyRow = $('<tr><td colspan="6" class="text-center text-muted">No transaction details available</td></tr>');
                 $tbody.append($emptyRow);
             }
             
@@ -3742,7 +3721,6 @@
                                         <th>S.No</th>
                                         <th>Product Type</th>
                                         <th>Product</th>
-                                        <th>Client Weight (KG)</th>
                                         <th>Production Quantity (KG)</th>
                                         <th>Balance Stock (KG)</th>
                                         <th>Date</th>
