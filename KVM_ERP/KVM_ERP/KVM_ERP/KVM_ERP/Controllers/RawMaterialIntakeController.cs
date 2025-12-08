@@ -1001,21 +1001,49 @@ namespace KVM_ERP.Controllers
             
             if (isGradeWeightMode)
             {
-                // Grade Weight mode: Only calculate Slab (TOPCK) and Factory Weight (Slab + Peeled)
-                // TOPCK is already calculated above (Slab value)
-                
-                // Factory Weight = Slab + Peeled (TOPCK + WASTEWGT)
-                model.FACTORYWGT = model.TOPCK + model.WASTEWGT;
-                
-                // Clear other calculated fields for Grade Weight mode
+                // Grade Weight mode: Slab (TOPCK), Peeled (WASTEWGT),
+                // Packing Weight with Glazing (KGWGT), Pack KG Weight (PCKKGWGT),
+                // Peeled + Weight (WASTEPWGT) and Factory Weight.
+
+                // Clear count-based calculation fields not used in Grade Weight mode
                 model.PCKLVALUE = 0;
                 model.AVGPCKVALUE = 0;
                 model.TOTALPNDS = 0;
                 model.TOTALYELDCOUNTS = 0;
+
+                // Default values
                 model.PCKKGWGT = 0;
-                model.WASTEPWGT = 0;
-                
-                System.Diagnostics.Debug.WriteLine($"Grade Weight calculation: Slab={model.TOPCK}, Peeled={model.WASTEWGT}, Factory Weight={model.FACTORYWGT}");
+                model.WASTEPWGT = model.WASTEWGT; // start with just Peeled
+
+                // When packing weight with glazing and slab (TOPCK) are provided,
+                // calculate Pack KG Weight and Peeled + Weight
+                if (model.KGWGT > 0 && model.TOPCK > 0)
+                {
+                    model.PCKKGWGT = model.KGWGT * model.TOPCK;            // Pack KG Weight
+                    model.WASTEPWGT = model.PCKKGWGT + model.WASTEWGT;     // Peeled + Weight
+                }
+
+                // Factory Weight calculation:
+                // - If both packing weight with glazing and yield percent are provided,
+                //   use Factory Weight = (Peeled + Weight) / (Yield% / 100)
+                // - Otherwise, fall back to simple Slab + Peeled (TOPCK + WASTEWGT)
+                if (model.KGWGT > 0 && model.YELDPERCENT > 0 && model.TOPCK > 0)
+                {
+                    if (model.PCKKGWGT == 0)
+                    {
+                        model.PCKKGWGT = model.KGWGT * model.TOPCK;
+                        model.WASTEPWGT = model.PCKKGWGT + model.WASTEWGT;
+                    }
+
+                    model.FACTORYWGT = model.WASTEPWGT / (model.YELDPERCENT / 100);
+                }
+                else
+                {
+                    // Backward-compatible behaviour when new fields are not used
+                    model.FACTORYWGT = model.TOPCK + model.WASTEWGT;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Grade Weight calculation: Slab={model.TOPCK}, Peeled={model.WASTEWGT}, KGWGT={model.KGWGT}, YELD%={model.YELDPERCENT}, PCKKGWGT={model.PCKKGWGT}, WASTEPWGT={model.WASTEPWGT}, Factory Weight={model.FACTORYWGT}");
             }
             else if (model.TOPCK > 0)
             {

@@ -1701,34 +1701,9 @@
                 }
             }
             
-            // Show/hide fields based on mode
-            if (mode === 'gradeweight') {
-                // Grade Weight mode: Show Packing Type Details + Slab + Peeled + Factory Weight
-                console.log('Switching to Grade Weight mode - showing limited fields');
-                
-                // Always show Packing Type Details
-                $('.packing-fields-container').show();
-                
-                // Show only Slab field from Slab Calculation
-                $('#slab-field').show();
-                $('.slab-field').hide(); // Hide other slab calculation fields
-                
-                // Show Peeled and Factory Weight fields from Total Weight Calculation
-                $('#peeled-field').show();
-                $('#factory-weight-field').show(); // Show Factory Weight in Grade Weight mode
-                $('.weight-field').not('#factory-weight-field').hide(); // Hide other weight calculation fields except Factory Weight
-                
-            } else {
-                // Packing mode: Show all fields
-                console.log('Switching to Packing mode - showing all fields');
-                
-                // Show all fields
-                $('.packing-fields-container').show();
-                $('#slab-field').show();
-                $('.slab-field').show();
-                $('#peeled-field').show();
-                $('.weight-field').show();
-            }
+            // Show/hide fields based on mode using shared layout function
+            console.log('Applying layout for mode from change handler:', mode);
+            applyModeLayout(mode);
             
             // Recalculate current tab
             if (activeTab.length > 0) {
@@ -2363,20 +2338,29 @@
             console.log('Applying mode layout:', mode);
             
             if (mode === 'gradeweight') {
-                // Grade Weight mode: Show Packing Type Details + Slab + Peeled + Factory Weight
+                // Grade Weight mode: Show Packing Type Details + Slab + Peeled + key weight fields
                 console.log('Applying Grade Weight mode layout');
                 
                 // Always show Packing Type Details
                 $('.packing-fields-container').show();
                 
-                // Show only Slab field from Slab Calculation
+                // Slab Calculation: show Slab and Yield Percent, hide other slab calculation fields
                 $('#slab-field').show();
-                $('.slab-field').hide(); // Hide other slab calculation fields
+                $('.slab-field').hide();
+                $('#yield-percent-field').show();
+                $('#total-yield-counts-field').hide();
+                $('#avg-pack-value-field').hide();
+                $('#pounds-value-field').hide();
+                $('#total-pounds-field').hide();
                 
-                // Show Peeled and Factory Weight fields from Total Weight Calculation
+                // Total Weight Calculation: show Peeled, Packing Weight with Glazing,
+                // Pack KG Weight, Peeled + Weight and Factory Weight
                 $('#peeled-field').show();
-                $('#factory-weight-field').show(); // Show Factory Weight in Grade Weight mode
-                $('.weight-field').not('#factory-weight-field').hide(); // Hide other weight calculation fields except Factory Weight
+                $('#per-kg-weight-field').show();
+                $('#pack-kg-weight-field').show();
+                $('#waste-weight-field').show();
+                $('#factory-weight-field').show();
+                $('.weight-field').not('#per-kg-weight-field, #pack-kg-weight-field, #waste-weight-field, #factory-weight-field, #yield-percent-field').hide();
                 
             } else {
                 // Packing mode: Show all fields
@@ -2416,41 +2400,68 @@
         }
 
         function calculateGradeWeightMode(tabPane) {
-            // Fast calculation for Grade Weight mode - minimal logging
+            // Fast calculation for Grade Weight mode - focus on Factory Weight and key weight fields
             let slabValue = 0;
-            
-            // Optimized PCK field calculation
+
+            // Sum all PCK fields
             tabPane.find('.pck-field').each(function() {
                 const val = parseFloat(this.value) || 0;
                 slabValue += val;
             });
-            
+
             // Add BKN field to slab calculation
             tabPane.find('.bkn-field').each(function() {
                 const val = parseFloat(this.value) || 0;
                 slabValue += val;
             });
-            
+
             // Add OTHERS field to slab calculation
             tabPane.find('.others-field').each(function() {
                 const val = parseFloat(this.value) || 0;
                 slabValue += val;
             });
-            
+
             // Update Slab display immediately
             tabPane.find('.total-counts').text(slabValue.toFixed(3));
-            
+
             // Get Peeled value (wastage field)
             const peeledValue = parseFloat(tabPane.find('.wastage').val()) || 0;
-            
-            // Calculate Factory Weight: Slab + Peeled
-            const factoryWeight = slabValue + peeledValue;
-            
-            // Update Factory Weight display
+
+            // New weight-based inputs
+            const perKgWeight = parseFloat(tabPane.find('.per-kg-weight').val()) || 0; // Packing weight with glazing
+            const yieldPercent = parseFloat(tabPane.find('.yield-percent').val()) || 0;
+
+            const topck = slabValue; // Total packs/counts for this grade
+
+            // Defaults: existing simple calculation (Slab + Peeled)
+            let pckKgWeight = 0;      // Pack KG Weight
+            let wastePWeight = 0;     // Peeled + Weight
+            let factoryWeight = slabValue + peeledValue;
+
+            // If packing weight with glazing is provided, calculate Pack KG Weight and Peeled + Weight
+            if (perKgWeight > 0 && topck > 0) {
+                pckKgWeight = perKgWeight * topck;
+                wastePWeight = pckKgWeight + peeledValue;
+            }
+
+            // If both packing weight with glazing and yield percent are provided,
+            // calculate Factory Weight from these values. Otherwise, keep simple
+            // Slab + Peeled calculation for Factory Weight.
+            if (perKgWeight > 0 && yieldPercent > 0 && topck > 0) {
+                if (wastePWeight === 0) {
+                    pckKgWeight = perKgWeight * topck;
+                    wastePWeight = pckKgWeight + peeledValue;
+                }
+                factoryWeight = wastePWeight / (yieldPercent / 100);
+            }
+
+            // Update weight displays
+            tabPane.find('.pck-kg-weight').text(pckKgWeight.toFixed(3));
+            tabPane.find('.waste-p-weight').text(wastePWeight.toFixed(3));
             tabPane.find('.factory-weight').text(factoryWeight.toFixed(3));
-            
-            // Clear other fields efficiently using a single selector (excluding factory-weight)
-            const fieldsToReset = '.avg-pack-value, .total-pounds, .total-yield-counts, .pck-kg-weight, .waste-p-weight';
+
+            // Clear advanced count-based fields that are not used in Grade Weight mode
+            const fieldsToReset = '.avg-pack-value, .total-pounds, .total-yield-counts';
             tabPane.find(fieldsToReset).text('0.000');
         }
 
@@ -3644,7 +3655,6 @@
                                                         </div>
                                                     </div>
 
-                                                    
                                                     </div>
                                                 </div>
                                             </div>
