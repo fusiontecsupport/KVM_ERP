@@ -808,8 +808,13 @@ namespace KVM_ERP.Controllers
             {
                 System.Diagnostics.Debug.WriteLine($"Batch loading calculations for TRANDID={trandid}");
                 
-                var calculations = db.TransactionProductCalculations
+                // NOTE: We must materialize the query *before* calling ToString on PRODDATE,
+                // otherwise LINQ-to-Entities will throw a translation error.
+                var rawCalculations = db.TransactionProductCalculations
                     .Where(t => t.TRANDID == trandid)
+                    .ToList();
+
+                var calculations = rawCalculations
                     .Select(calculation => new
                     {
                         TRANPID = calculation.TRANPID,
@@ -846,7 +851,10 @@ namespace KVM_ERP.Controllers
                         FACTORYWGT = calculation.FACTORYWGT,
                         FACAVGWGT = calculation.FACAVGWGT,
                         FACAVGCOUNT = calculation.FACAVGCOUNT,
-                        PRODDATE = calculation.PRODDATE,
+                        // IMPORTANT: format PRODDATE as a plain date string to avoid timezone shifts on the client
+                        PRODDATE = calculation.PRODDATE.HasValue
+                            ? calculation.PRODDATE.Value.ToString("yyyy-MM-dd")
+                            : null,
                         CALCULATIONMODE = calculation.CALCULATIONMODE,
                         GRADEID = calculation.GRADEID,
                         PCLRID = calculation.PCLRID,

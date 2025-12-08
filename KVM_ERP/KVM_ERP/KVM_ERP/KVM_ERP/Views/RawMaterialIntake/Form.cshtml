@@ -1056,27 +1056,28 @@
                     console.log('Full response:', data);
                     if (data.success && data.calculation && data.calculation.PRODDATE) {
                         try {
-                            const prodDate = new Date(data.calculation.PRODDATE);
-                            if (!isNaN(prodDate.getTime())) {
-                                const formattedDate = prodDate.toISOString().split('T')[0];
-                                const dateField = $('#prodDate');
+                            // PRODDATE comes from server as yyyy-MM-dd, use as-is to avoid timezone shifts
+                            const rawDate = data.calculation.PRODDATE;
+                            const formattedDate = (typeof rawDate === 'string')
+                                ? rawDate.substring(0, 10)
+                                : '';
+                            const dateField = $('#prodDate');
+                            
+                            console.log('IMMEDIATE DATE SET - Raw:', rawDate);
+                            console.log('IMMEDIATE DATE SET - Formatted:', formattedDate);
+                            
+                            if (dateField.length > 0 && formattedDate) {
+                                // Try multiple methods to set the date
+                                dateField.val(formattedDate);
+                                dateField[0].value = formattedDate; // Direct DOM property
+                                dateField.attr('value', formattedDate); // Attribute method
                                 
-                                console.log('IMMEDIATE DATE SET - Raw:', data.calculation.PRODDATE);
-                                console.log('IMMEDIATE DATE SET - Formatted:', formattedDate);
+                                console.log('IMMEDIATE DATE SET - Success:', dateField.val());
+                                console.log('IMMEDIATE DATE SET - DOM value:', dateField[0].value);
                                 
-                                if (dateField.length > 0) {
-                                    // Try multiple methods to set the date
-                                    dateField.val(formattedDate);
-                                    dateField[0].value = formattedDate; // Direct DOM property
-                                    dateField.attr('value', formattedDate); // Attribute method
-                                    
-                                    console.log('IMMEDIATE DATE SET - Success:', dateField.val());
-                                    console.log('IMMEDIATE DATE SET - DOM value:', dateField[0].value);
-                                    
-                                    // Force trigger change event to ensure it sticks
-                                    dateField.trigger('change');
-                                    dateField.trigger('input');
-                                }
+                                // Force trigger change event to ensure it sticks
+                                dateField.trigger('change');
+                                dateField.trigger('input');
                             }
                         } catch (error) {
                             console.error('IMMEDIATE DATE SET - Error:', error);
@@ -1141,9 +1142,16 @@
                             // Set production date from first calculation with a date
                             if (calc.PRODDATE && !$('#prodDate').val()) {
                                 try {
-                                    const prodDate = new Date(calc.PRODDATE);
-                                    if (!isNaN(prodDate.getTime())) {
-                                        const formattedDate = prodDate.toISOString().split('T')[0];
+                                    let formattedDate = '';
+                                    if (typeof calc.PRODDATE === 'string') {
+                                        formattedDate = calc.PRODDATE.substring(0, 10);
+                                    } else {
+                                        const prodDate = new Date(calc.PRODDATE);
+                                        if (!isNaN(prodDate.getTime())) {
+                                            formattedDate = prodDate.toISOString().split('T')[0];
+                                        }
+                                    }
+                                    if (formattedDate) {
                                         $('#prodDate').val(formattedDate);
                                         console.log('Set date from calculation:', formattedDate);
                                     }
@@ -1486,18 +1494,23 @@
                     
                     if (storedCalculation && storedCalculation.PRODDATE) {
                         try {
-                            const prodDate = new Date(storedCalculation.PRODDATE);
-                            if (!isNaN(prodDate.getTime())) {
-                                const formattedDate = prodDate.toISOString().split('T')[0];
-                                const dateField = $('#prodDate');
-                                
-                                console.log('Modal shown - setting date field:', formattedDate);
-                                console.log('Date field exists:', dateField.length > 0);
-                                
-                                if (dateField.length > 0) {
-                                    dateField.val(formattedDate);
-                                    console.log('Modal shown - date field value after setting:', dateField.val());
+                            let formattedDate = '';
+                            if (typeof storedCalculation.PRODDATE === 'string') {
+                                formattedDate = storedCalculation.PRODDATE.substring(0, 10);
+                            } else {
+                                const prodDate = new Date(storedCalculation.PRODDATE);
+                                if (!isNaN(prodDate.getTime())) {
+                                    formattedDate = prodDate.toISOString().split('T')[0];
                                 }
+                            }
+                            const dateField = $('#prodDate');
+                            
+                            console.log('Modal shown - setting date field:', formattedDate);
+                            console.log('Date field exists:', dateField.length > 0);
+                            
+                            if (dateField.length > 0 && formattedDate) {
+                                dateField.val(formattedDate);
+                                console.log('Modal shown - date field value after setting:', dateField.val());
                             }
                         } catch (error) {
                             console.error('Modal shown - error setting date:', error);

@@ -354,7 +354,7 @@ namespace KVM_ERP.Controllers
                         
                         // Add KGWGT if present
                         if (g.Key.KGWGT > 0)
-                            displayName += " 6 x " + g.Key.KGWGT.ToString("0.#");
+                            displayName += " 6 x " + g.Key.KGWGT.ToString("0.##");
                         
                         // Add Grade if present
                         if (!string.IsNullOrEmpty(g.Key.GradeDesc))
@@ -654,7 +654,7 @@ namespace KVM_ERP.Controllers
                         string displayName = g.Key.PackingType;
                         
                         if (g.Key.KGWGT > 0)
-                            displayName += " 6 x " + g.Key.KGWGT.ToString("0.#");
+                            displayName += " 6 x " + g.Key.KGWGT.ToString("0.##");
                         
                         if (!string.IsNullOrEmpty(g.Key.ProductName))
                             displayName += " - " + g.Key.ProductName;
@@ -838,7 +838,7 @@ namespace KVM_ERP.Controllers
                         string displayName = g.Key.PackingType;
                         
                         if (g.Key.KGWGT > 0)
-                            displayName += " 6 x " + g.Key.KGWGT.ToString("0.#");
+                            displayName += " 6 x " + g.Key.KGWGT.ToString("0.##");
                         
                         if (!string.IsNullOrEmpty(g.Key.ProductName))
                             displayName += " - " + g.Key.ProductName;
